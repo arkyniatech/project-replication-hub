@@ -1,0 +1,19 @@
+O script easypanel-setup.sh foi criado com sucesso no diretório raiz do projeto (/home/user/DJOB/locacaoERP). Ele automatiza a configuração completa do aplicativo locacaoERP no EasyPanel na opção "box" para Node.js, incluindo:
+
+✅ Verificação e instalação do Node.js (versão 18 ou superior, se necessário)
+✅ Instalação das dependências via npm
+✅ Construção do projeto usando npm run build
+✅ Inicialização da aplicação em produção com npm run preview (porta 4173)
+Conteúdo resumido do script:
+
+Verificações de ambiente e instalação automática de Node.js se ausente
+Execução de npm install para dependências
+Build do projeto Vite
+Comando para servir a aplicação em produção
+Tratamento de erros e mensagens em português
+Para usar:
+
+Faça upload ou copie o script para o servidor EasyPanel Box
+Dê permissões de execução: chmod +x easypanel-setup.sh
+Execute: ./easypanel-setup.sh
+A aplicação estará rodando na porta 4173 após a execução

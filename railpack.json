@@ -1,0 +1,29 @@
+{
+  "engines": {
+    "node": "18"
+  },
+  "phases": {
+    "install": {
+      "cmds": ["npm install"]
+    },
+    "build": {
+      "cmds": ["npm run build"],
+      "dependsOn": ["install"]
+    }
+  },
+  "start": {
+    "cmd": "npx serve dist -s -l 3000"
+  },
+  "environment": {
+    "VITE_SUPABASE_URL": "${SUPABASE_URL}",
+    "VITE_SUPABASE_ANON_KEY": "${SUPABASE_ANON_KEY}"
+  },
+  "healthcheck": {
+    "httpGet": {
+      "path": "/",
+      "port": 3000
+    },
+    "initialDelaySeconds": 30,
+    "periodSeconds": 10
+  }
+}
