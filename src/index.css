@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ERP Locação - Design System
+Paleta: Cinza médio de fundo, laranja forte para ações, tipografia preta/branca
+Estilo sóbrio, limpo e profissional
+*/
+
+@layer base {
+  :root {
+    /* Background - Cinza médio para fundo geral */
+    --background: 220 13% 95%;
+    --foreground: 220 9% 10%;
+
+    /* Cards e superfícies elevadas - Branco puro */
+    --card: 0 0% 100%;
+    --card-foreground: 220 9% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 9% 10%;
+
+    /* Primary - Laranja forte para ações principais */
+    --primary: 25 95% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 25 95% 50%;
+
+    /* Secondary - Cinza mais escuro para ações secundárias */
+    --secondary: 220 8% 85%;
+    --secondary-foreground: 220 9% 25%;
+
+    /* Muted - Para elementos menos importantes */
+    --muted: 220 13% 91%;
+    --muted-foreground: 220 9% 45%;
+
+    /* Accent - Laranja mais suave para highlights */
+    --accent: 25 70% 90%;
+    --accent-foreground: 25 95% 35%;
+
+    /* Destructive - Vermelho para ações de risco */
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders e inputs com sombra leve */
+    --border: 220 13% 85%;
+    --input: 0 0% 100%;
+    --input-border: 220 13% 80%;
+    --ring: 25 95% 55%;
+
+    /* Navigation animations with reduced motion support */
+    --nav-transition-duration: 200ms;
+
+    /* Status colors para equipamentos/contratos */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 45 93% 55%;
+    --warning-foreground: 0 0% 100%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+
+    --radius: 0.5rem;
+
+    /* Sombras profissionais */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 220 13% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 220 13% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 220 13% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 25 95% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 25 95% 50%;
+
+    --secondary: 220 8% 20%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 220 13% 15%;
+    --muted-foreground: 220 9% 65%;
+
+    --accent: 25 70% 25%;
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 20%;
+    --input: 220 13% 15%;
+    --input-border: 220 13% 25%;
+    --ring: 25 95% 55%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 45 93% 55%;
+    --warning-foreground: 0 0% 100%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Reduced motion support for navigation */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --nav-transition-duration: 100ms;
+    }
+  }
+}
