@@ -1,21 +1,23 @@
 
 
-# Fix: Mostrar lista de clientes sem precisar digitar
+# Fix: "Visualizar Contrato" na Etapa 6 não abre nada
 
 ## Problema
-A lista de clientes só aparece quando `searchCliente` tem conteúdo (linha 1058: `{searchCliente && !contrato.cliente && ...}`). O usuário quer ver os clientes disponíveis assim que abre a tela, sem precisar digitar nada.
+O botão "Visualizar Contrato" na Etapa 6 (Conferência) define `showPreview = true`, mas o componente `ContratoResumoPreview` só é renderizado dentro de outra etapa (linha 1891). Como cada etapa retorna seu próprio JSX isolado, o dialog não está presente no DOM quando o usuário está na Etapa 6.
 
 ## Solução
-Remover a condição `searchCliente &&` para que a lista apareça sempre que não houver cliente selecionado. Ajustar o filtro de clientes para mostrar todos (limitados a 10) quando a busca estiver vazia.
+Adicionar o `ContratoResumoPreview` também na Etapa 6, logo após o botão "Visualizar Contrato" (após linha 2119), para que o dialog seja renderizado quando `showPreview` estiver `true`.
 
-## Alterações em `src/pages/NovoContratoV2.tsx`
+## Alteração em `src/pages/NovoContratoV2.tsx`
 
-1. **Linha ~244-248** — No `useEffect` de filtro, quando `searchCliente` estiver vazio, mostrar todos os clientes (já limitado a 10 pelo `.slice(0, 10)`):
-   - Remover o filtro condicional: se `searchCliente` estiver vazio, retornar `todosClientes.slice(0, 10)` direto.
+Após a `</div>` do botão (linha 2119), antes de `</CardContent>`, inserir:
 
-2. **Linha 1058** — Remover `searchCliente &&` da condição de renderização:
-   - De: `{searchCliente && !contrato.cliente && ...}`
-   - Para: `{!contrato.cliente && ...}`
-
-Isso faz a lista de clientes aparecer imediatamente, mostrando os 10 primeiros. Ao digitar, filtra normalmente.
+```tsx
+<ContratoResumoPreview 
+  open={showPreview} 
+  onClose={() => setShowPreview(false)} 
+  contrato={contrato as any} 
+  onEnviarAssinatura={handleEnviarAssinatura} 
+/>
+```
 
