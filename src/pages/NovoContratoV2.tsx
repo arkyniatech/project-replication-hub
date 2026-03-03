@@ -1045,11 +1045,11 @@ export default function NovoContratoV2() {
                   {formatarStatusCliente(contrato.cliente)}
                 </Badge>
               </div>
-              <Button variant="outline" onClick={() => setContrato(prev => ({
-            ...prev,
-            clienteId: '',
-            cliente: undefined
-          }))}>
+              <Button variant="outline" onClick={() => {
+                const nomeAtual = contrato.cliente?.nomeRazao || '';
+                setContrato(prev => ({ ...prev, clienteId: '', cliente: undefined }));
+                setSearchCliente(nomeAtual);
+              }}>
                 Alterar
               </Button>
             </div>
