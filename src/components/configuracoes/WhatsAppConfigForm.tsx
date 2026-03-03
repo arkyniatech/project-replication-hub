@@ -89,8 +89,10 @@ export function WhatsAppConfigForm() {
       return data;
     },
     onSuccess: (data) => {
-      if (data.qrcode) {
-        setQrCode(data.qrcode);
+      const qr = data.qrcode;
+      if (qr) {
+        const qrString = typeof qr === 'string' ? qr : JSON.stringify(qr);
+        setQrCode(qrString);
         toast.info("Escaneie o QR Code com seu WhatsApp");
       } else {
         toast.warning("QR Code não retornado pela API");
