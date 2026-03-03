@@ -130,7 +130,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
       </div>
 
       {/* Menu Items */}
-      <div className="flex-1 py-4">
+      <div className="flex-1 py-3">
         <TooltipProvider delayDuration={300}>
           {/* Principal */}
           {principalItems.map((item) => {
@@ -165,8 +165,8 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
             );
           })}
           
-          {/* Separator */}
-          <div className="mx-4 h-px bg-border/50 my-3" />
+          {/* Separator - matches overlay section header height */}
+          <div className="mx-4 h-px bg-border/50 my-2" />
           
           {/* Operação */}
           {operacaoItems.map((item) => {
@@ -202,7 +202,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
           })}
           
           {/* Separator */}
-          <div className="mx-4 h-px bg-border/50 my-3" />
+          <div className="mx-4 h-px bg-border/50 my-2" />
           
           {/* Gestão */}
           {gestaoItems.map((item) => {
