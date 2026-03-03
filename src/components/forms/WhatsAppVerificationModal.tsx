@@ -73,11 +73,11 @@ export default function WhatsAppVerificationModal({
           setStep('sending');
           setCode('');
         }, 300);
-      }, 1500);
+      }, 800);
     } catch (err: any) {
       toast({
         title: "Código inválido",
-        description: err.message || "O código informado está incorreto ou expirado. Tente novamente.",
+        description: "O código informado está incorreto ou expirado. Tente novamente.",
         variant: "destructive",
       });
     } finally {
