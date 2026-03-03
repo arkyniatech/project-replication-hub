@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       }
 
       const baseUrl = uazapiUrl.replace(/\/+$/, '');
-      const fullUrl = `${baseUrl}/message/sendText`;
+      const fullUrl = `${baseUrl}/send/text`;
       console.log('Calling uazapi URL:', fullUrl);
       console.log('Number:', whatsappNumber);
       console.log('Using instance token:', instance.instance_token ? 'present' : 'missing');
