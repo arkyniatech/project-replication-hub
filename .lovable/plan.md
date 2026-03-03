@@ -1,32 +1,25 @@
 
 
-# Melhorar UX do QR Code — loading state
+# Fix: Delete na uazapi nao funciona
 
 ## Problema
-Ao clicar em "Conectar", o QR Code é setado no state antes da imagem carregar, mostrando uma imagem quebrada por alguns instantes até o browser renderizar o base64.
+A URL de delete esta incorreta. O codigo atual faz `DELETE ${uazapiUrl}/instance/delete`, mas a API uazapi espera `DELETE ${uazapiUrl}/instance` com o header `token`.
 
-## Solução
-1. **Mostrar spinner enquanto conecta** — quando `connectMutation.isPending` ou `isPolling` (aguardando QR do polling), exibir um placeholder com spinner no lugar do QR Code
-2. **Pré-validar a imagem antes de exibir** — adicionar um state `qrImageLoaded` que só fica `true` após o `onLoad` da `<img>`. Enquanto `false`, mostrar skeleton/spinner. Resetar para `false` sempre que `qrCode` mudar.
-3. **Ocultar `<img>` até carregar** — usar `className="hidden"` na img até `onLoad` disparar
+## Solucao
+Alterar a URL do fetch no case `delete` de `${uazapiUrl}/instance/delete` para `${uazapiUrl}/instance`.
 
-## Alterações em `WhatsAppConfigForm.tsx`
+## Alteracao
 
-### Novo state
-```tsx
-const [qrImageLoaded, setQrImageLoaded] = useState(false);
+**Arquivo:** `supabase/functions/whatsapp-instance/index.ts` (linha 278)
+
+Mudar:
+```typescript
+const deleteResp = await fetch(`${uazapiUrl}/instance/delete`, {
+```
+Para:
+```typescript
+const deleteResp = await fetch(`${uazapiUrl}/instance`, {
 ```
 
-### Reset ao mudar QR
-Sempre que `setQrCode(...)` for chamado, também chamar `setQrImageLoaded(false)`.
-
-### Área do QR Code (linhas 215-229)
-Substituir o bloco atual por:
-
-- Se `connectMutation.isPending || (isPolling && !qrCode)`: mostrar placeholder com `Loader2` animado + texto "Gerando QR Code..."
-- Se `qrCode` presente: mostrar container com:
-  - Skeleton/spinner visível enquanto `!qrImageLoaded`
-  - `<img>` com `onLoad={() => setQrImageLoaded(true)}` e classe condicional `hidden` enquanto não carregou
-
-Isso garante transição suave sem imagem quebrada.
+Depois, re-deploy da edge function.
 
