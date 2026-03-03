@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 export function WhatsAppConfigForm() {
   const [selectedLojaId, setSelectedLojaId] = useState<string>("");
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch lojas
@@ -47,16 +48,19 @@ export function WhatsAppConfigForm() {
       return data;
     },
     enabled: !!selectedLojaId,
-    refetchInterval: qrCode ? 5000 : false, // Poll when waiting for QR scan
+    refetchInterval: (qrCode || isPolling) ? 5000 : false,
   });
 
-  // If instance becomes connected while polling, clear QR and stop polling
   useEffect(() => {
-    if (instanceData?.status === "conectado" && qrCode) {
+    if (instanceData?.status === "conectado" && (qrCode || isPolling)) {
       setQrCode(null);
+      setIsPolling(false);
       toast.success("WhatsApp conectado com sucesso!");
+    } else if (instanceData?.qrcode && instanceData?.status !== "conectado") {
+      const qr = instanceData.qrcode;
+      setQrCode(typeof qr === 'string' ? qr : JSON.stringify(qr));
     }
-  }, [instanceData?.status, qrCode]);
+  }, [instanceData?.status, instanceData?.qrcode, qrCode, isPolling]);
 
   // Create instance
   const createMutation = useMutation({
@@ -95,7 +99,10 @@ export function WhatsAppConfigForm() {
         setQrCode(qrString);
         toast.info("Escaneie o QR Code com seu WhatsApp");
       } else {
-        toast.warning("QR Code não retornado pela API");
+        // QR code will come from status polling
+        setIsPolling(true);
+        toast.info("Conectando... aguarde o QR Code");
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-instance", selectedLojaId] });
       }
     },
     onError: (err: any) => {

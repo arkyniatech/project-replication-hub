@@ -213,10 +213,14 @@ Deno.serve(async (req) => {
             const statusData = await statusResp.json();
             console.log('uazapi status response:', JSON.stringify(statusData));
 
-            // Update local status based on uazapi response
-            const isConnected = statusData.status === 'CONNECTED' || statusData.connected === true;
-            const newStatus = isConnected ? 'conectado' : 'desconectado';
-            const phoneNumber = statusData.phone_number || statusData.phone || inst.phone_number;
+            // uazapi v2 response: { instance: { qrcode, status, ... }, status: { connected, jid, loggedIn } }
+            const instanceInfo = statusData.instance || statusData;
+            const statusInfo = statusData.status || {};
+            
+            const isConnected = statusInfo.connected === true || instanceInfo.status === 'CONNECTED';
+            const newStatus = isConnected ? 'conectado' : (instanceInfo.qrcode ? 'qr_pendente' : 'desconectado');
+            const phoneNumber = instanceInfo.phone_number || instanceInfo.phone || statusInfo.jid?.split('@')?.[0] || inst.phone_number;
+            const qrcode = instanceInfo.qrcode || null;
 
             if (newStatus !== inst.status || phoneNumber !== inst.phone_number) {
               await supabaseAdmin
@@ -229,6 +233,7 @@ Deno.serve(async (req) => {
               ...inst,
               status: newStatus,
               phone_number: phoneNumber,
+              qrcode: qrcode,
               instance_token: undefined, // Don't expose token to frontend
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
