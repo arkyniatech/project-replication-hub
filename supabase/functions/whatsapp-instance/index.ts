@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'token': adminToken,
+            'admintoken': adminToken,
           },
           body: JSON.stringify({ instance_name }),
         });
@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'token': adminToken,
+              'admintoken': adminToken,
             },
             body: JSON.stringify({ instance_name: delInst.instance_name }),
           });
