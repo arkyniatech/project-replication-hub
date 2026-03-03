@@ -1,35 +1,25 @@
 
 
-# Usar token da instância conectada para enviar mensagens de verificação
+# Melhorias na verificação WhatsApp
 
-## Problema
-A edge function `whatsapp-verify` usa o secret `UAZAPI_TOKEN` fixo para enviar mensagens. Deveria usar o token da instância WhatsApp conectada à loja (salvo na tabela `whatsapp_instances`).
+## Problema 1: Erro técnico ao digitar código errado
+Quando o código está errado, a edge function retorna status 400 com `{ error: "Código inválido ou expirado" }`. O `supabase.functions.invoke` interpreta qualquer status não-2xx como `error`, e a mensagem mostrada ao usuário inclui detalhes técnicos ("Edge function returned...") ao invés de uma mensagem amigável.
 
-Além disso, o formato do número precisa garantir o prefixo `55` + DDD + número sem formatação.
+**Solução**: No `handleVerifyCode` do `WhatsAppVerificationModal.tsx`, capturar o erro e sempre mostrar uma mensagem user-friendly, ignorando a mensagem técnica do SDK. Verificar se `data?.error` existe antes de olhar `error.message`.
+
+## Problema 2: Delay na tela de sucesso
+Após verificação bem-sucedida, há um `setTimeout` de 1500ms antes de chamar `onVerified()` e fechar o modal. Isso é puramente cosmético (para mostrar o checkmark verde).
+
+**Solução**: Reduzir o timeout de 1500ms para 800ms para que o fluxo pareça mais ágil, mantendo o feedback visual.
 
 ## Alterações
 
-### 1. `src/components/forms/WhatsAppVerificationModal.tsx`
-- Adicionar prop `lojaId: string` na interface
-- Passar `loja_id` no body da chamada `action: 'send'`
+### `src/components/forms/WhatsAppVerificationModal.tsx`
 
-### 2. `src/components/forms/ClienteForm.tsx`
-- Passar `lojaId={lojaAtual?.id}` ao `WhatsAppVerificationModal`
+1. No `catch` do `handleVerifyCode`, usar mensagem fixa amigável em vez de `err.message`:
+   - title: "Código inválido"
+   - description: "O código informado está incorreto ou expirado. Tente novamente."
+   - Não expor `err.message` que pode conter "Edge function returned 400..."
 
-### 3. `supabase/functions/whatsapp-verify/index.ts`
-- No `action: 'send'`, receber `loja_id` do body
-- Buscar o token da instância conectada na tabela `whatsapp_instances` usando `loja_id`
-- Se não encontrar instância conectada, retornar erro claro
-- Usar `instance_token` no header `token` da chamada uazapi
-- Formatar número: remover tudo não-numérico, garantir prefixo `55`, resultado tipo `5511987553558`
-- Endpoint uazapi v2: `POST /message/sendText` com header `token` e body `{ number, text }`
-
-### Formato do número
-```
-Input: (11) 98755-3558
-Clean: 11987553558
-Final: 5511987553558
-```
-
-A lógica existente `cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone` já cobre isso corretamente.
+2. Reduzir o `setTimeout` de sucesso de 1500ms para 800ms.
 
