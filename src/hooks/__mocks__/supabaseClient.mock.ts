@@ -14,7 +14,7 @@ beforeEach(() => {
             toJSON: vi.fn().mockResolvedValue({ data: [], error: null })
           })
         })
-      )
+      })
     })),
     auth: {
       signInWithPassword: vi.fn().mockResolvedValue({ user: null, error: null }),
