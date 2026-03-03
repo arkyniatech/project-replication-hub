@@ -1,44 +1,70 @@
 
 
-# Integrar Verificacao WhatsApp real via uazapi
+# Integração WhatsApp por Loja via uazapi
 
-## O que preciso de voce
+## Resumo
 
-Para integrar com a **uazapi**, preciso de 2 informacoes:
+Cada loja poderá conectar seu próprio WhatsApp via uazapi. Na aba "Integrações" das configurações, o card de WhatsApp será ativado com funcionalidades para criar instância, conectar via QR Code e desconectar.
 
-1. **URL da sua instancia uazapi** (ex: `https://sua-instancia.uazapi.com`)
-2. **Token de autenticacao da API** (o token da sua instancia)
+## Arquitetura
 
-Vou armazenar o token como secret seguro no Supabase (nunca exposto no frontend).
+```text
+Frontend (Configurações > Integrações > WhatsApp)
+  │
+  ├─ Criar Instância → Edge Function "whatsapp-instance"
+  │     └─ POST uazapi /instance/init (token admin)
+  │           └─ Retorna instance_key (token da instância)
+  │                 └─ Salva na tabela whatsapp_instances
+  │
+  ├─ Conectar (QR Code) → Edge Function "whatsapp-instance"
+  │     └─ POST uazapi /instance/connect (token da instância)
+  │           └─ Retorna base64 do QR Code
+  │                 └─ Exibe no frontend para escanear
+  │
+  └─ Deletar Instância → Edge Function "whatsapp-instance"
+        └─ DELETE uazapi (token admin)
+              └─ Remove registro da tabela
+```
 
-## Como vai funcionar
+## Alterações
 
-### Fluxo
-1. Usuario clica "Enviar Codigo" → frontend chama edge function `whatsapp-verify`
-2. Edge function gera codigo aleatorio de 6 digitos, salva no banco com expiracao de 5 min, e envia via uazapi para o numero do cliente
-3. Usuario digita o codigo recebido → frontend chama a mesma edge function (acao `verify`)
-4. Edge function compara o codigo, retorna sucesso ou erro
+### 1. Secret: `UAZAPI_ADMIN_TOKEN`
+- Token de admin da uazapi para criar/deletar instâncias
+- Armazenado como secret no Supabase
 
-### Alteracoes
+### 2. Tabela `whatsapp_instances` (migration)
+- `id` uuid PK
+- `loja_id` uuid NOT NULL (referência a lojas)
+- `instance_name` text (nome da instância na uazapi)
+- `instance_token` text (token retornado pelo /instance/init — usado para enviar msgs)
+- `status` text DEFAULT 'desconectado' (desconectado, conectado, qr_pendente)
+- `phone_number` text (número conectado, preenchido após conexão)
+- `created_at`, `updated_at`
+- RLS: admin/master podem gerenciar; gestores podem ver
 
-**1. Tabela `whatsapp_verifications`** (migration)
-- `id`, `phone`, `code` (6 digitos), `expires_at`, `verified`, `created_at`
-- Expiracao automatica de 5 minutos
+### 3. Edge Function `whatsapp-instance/index.ts`
+Ações:
+- **`create`**: Chama `POST {UAZAPI_URL}/instance/init` com token admin. Salva instance_token na tabela.
+- **`connect`**: Chama `POST {instance_url}/instance/connect` com token da instância. Retorna QR code base64.
+- **`status`**: Consulta status da instância na uazapi.
+- **`delete`**: Chama endpoint de delete com token admin. Remove registro da tabela.
 
-**2. Edge Function `whatsapp-verify/index.ts`**
-- Acao `send`: gera codigo, insere na tabela, chama API uazapi `POST /sendText` com mensagem contendo o codigo
-- Acao `verify`: busca codigo valido (nao expirado, nao usado) para o telefone, compara, marca como verificado
+### 4. Atualizar `whatsapp-verify` Edge Function
+- Em vez de usar o secret fixo `UAZAPI_TOKEN`, buscar o token da instância da loja na tabela `whatsapp_instances`
+- Isso permite que cada loja envie mensagens pelo seu próprio WhatsApp
 
-**3. `WhatsAppVerificationModal.tsx`**
-- Substituir mock por chamadas reais a `supabase.functions.invoke('whatsapp-verify', ...)`
-- Remover dica de teste "123456"
-- Adicionar loading states
+### 5. UI: Componente `WhatsAppConfigForm.tsx`
+- Exibido dentro do card "WhatsApp Business" na aba Integrações
+- Estados:
+  - **Sem instância**: Botão "Criar Instância" (gera nome automático baseado na loja)
+  - **Instância criada, desconectada**: Botão "Conectar" → exibe QR Code em modal/inline
+  - **Conectada**: Badge verde "Conectado" + número + botão "Desconectar"
+- Seletor de loja para admin/master que gerenciam múltiplas lojas
 
-**4. Secrets necessarios**
-- `UAZAPI_URL` — URL da instancia
-- `UAZAPI_TOKEN` — Token de autenticacao
+### 6. Atualizar `IntegracoesForm.tsx`
+- Mudar status do WhatsApp de "indisponivel" para "configurar"
+- Renderizar `WhatsAppConfigForm` quando expandido
 
-## Proximo passo
-
-Me confirme a **URL da instancia** e o **token** da uazapi, e eu configuro tudo.
+## Próximo passo
+Preciso do token de admin da uazapi para salvar como secret e prosseguir com a implementação.
 
