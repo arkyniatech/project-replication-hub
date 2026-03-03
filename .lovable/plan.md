@@ -1,25 +1,25 @@
 
 
-# Melhorias na verificação WhatsApp
+# Fix: Cliente desaparece ao clicar "Alterar" no novo contrato
 
-## Problema 1: Erro técnico ao digitar código errado
-Quando o código está errado, a edge function retorna status 400 com `{ error: "Código inválido ou expirado" }`. O `supabase.functions.invoke` interpreta qualquer status não-2xx como `error`, e a mensagem mostrada ao usuário inclui detalhes técnicos ("Edge function returned...") ao invés de uma mensagem amigável.
+## Problema
+Ao clicar "Alterar" no card do cliente selecionado, o código limpa `clienteId` e `cliente` do estado, mas o campo de busca (`searchCliente`) fica vazio. Como a lista de clientes só aparece quando `searchCliente` tem conteúdo (linha 1058: `{searchCliente && !contrato.cliente && ...}`), o usuário fica sem ver nenhum cliente e precisa digitar algo para vê-los novamente.
 
-**Solução**: No `handleVerifyCode` do `WhatsAppVerificationModal.tsx`, capturar o erro e sempre mostrar uma mensagem user-friendly, ignorando a mensagem técnica do SDK. Verificar se `data?.error` existe antes de olhar `error.message`.
+## Solução
+Ao clicar "Alterar", preencher automaticamente o `searchCliente` com o nome do cliente atual. Assim a lista aparece imediatamente mostrando o cliente (e similares), e o usuário pode limpar o campo para buscar outro.
 
-## Problema 2: Delay na tela de sucesso
-Após verificação bem-sucedida, há um `setTimeout` de 1500ms antes de chamar `onVerified()` e fechar o modal. Isso é puramente cosmético (para mostrar o checkmark verde).
+## Alteração
 
-**Solução**: Reduzir o timeout de 1500ms para 800ms para que o fluxo pareça mais ágil, mantendo o feedback visual.
+### `src/pages/NovoContratoV2.tsx`
+Na linha ~1048, alterar o `onClick` do botão "Alterar" para também setar o `searchCliente`:
 
-## Alterações
+```typescript
+onClick={() => {
+  const nomeAtual = contrato.cliente?.nomeRazao || '';
+  setContrato(prev => ({ ...prev, clienteId: '', cliente: undefined }));
+  setSearchCliente(nomeAtual);
+}}
+```
 
-### `src/components/forms/WhatsAppVerificationModal.tsx`
-
-1. No `catch` do `handleVerifyCode`, usar mensagem fixa amigável em vez de `err.message`:
-   - title: "Código inválido"
-   - description: "O código informado está incorreto ou expirado. Tente novamente."
-   - Não expor `err.message` que pode conter "Edge function returned 400..."
-
-2. Reduzir o `setTimeout` de sucesso de 1500ms para 800ms.
+Isso garante que a lista de clientes aparece imediatamente com o nome previamente selecionado preenchido no campo de busca.
 
