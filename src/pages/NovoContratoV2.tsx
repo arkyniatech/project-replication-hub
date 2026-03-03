@@ -242,10 +242,12 @@ export default function NovoContratoV2() {
     )];
 
     // Filtrar por busca
-    const filtrados = todosClientes.filter(c => 
-      c.nomeRazao.toLowerCase().includes(searchCliente.toLowerCase()) || 
-      c.documento.includes(searchCliente)
-    ).slice(0, 10); // Limitar resultados
+    const filtrados = searchCliente
+      ? todosClientes.filter(c => 
+          c.nomeRazao.toLowerCase().includes(searchCliente.toLowerCase()) || 
+          c.documento.includes(searchCliente)
+        ).slice(0, 10)
+      : todosClientes.slice(0, 10);
 
     setClientesFiltrados(filtrados);
   }, [searchCliente, clientesSupabase, loadingClientes, lojaAtual]);
@@ -1055,7 +1057,7 @@ export default function NovoContratoV2() {
             </div>
           </div>}
         
-        {searchCliente && !contrato.cliente && <div className="space-y-2 max-h-64 overflow-y-auto">
+        {!contrato.cliente && <div className="space-y-2 max-h-64 overflow-y-auto">
             {clientesFiltrados.map(cliente => <div key={cliente.id} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => selecionarCliente(cliente)}>
                 <div className="flex items-center justify-between">
                   <div>
