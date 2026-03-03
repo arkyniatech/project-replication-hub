@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 export function WhatsAppConfigForm() {
   const [selectedLojaId, setSelectedLojaId] = useState<string>("");
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [qrImageLoaded, setQrImageLoaded] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const queryClient = useQueryClient();
 
@@ -54,11 +55,16 @@ export function WhatsAppConfigForm() {
   useEffect(() => {
     if (instanceData?.status === "conectado" && (qrCode || isPolling)) {
       setQrCode(null);
+      setQrImageLoaded(false);
       setIsPolling(false);
       toast.success("WhatsApp conectado com sucesso!");
     } else if (instanceData?.qrcode && instanceData?.status !== "conectado") {
       const qr = instanceData.qrcode;
-      setQrCode(typeof qr === 'string' ? qr : JSON.stringify(qr));
+      const newQr = typeof qr === 'string' ? qr : JSON.stringify(qr);
+      if (newQr !== qrCode) {
+        setQrCode(newQr);
+        setQrImageLoaded(false);
+      }
     }
   }, [instanceData?.status, instanceData?.qrcode, qrCode, isPolling]);
 
@@ -97,6 +103,7 @@ export function WhatsAppConfigForm() {
       if (qr) {
         const qrString = typeof qr === 'string' ? qr : JSON.stringify(qr);
         setQrCode(qrString);
+        setQrImageLoaded(false);
         toast.info("Escaneie o QR Code com seu WhatsApp");
       } else {
         // QR code will come from status polling
@@ -121,6 +128,7 @@ export function WhatsAppConfigForm() {
     },
     onSuccess: () => {
       setQrCode(null);
+      setQrImageLoaded(false);
       toast.success("Instância removida");
       queryClient.invalidateQueries({ queryKey: ["whatsapp-instance", selectedLojaId] });
     },
@@ -138,7 +146,7 @@ export function WhatsAppConfigForm() {
       {/* Seletor de Loja */}
       <div className="space-y-2">
         <Label>Loja</Label>
-        <Select value={selectedLojaId} onValueChange={(v) => { setSelectedLojaId(v); setQrCode(null); }}>
+        <Select value={selectedLojaId} onValueChange={(v) => { setSelectedLojaId(v); setQrCode(null); setQrImageLoaded(false); }}>
           <SelectTrigger className="w-full max-w-xs">
             <SelectValue placeholder="Selecione a loja" />
           </SelectTrigger>
@@ -212,14 +220,28 @@ export function WhatsAppConfigForm() {
             <Badge variant="secondary">Desconectado</Badge>
           </div>
 
-          {qrCode ? (
+          {(connectMutation.isPending || (isPolling && !qrCode)) ? (
+            <div className="flex flex-col items-center gap-3 p-4 border rounded-lg bg-background">
+              <p className="text-sm font-medium">Gerando QR Code...</p>
+              <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-lg">
+                <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">Aguarde enquanto o QR Code é gerado</p>
+            </div>
+          ) : qrCode ? (
             <div className="flex flex-col items-center gap-3 p-4 border rounded-lg bg-background">
               <p className="text-sm font-medium">Escaneie o QR Code com seu WhatsApp:</p>
-              <div className="bg-white p-4 rounded-lg">
+              <div className="bg-white p-4 rounded-lg relative">
+                {!qrImageLoaded && (
+                  <div className="w-64 h-64 flex items-center justify-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
+                  </div>
+                )}
                 <img
                   src={qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`}
                   alt="QR Code WhatsApp"
-                  className="w-64 h-64 object-contain"
+                  className={`w-64 h-64 object-contain ${!qrImageLoaded ? 'hidden' : ''}`}
+                  onLoad={() => setQrImageLoaded(true)}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
