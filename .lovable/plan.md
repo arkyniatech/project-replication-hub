@@ -1,34 +1,20 @@
 
 
-# O repositorio GitHub ja esta 100% aqui
+# Adicionar botao "Novo Cliente" na etapa de selecao de cliente do Novo Contrato
 
-Comparei arquivo por arquivo entre o repositorio `arkyniatech/project-replication-hub` e este projeto Lovable. **Os arquivos sao identicos** -- mesma estrutura de pastas, mesmo conteudo em `App.tsx`, `main.tsx`, todos os componentes, hooks, stores, services, types, utils, layouts, modules, contexts e config.
+## Problema
+Na tela de Novo Contrato (etapa 0 - "Cliente"), o usuario so pode buscar clientes existentes. Se precisa cadastrar um novo, tem que sair da tela, ir em Clientes, cadastrar, e voltar.
 
-Nao ha nenhum arquivo a copiar. O codigo ja esta aqui.
+## Solucao
+Adicionar um botao "+ Novo Cliente" ao lado da barra de busca na `renderEtapaCliente()` do `NovoContratoV2.tsx`. Ao clicar, abre um Dialog com o `ClienteForm` ja existente. Ao salvar, o cliente criado e automaticamente selecionado no contrato.
 
-## Unico problema: erro de build
+## Alteracoes
 
-O arquivo `src/hooks/__mocks__/supabaseClient.mock.ts` tem um bug de sintaxe na **linha 17** -- falta um `}` antes do `)`. Este mesmo bug existe no repositorio GitHub original tambem.
+### `src/pages/NovoContratoV2.tsx`
+1. Importar `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` de `@/components/ui/dialog` e `ClienteForm`
+2. Adicionar estado `isClienteFormOpen` (boolean)
+3. Na `renderEtapaCliente()`, ao lado do input de busca, adicionar botao `+ Novo Cliente` que abre o dialog
+4. Adicionar o `<Dialog>` com `<ClienteForm>` dentro. No callback `onSave`, fechar o modal e selecionar automaticamente o cliente recem-criado no contrato (usando `selecionarCliente` com os dados retornados)
 
-### Correcao necessaria
-
-Na linha 17, trocar:
-
-```
-      )
-```
-
-por:
-
-```
-      })
-```
-
-Isso fecha o objeto do `select:` corretamente antes de fechar o `from()`.
-
-## Resumo
-
-- **Arquivos a copiar**: 0 (tudo ja esta aqui)
-- **Correcao necessaria**: 1 arquivo com erro de sintaxe
-- **Apos correcao**: projeto compila normalmente e esta pronto para desenvolvimento
+Reutiliza 100% do `ClienteForm` existente — sem duplicacao de codigo.
 
