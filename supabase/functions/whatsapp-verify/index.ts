@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
         .from('whatsapp_instances')
         .select('instance_token')
         .eq('loja_id', loja_id)
-        .eq('status', 'connected')
+        .eq('status', 'conectado')
         .single();
 
       if (instError || !instance?.instance_token) {
