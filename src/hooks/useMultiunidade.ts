@@ -119,7 +119,7 @@ export function useMultiunidade() {
 
   // Verifica se o usuário pode ver todas as lojas (admin ou gestor)
   const canViewAllLojas = useCallback((): boolean => {
-    return userRoles.includes('admin') || userRoles.includes('gestor');
+    return userRoles.includes('admin') || userRoles.includes('gestor') || userRoles.includes('master');
   }, [userRoles]);
 
   const getLojasPermitidas = (): Loja[] => {
