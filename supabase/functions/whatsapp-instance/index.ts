@@ -272,16 +272,18 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Delete on uazapi
+        // Delete on uazapi using instance token
         try {
-          console.log('Deleting instance on uazapi:', delInst.instance_name);
-          await fetch(`${uazapiUrl}/instance/delete`, {
+          console.log('Deleting instance on uazapi:', delInst.instance_name, 'token:', delInst.instance_token ? 'present' : 'missing');
+          const deleteResp = await fetch(`${uazapiUrl}/instance/delete`, {
             method: 'DELETE',
             headers: {
-              'admintoken': adminToken,
+              'Content-Type': 'application/json',
               'token': delInst.instance_token || '',
             },
           });
+          const deleteData = await deleteResp.text();
+          console.log('uazapi delete response:', deleteResp.status, deleteData);
         } catch (e) {
           console.error('uazapi delete error:', e);
         }
