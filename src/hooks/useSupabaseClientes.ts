@@ -80,7 +80,8 @@ export function useSupabaseClientes(lojaId?: string) {
     },
     onError: (error: any) => {
       console.error('Erro ao criar cliente:', error);
-      toast.error(error.message || 'Erro ao cadastrar cliente');
+      const isRLS = error?.message?.includes('row-level security');
+      toast.error(isRLS ? 'Sem permissão para cadastrar clientes nesta loja.' : (error.message || 'Erro ao cadastrar cliente'));
     },
   });
 
