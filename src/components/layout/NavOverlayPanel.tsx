@@ -169,10 +169,10 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
     );
   };
 
-  const renderMenuSection = (items: any[], sectionName: string) => {
+  const renderMenuSection = (items: any[], sectionName: string, isFirst: boolean = false) => {
     return (
-      <div className="mb-6 last:mb-2">
-        <div className="px-6 py-2 text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider">
+      <div className={cn(!isFirst && "mt-2")}>
+        <div className="px-6 py-1 text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider leading-tight">
           {sectionName}
         </div>
         <div className="space-y-0.5">
@@ -225,8 +225,8 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto py-4 min-h-0 custom-scrollbar">
-        {renderMenuSection(principalItems, "Principal")}
+      <div className="flex-1 overflow-y-auto py-3 min-h-0 custom-scrollbar">
+        {renderMenuSection(principalItems, "Principal", true)}
         {renderMenuSection(operacaoItems, "Operação")}
         {renderMenuSection(gestaoItems, "Gestão")}
       </div>
