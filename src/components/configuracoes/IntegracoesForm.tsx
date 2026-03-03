@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { InterConfigForm } from "@/components/bolepix/InterConfigForm";
+import { WhatsAppConfigForm } from "@/components/configuracoes/WhatsAppConfigForm";
 
 interface IntegracaoStatus {
   id: string;
@@ -36,9 +37,9 @@ const integracoes: IntegracaoStatus[] = [
   {
     id: "whatsapp",
     nome: "WhatsApp Business",
-    descricao: "Mensagens automáticas via WhatsApp",
+    descricao: "Conecte o WhatsApp da loja via QR Code",
     icon: MessageCircle,
-    status: "indisponivel",
+    status: "configurar",
     categoria: "comunicacao"
   },
   {
@@ -158,6 +159,17 @@ export function IntegracoesForm() {
                           </AlertDescription>
                         </Alert>
                         <InterConfigForm />
+                      </div>
+                    )}
+                    {integracao.id === "whatsapp" && (
+                      <div className="space-y-4">
+                        <Alert>
+                          <AlertDescription className="text-sm">
+                            Conecte o WhatsApp de cada loja para enviar mensagens automáticas aos clientes.
+                            Cada loja terá sua própria instância com número independente.
+                          </AlertDescription>
+                        </Alert>
+                        <WhatsAppConfigForm />
                       </div>
                     )}
                   </CardContent>

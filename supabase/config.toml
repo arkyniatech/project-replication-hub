@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.whatsapp-verify]
 verify_jwt = false
+
+[functions.whatsapp-instance]
+verify_jwt = false
