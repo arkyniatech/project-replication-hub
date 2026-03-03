@@ -97,8 +97,14 @@ export function AppShell() {
         onTogglePin={togglePin}
       />
 
-      {/* Main Content Area - Always calc(100% - 64px) */}
-      <div className="flex flex-col" style={{ marginLeft: '64px', width: 'calc(100% - 64px)' }}>
+      {/* Main Content Area - Adjusts when sidebar is pinned */}
+      <div 
+        className="flex flex-col transition-all duration-300 ease-in-out" 
+        style={{ 
+          marginLeft: isPinned ? '344px' : '64px', 
+          width: isPinned ? 'calc(100% - 344px)' : 'calc(100% - 64px)' 
+        }}
+      >
         <TopBar 
           onOpenSearch={() => setSearchOpen(true)}
           onOpenHelp={() => setHelpOpen(true)}
