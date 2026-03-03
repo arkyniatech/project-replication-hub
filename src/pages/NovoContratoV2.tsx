@@ -1,5 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import ClienteForm from "@/components/forms/ClienteForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -213,6 +215,7 @@ export default function NovoContratoV2() {
   const [searchCliente, setSearchCliente] = useState('');
   const [searchEquipamento, setSearchEquipamento] = useState('');
   const [clientesFiltrados, setClientesFiltrados] = useState<Cliente[]>([]);
+  const [isClienteFormOpen, setIsClienteFormOpen] = useState(false);
   const [equipamentosFiltrados, setEquipamentosFiltrados] = useState<Equipamento[]>([]);
 
   // Carregar clientes do Supabase e localStorage (fallback)
@@ -1022,9 +1025,15 @@ export default function NovoContratoV2() {
         <CardTitle>Selecionar Cliente</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar cliente por nome ou documento..." value={searchCliente} onChange={e => setSearchCliente(e.target.value)} className="pl-10" />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar cliente por nome ou documento..." value={searchCliente} onChange={e => setSearchCliente(e.target.value)} className="pl-10" />
+          </div>
+          <Button variant="outline" onClick={() => setIsClienteFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Novo Cliente
+          </Button>
         </div>
         
         {contrato.cliente && <div className="p-4 border rounded-lg bg-primary/5 border-primary/20">
@@ -1065,6 +1074,22 @@ export default function NovoContratoV2() {
         nomeRazao: '',
         documento: ''
       }} motivo={clienteBloqueado?.motivo || ''} origemLoja={clienteBloqueado?.origemLoja} valor={clienteBloqueado?.valor} />
+
+        {/* Modal Novo Cliente */}
+        <Dialog open={isClienteFormOpen} onOpenChange={setIsClienteFormOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Novo Cliente</DialogTitle>
+            </DialogHeader>
+            <ClienteForm
+              onSave={(cliente) => {
+                setIsClienteFormOpen(false);
+                selecionarCliente(cliente);
+              }}
+              onCancel={() => setIsClienteFormOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>;
   const renderEtapaItens = () => <div className="space-y-4">
