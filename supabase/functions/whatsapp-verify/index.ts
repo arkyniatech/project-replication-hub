@@ -68,14 +68,14 @@ Deno.serve(async (req) => {
 
       const message = `🔐 *Código de Verificação*\n\nSeu código é: *${newCode}*\n\nEste código expira em 5 minutos.\n\n_Não compartilhe este código com ninguém._`;
 
-      const uazapiResponse = await fetch(`${uazapiUrl}/sendText`, {
+      const uazapiResponse = await fetch(`${uazapiUrl}/message/sendText`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Token': uazapiToken,
+          'token': uazapiToken,
         },
         body: JSON.stringify({
-          phone: whatsappNumber,
+          number: whatsappNumber,
           message,
         }),
       });
