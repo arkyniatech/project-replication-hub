@@ -130,9 +130,26 @@ export const mockCEPData: Record<string, any> = {
   }
 };
 
-export function getAddressByCEP(cep: string) {
+export async function getAddressByCEP(cep: string) {
   const numbers = cep.replace(/\D/g, '');
-  return mockCEPData[numbers] || null;
+  if (numbers.length !== 8) return null;
+  
+  // Try mock first for offline/test
+  if (mockCEPData[numbers]) return mockCEPData[numbers];
+  
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
+    const data = await res.json();
+    if (data.erro) return null;
+    return {
+      logradouro: data.logradouro || '',
+      bairro: data.bairro || '',
+      cidade: data.localidade || '',
+      uf: data.uf || '',
+    };
+  } catch {
+    return null;
+  }
 }
 
 export const estadosBrasil = [

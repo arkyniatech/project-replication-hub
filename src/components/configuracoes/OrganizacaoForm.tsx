@@ -117,20 +117,21 @@ export function OrganizacaoForm() {
   // Auto-preenchimento por CEP
   useEffect(() => {
     if (formData.endereco.cep && validateCEP(formData.endereco.cep)) {
-      const address = getAddressByCEP(formData.endereco.cep);
-      if (address) {
-        setFormData(prev => ({
-          ...prev,
-          endereco: {
-            ...prev.endereco,
-            logradouro: address.logradouro,
-            bairro: address.bairro,
-            cidade: address.cidade,
-            uf: address.uf
-          }
-        }));
-        toast.success("Endereço preenchido automaticamente");
-      }
+      getAddressByCEP(formData.endereco.cep).then(address => {
+        if (address) {
+          setFormData(prev => ({
+            ...prev,
+            endereco: {
+              ...prev.endereco,
+              logradouro: address.logradouro,
+              bairro: address.bairro,
+              cidade: address.cidade,
+              uf: address.uf
+            }
+          }));
+          toast.success("Endereço preenchido automaticamente");
+        }
+      });
     }
   }, [formData.endereco.cep]);
 
