@@ -75,34 +75,24 @@ const ROLE_TO_CLAIMS: Record<AppRole, Claim[]> = {
     'rh:users', 'rh:permissions', 'rh:pessoas_edit', 'rh:ponto_aprovar',
     'config:usuarios'
   ],
-  gerente: [
+  master: [
     'dashboard:view', 'relatorios:view',
     'clientes:view', 'clientes:create', 'clientes:edit',
     'equipamentos:view', 'equipamentos:edit', 'equipamentos:create', 'equipamentos:view-price',
     'contratos:view', 'contratos:create', 'contratos:edit', 'contratos:renew', 'contratos:close',
-    'logistica:view', 'logistica:config',
-    'financeiro.cr:view',
-    'fin:ver-saldos', 'fin:conciliar',
+    'logistica:view', 'logistica:operar', 'logistica:config',
+    'financeiro.cr:view', 'financeiro.cr:config', 'financeiro.cr:emitir-bolepix', 'financeiro.cr:cancelar-bolepix', 'financeiro.cr:ver-bolepix',
+    'fin:transferir', 'fin:conciliar', 'fin:ver-saldos',
     'estoque:view', 'estoque:ajustar',
-    'rh:users',
-    'org:multi_loja_report',
-    'compras:view', 'compras:req:create', 'compras:req:view', 'compras:cot:create', 'compras:cot:edit', 'compras:po:create', 'compras:approve',
+    'rh:users', 'rh:permissions', 'rh:pessoas_edit', 'rh:ponto_aprovar',
+    'settings:templates', 'settings:sequencias',
+    'config:usuarios',
+    'manutencaoOS:ver', 'manutencaoOS:operar', 'manutencaoOS:liberar', 'manutencaoOS:cinza', 'manutencaoOS:config',
+    'dre:view', 'dre:fechar', 'dre:reabrir',
+    'org:multi_loja_report', 'org:trocar_loja',
+    'compras:view', 'compras:req:create', 'compras:req:view', 'compras:cot:create', 'compras:cot:edit', 'compras:po:create', 'compras:rec:operar', 'compras:approve',
     'almox:view', 'almox:ajustar', 'almox:patrimonial', 'almox:contagem:processar'
   ],
-  operacao: [
-    'logistica:view', 'logistica:operar',
-    'equipamentos:view',
-    'manutencaoOS:ver', 'manutencaoOS:operar',
-    'almox:view'
-  ],
-  user: [
-    'dashboard:view',
-    'clientes:view',
-    'equipamentos:view',
-    'contratos:view',
-    'compras:view',
-    'almox:view'
-  ]
 };
 
 export interface RbacHookReturn {
