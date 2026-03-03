@@ -1,37 +1,19 @@
 
 
-# Melhorar Visual da Tela de Relatórios + Expandir/Recolher NavPanel
+# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
 
 ## Problema
-A tela de Relatórios está visualmente poluída — muitos cards empilhados sem hierarquia clara, e o painel lateral de navegação (NavOverlayPanel) sobrepõe o conteúdo de forma desorganizada. O usuário quer poder expandir e recolher o painel lateral.
+Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
 
 ## Solução
+Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
 
-### 1. Melhorar o visual da página Relatórios (`src/pages/Relatorios.tsx`)
-- Reorganizar o layout com um header mais limpo e compacto
-- Usar ícones maiores e cards com melhor espaçamento
-- Melhorar a seção de estatísticas com cores e ícones mais distintos
-- Cards de relatórios com layout mais moderno (hover effects, bordas sutis)
-- Seção de filtros de período mais compacta e integrada
-- Relatório personalizado com visual mais atrativo
+## Alterações
 
-### 2. Melhorar o NavOverlayPanel (`src/components/layout/NavOverlayPanel.tsx`)
-- O painel já tem funcionalidade de expandir/recolher via hover + pin
-- Garantir que o botão de "Fixar menu" no rodapé do NavRail funcione como toggle expand/collapse
-- Melhorar a transição visual ao abrir/fechar
+**`src/components/layout/NavRail.tsx`**:
+- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
+- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
+- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
 
-### 3. AppShell - Suporte a pinned state (`src/components/layout/AppShell.tsx`)
-- Quando o menu estiver "pinned", o conteúdo principal deve deslocar para a direita (marginLeft ajustado) em vez do painel sobrepor o conteúdo
-- Isso dá ao usuário controle de expandir/recolher efetivamente
-
-## Alterações Técnicas
-
-**`src/components/layout/AppShell.tsx`** — Ajustar marginLeft do conteúdo quando `isPinned` for true (64px → 64px + 280px = 344px), com transição suave.
-
-**`src/pages/Relatorios.tsx`** — Redesign visual:
-- Header com gradiente sutil e ícone destacado
-- Grid de estatísticas com ícones coloridos dentro dos cards
-- Cards de relatórios com ícone à esquerda, botões mais compactos
-- Selects estilizados com componentes shadcn/ui (Select)
-- Espaçamento e tipografia melhorados
+Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
 
