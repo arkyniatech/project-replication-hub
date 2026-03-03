@@ -132,6 +132,9 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
       {/* Menu Items */}
       <div className="flex-1 py-3">
         <TooltipProvider delayDuration={300}>
+          {/* Spacer matching overlay "PRINCIPAL" section header */}
+          <div className="h-5" />
+          
           {/* Principal */}
           {principalItems.map((item) => {
             if (!hasAccess(item.id)) return null;
@@ -139,7 +142,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
             const active = isActive(item.url);
             
             return (
-              <div key={item.id} className="relative px-2 mb-1">
+              <div key={item.id} className="relative px-2 mb-0.5">
                 {getActiveIndicator(item.url)}
                 
                 <Tooltip>
@@ -147,7 +150,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
                     <NavLink
                       to={item.url}
                       className={cn(
-                        "flex items-center justify-center w-12 h-12 rounded-lg",
+                        "flex items-center justify-center w-12 h-10 rounded-lg",
                         "transition-all ease-out [transition-duration:var(--nav-transition-duration,200ms)]",
                         "hover:bg-accent hover:text-accent-foreground",
                         active && "bg-primary/10 text-primary"
@@ -165,8 +168,8 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
             );
           })}
           
-          {/* Separator - matches overlay section header height */}
-          <div className="mx-4 h-px bg-border/50 my-2" />
+          {/* Spacer matching overlay "OPERAÇÃO" section header */}
+          <div className="h-5" />
           
           {/* Operação */}
           {operacaoItems.map((item) => {
@@ -175,7 +178,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
             const active = isActive(item.url);
             
             return (
-              <div key={item.id} className="relative px-2 mb-1">
+              <div key={item.id} className="relative px-2 mb-0.5">
                 {getActiveIndicator(item.url)}
                 
                 <Tooltip>
@@ -183,7 +186,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
                     <NavLink
                       to={item.url}
                       className={cn(
-                        "flex items-center justify-center w-12 h-12 rounded-lg",
+                        "flex items-center justify-center w-12 h-10 rounded-lg",
                         "transition-all ease-out [transition-duration:var(--nav-transition-duration,200ms)]",
                         "hover:bg-accent hover:text-accent-foreground",
                         active && "bg-primary/10 text-primary"
@@ -201,8 +204,8 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
             );
           })}
           
-          {/* Separator */}
-          <div className="mx-4 h-px bg-border/50 my-2" />
+          {/* Spacer matching overlay "GESTÃO" section header */}
+          <div className="h-5" />
           
           {/* Gestão */}
           {gestaoItems.map((item) => {
@@ -211,7 +214,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
             const active = isActive(item.url);
             
             return (
-              <div key={item.id} className="relative px-2 mb-1">
+              <div key={item.id} className="relative px-2 mb-0.5">
                 {getActiveIndicator(item.url)}
                 
                 <Tooltip>
@@ -219,7 +222,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
                     <NavLink
                       to={item.url}
                       className={cn(
-                        "flex items-center justify-center w-12 h-12 rounded-lg",
+                        "flex items-center justify-center w-12 h-10 rounded-lg",
                         "transition-all ease-out [transition-duration:var(--nav-transition-duration,200ms)]",
                         "hover:bg-accent hover:text-accent-foreground",
                         active && "bg-primary/10 text-primary"
