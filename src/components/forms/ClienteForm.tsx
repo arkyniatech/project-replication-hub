@@ -472,6 +472,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
           open={verifyingWhatsApp !== null}
           onOpenChange={(open) => !open && setVerifyingWhatsApp(null)}
           phoneNumber={contatos.find(c => c.id === verifyingWhatsApp)?.valor || ''}
+          lojaId={lojaAtual?.id}
           onVerified={() => {
             if (verifyingWhatsApp) {
               updateContato(verifyingWhatsApp, 'verificado', true);

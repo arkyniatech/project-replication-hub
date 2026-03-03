@@ -26,11 +26,31 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, phone, code } = body;
+    const { action, phone, code, loja_id } = body;
 
     if (action === 'send') {
       if (!phone) {
         return Response.json({ error: 'Telefone obrigatório' }, { status: 400, headers: corsHeaders });
+      }
+
+      if (!loja_id) {
+        return Response.json({ error: 'loja_id obrigatório' }, { status: 400, headers: corsHeaders });
+      }
+
+      // Lookup instance token from whatsapp_instances
+      const { data: instance, error: instError } = await supabase
+        .from('whatsapp_instances')
+        .select('instance_token')
+        .eq('loja_id', loja_id)
+        .eq('status', 'connected')
+        .single();
+
+      if (instError || !instance?.instance_token) {
+        console.error('Instance lookup error:', instError);
+        return Response.json(
+          { error: 'Nenhuma instância WhatsApp conectada para esta loja. Configure em Configurações > WhatsApp.' },
+          { status: 400, headers: corsHeaders }
+        );
       }
 
       // Generate 6-digit code
@@ -54,31 +74,30 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Erro ao salvar código' }, { status: 500, headers: corsHeaders });
       }
 
-      // Send via uazapi
-      const uazapiUrl = Deno.env.get('UAZAPI_URL');
-      const uazapiToken = Deno.env.get('UAZAPI_TOKEN');
-
-      if (!uazapiUrl || !uazapiToken) {
-        console.error('UAZAPI_URL or UAZAPI_TOKEN not configured');
-        return Response.json({ error: 'Configuração de WhatsApp ausente' }, { status: 500, headers: corsHeaders });
-      }
-
+      // Format phone number: remove non-digits, ensure 55 prefix
       const cleanPhone = phone.replace(/\D/g, '');
       const whatsappNumber = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
       const textMessage = `🔐 Seu código de verificação é: *${newCode}*\nEle expira em 5 minutos.`;
 
-      // Remove trailing slash from URL if present
+      // Send via uazapi using instance token
+      const uazapiUrl = Deno.env.get('UAZAPI_URL');
+      if (!uazapiUrl) {
+        console.error('UAZAPI_URL not configured');
+        return Response.json({ error: 'Configuração de WhatsApp ausente' }, { status: 500, headers: corsHeaders });
+      }
+
       const baseUrl = uazapiUrl.replace(/\/+$/, '');
       const fullUrl = `${baseUrl}/message/sendText`;
       console.log('Calling uazapi URL:', fullUrl);
-      console.log('Request body:', JSON.stringify({ number: whatsappNumber, text: textMessage }));
+      console.log('Number:', whatsappNumber);
+      console.log('Using instance token:', instance.instance_token ? 'present' : 'missing');
 
       const uazapiResponse = await fetch(fullUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'token': uazapiToken,
+          'token': instance.instance_token,
         },
         body: JSON.stringify({
           number: whatsappNumber,

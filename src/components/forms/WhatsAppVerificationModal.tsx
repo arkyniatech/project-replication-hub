@@ -12,13 +12,15 @@ interface WhatsAppVerificationModalProps {
   onOpenChange: (open: boolean) => void;
   phoneNumber: string;
   onVerified: () => void;
+  lojaId?: string;
 }
 
 export default function WhatsAppVerificationModal({
   open,
   onOpenChange,
   phoneNumber,
-  onVerified
+  onVerified,
+  lojaId
 }: WhatsAppVerificationModalProps) {
   const [step, setStep] = useState<'sending' | 'verify' | 'success'>('sending');
   const [code, setCode] = useState('');
@@ -29,7 +31,7 @@ export default function WhatsAppVerificationModal({
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-verify', {
-        body: { action: 'send', phone: phoneNumber },
+        body: { action: 'send', phone: phoneNumber, loja_id: lojaId },
       });
 
       if (error || data?.error) {
