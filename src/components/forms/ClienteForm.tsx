@@ -358,9 +358,12 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
           onSave?.(novoCliente);
         },
         onError: (error: any) => {
+          const isRLS = error?.message?.includes('row-level security');
           toast({
             title: "Erro ao criar cliente",
-            description: error.message || "Ocorreu um erro ao cadastrar o cliente.",
+            description: isRLS 
+              ? "Você não tem permissão para cadastrar clientes nesta loja. Verifique suas permissões." 
+              : (error.message || "Ocorreu um erro ao cadastrar o cliente."),
             variant: "destructive"
           });
         }
