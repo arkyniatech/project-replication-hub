@@ -2117,6 +2117,12 @@ export default function NovoContratoV2() {
               Visualizar Contrato
             </Button>
           </div>
+          <ContratoResumoPreview 
+            open={showPreview} 
+            onClose={() => setShowPreview(false)} 
+            contrato={contrato as any} 
+            onEnviarAssinatura={handleEnviarAssinatura} 
+          />
         </CardContent>
       </Card>;
   };
