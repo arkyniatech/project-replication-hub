@@ -102,7 +102,7 @@ export default function NovoContratoV2() {
   const {
     lojaAtual
   } = useMultiunidade();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [etapaAtual, setEtapaAtual] = useState(0);
   const [hasChanges, setHasChanges] = useState(false);
   const [politicaAplicada, setPoliticaAplicada] = useState<ResultadoPolitica | null>(null);
@@ -1047,9 +1047,12 @@ export default function NovoContratoV2() {
                   {formatarStatusCliente(contrato.cliente)}
                 </Badge>
               </div>
-              <Button variant="outline" onClick={() => {
+              <Button type="button" variant="outline" onClick={() => {
                 setContrato(prev => ({ ...prev, clienteId: '', cliente: undefined }));
                 setSearchCliente('');
+                const novosParams = new URLSearchParams(searchParams);
+                novosParams.delete('clienteId');
+                setSearchParams(novosParams, { replace: true });
               }}>
                 Alterar
               </Button>
