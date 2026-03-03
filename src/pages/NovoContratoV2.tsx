@@ -1048,9 +1048,8 @@ export default function NovoContratoV2() {
                 </Badge>
               </div>
               <Button variant="outline" onClick={() => {
-                const nomeAtual = contrato.cliente?.nomeRazao || '';
                 setContrato(prev => ({ ...prev, clienteId: '', cliente: undefined }));
-                setSearchCliente(nomeAtual);
+                setSearchCliente('');
               }}>
                 Alterar
               </Button>
