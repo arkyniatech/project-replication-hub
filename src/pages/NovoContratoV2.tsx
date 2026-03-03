@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTriangle, CheckCircle, Clock, MapPin, CreditCard, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTriangle, CheckCircle, Clock, MapPin, CreditCard, Truck, Wrench } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { clienteStorage, equipamentoStorage, contratoStorage } from "@/lib/storage";
 import { Cliente, Equipamento, ItemContrato, Obra } from "@/types";
@@ -1098,36 +1099,77 @@ export default function NovoContratoV2() {
     </Card>;
   const renderEtapaItens = () => <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <CardTitle>Adicionar Equipamentos</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle>Equipamentos Disponíveis</CardTitle>
+            <Badge variant="secondary" className="text-xs">
+              {equipamentosFiltrados.length} disponíveis
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="relative">
+          <div className="relative mb-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar equipamento por nome, código ou grupo..." value={searchEquipamento} onChange={e => setSearchEquipamento(e.target.value)} className="pl-10" />
+            <Input placeholder="Filtrar por nome, código ou grupo..." value={searchEquipamento} onChange={e => setSearchEquipamento(e.target.value)} className="pl-10" />
           </div>
           
-          {searchEquipamento && <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
-              {equipamentosFiltrados.map(equipamento => <div key={equipamento.id} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => adicionarItem(equipamento)}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">{equipamento.nome}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {equipamento.codigo} - {equipamento.grupo?.nome}
-                      </p>
-                      <Badge variant="outline" className="mt-1 text-xs">
-                        {equipamento.controle || equipamento.tipoControle || (equipamento as any).tipo || 'SERIALIZADO'}
-                      </Badge>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        R$ {(equipamento.tabela?.DIARIA || equipamento.precos.diaria || 0).toLocaleString('pt-BR')}/dia
-                      </p>
-                      <Plus className="w-4 h-4 ml-auto mt-1 text-primary" />
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {loadingEquipamentos ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Carregando equipamentos...
+              </div>
+            ) : equipamentosFiltrados.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Wrench className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Nenhum equipamento disponível</p>
+              </div>
+            ) : (
+              equipamentosFiltrados.map(equipamento => {
+                const jaAdicionado = contrato.itens.some(i => i.equipamentoId === equipamento.id);
+                return (
+                  <div 
+                    key={equipamento.id} 
+                    className={cn(
+                      "p-3 border rounded-lg cursor-pointer transition-all",
+                      jaAdicionado 
+                        ? "bg-primary/5 border-primary/30 opacity-60" 
+                        : "hover:bg-muted/50 hover:border-primary/20"
+                    )}
+                    onClick={() => !jaAdicionado && adicionarItem(equipamento)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium truncate">{equipamento.nome}</h4>
+                          {jaAdicionado && <Badge variant="outline" className="text-xs shrink-0 text-primary">Adicionado</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {equipamento.codigo} • {equipamento.grupo?.nome}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {equipamento.controle || equipamento.tipoControle || (equipamento as any).tipo || 'SERIALIZADO'}
+                          </Badge>
+                          {equipamento.qtdDisponivel != null && (
+                            <span className="text-xs text-muted-foreground">
+                              {equipamento.qtdDisponivel} un. disponíveis
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        <p className="text-sm font-semibold">
+                          R$ {(equipamento.tabela?.DIARIA || equipamento.precos.diaria || 0).toLocaleString('pt-BR')}<span className="text-xs font-normal text-muted-foreground">/dia</span>
+                        </p>
+                        {!jaAdicionado && <Plus className="w-4 h-4 ml-auto mt-1 text-primary" />}
+                      </div>
                     </div>
                   </div>
-                </div>)}
-            </div>}
+                );
+              })
+            )}
+          </div>
         </CardContent>
       </Card>
 
