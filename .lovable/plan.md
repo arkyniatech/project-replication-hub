@@ -1,25 +1,21 @@
 
 
-# Fix: Cliente desaparece ao clicar "Alterar" no novo contrato
+# Fix: Mostrar lista de clientes sem precisar digitar
 
 ## Problema
-Ao clicar "Alterar" no card do cliente selecionado, o código limpa `clienteId` e `cliente` do estado, mas o campo de busca (`searchCliente`) fica vazio. Como a lista de clientes só aparece quando `searchCliente` tem conteúdo (linha 1058: `{searchCliente && !contrato.cliente && ...}`), o usuário fica sem ver nenhum cliente e precisa digitar algo para vê-los novamente.
+A lista de clientes só aparece quando `searchCliente` tem conteúdo (linha 1058: `{searchCliente && !contrato.cliente && ...}`). O usuário quer ver os clientes disponíveis assim que abre a tela, sem precisar digitar nada.
 
 ## Solução
-Ao clicar "Alterar", preencher automaticamente o `searchCliente` com o nome do cliente atual. Assim a lista aparece imediatamente mostrando o cliente (e similares), e o usuário pode limpar o campo para buscar outro.
+Remover a condição `searchCliente &&` para que a lista apareça sempre que não houver cliente selecionado. Ajustar o filtro de clientes para mostrar todos (limitados a 10) quando a busca estiver vazia.
 
-## Alteração
+## Alterações em `src/pages/NovoContratoV2.tsx`
 
-### `src/pages/NovoContratoV2.tsx`
-Na linha ~1048, alterar o `onClick` do botão "Alterar" para também setar o `searchCliente`:
+1. **Linha ~244-248** — No `useEffect` de filtro, quando `searchCliente` estiver vazio, mostrar todos os clientes (já limitado a 10 pelo `.slice(0, 10)`):
+   - Remover o filtro condicional: se `searchCliente` estiver vazio, retornar `todosClientes.slice(0, 10)` direto.
 
-```typescript
-onClick={() => {
-  const nomeAtual = contrato.cliente?.nomeRazao || '';
-  setContrato(prev => ({ ...prev, clienteId: '', cliente: undefined }));
-  setSearchCliente(nomeAtual);
-}}
-```
+2. **Linha 1058** — Remover `searchCliente &&` da condição de renderização:
+   - De: `{searchCliente && !contrato.cliente && ...}`
+   - Para: `{!contrato.cliente && ...}`
 
-Isso garante que a lista de clientes aparece imediatamente com o nome previamente selecionado preenchido no campo de busca.
+Isso faz a lista de clientes aparecer imediatamente, mostrando os 10 primeiros. Ao digitar, filtra normalmente.
 
