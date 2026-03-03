@@ -1,20 +1,44 @@
 
 
-# Adicionar botao "Novo Cliente" na etapa de selecao de cliente do Novo Contrato
+# Integrar Verificacao WhatsApp real via uazapi
 
-## Problema
-Na tela de Novo Contrato (etapa 0 - "Cliente"), o usuario so pode buscar clientes existentes. Se precisa cadastrar um novo, tem que sair da tela, ir em Clientes, cadastrar, e voltar.
+## O que preciso de voce
 
-## Solucao
-Adicionar um botao "+ Novo Cliente" ao lado da barra de busca na `renderEtapaCliente()` do `NovoContratoV2.tsx`. Ao clicar, abre um Dialog com o `ClienteForm` ja existente. Ao salvar, o cliente criado e automaticamente selecionado no contrato.
+Para integrar com a **uazapi**, preciso de 2 informacoes:
 
-## Alteracoes
+1. **URL da sua instancia uazapi** (ex: `https://sua-instancia.uazapi.com`)
+2. **Token de autenticacao da API** (o token da sua instancia)
 
-### `src/pages/NovoContratoV2.tsx`
-1. Importar `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` de `@/components/ui/dialog` e `ClienteForm`
-2. Adicionar estado `isClienteFormOpen` (boolean)
-3. Na `renderEtapaCliente()`, ao lado do input de busca, adicionar botao `+ Novo Cliente` que abre o dialog
-4. Adicionar o `<Dialog>` com `<ClienteForm>` dentro. No callback `onSave`, fechar o modal e selecionar automaticamente o cliente recem-criado no contrato (usando `selecionarCliente` com os dados retornados)
+Vou armazenar o token como secret seguro no Supabase (nunca exposto no frontend).
 
-Reutiliza 100% do `ClienteForm` existente — sem duplicacao de codigo.
+## Como vai funcionar
+
+### Fluxo
+1. Usuario clica "Enviar Codigo" → frontend chama edge function `whatsapp-verify`
+2. Edge function gera codigo aleatorio de 6 digitos, salva no banco com expiracao de 5 min, e envia via uazapi para o numero do cliente
+3. Usuario digita o codigo recebido → frontend chama a mesma edge function (acao `verify`)
+4. Edge function compara o codigo, retorna sucesso ou erro
+
+### Alteracoes
+
+**1. Tabela `whatsapp_verifications`** (migration)
+- `id`, `phone`, `code` (6 digitos), `expires_at`, `verified`, `created_at`
+- Expiracao automatica de 5 minutos
+
+**2. Edge Function `whatsapp-verify/index.ts`**
+- Acao `send`: gera codigo, insere na tabela, chama API uazapi `POST /sendText` com mensagem contendo o codigo
+- Acao `verify`: busca codigo valido (nao expirado, nao usado) para o telefone, compara, marca como verificado
+
+**3. `WhatsAppVerificationModal.tsx`**
+- Substituir mock por chamadas reais a `supabase.functions.invoke('whatsapp-verify', ...)`
+- Remover dica de teste "123456"
+- Adicionar loading states
+
+**4. Secrets necessarios**
+- `UAZAPI_URL` — URL da instancia
+- `UAZAPI_TOKEN` — Token de autenticacao
+
+## Proximo passo
+
+Me confirme a **URL da instancia** e o **token** da uazapi, e eu configuro tudo.
 
