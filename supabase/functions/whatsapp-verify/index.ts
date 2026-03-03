@@ -66,9 +66,15 @@ Deno.serve(async (req) => {
       const cleanPhone = phone.replace(/\D/g, '');
       const whatsappNumber = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
-      const message = `🔐 Seu código de verificação é: *${newCode}*\nEle expira em 5 minutos.`;
+      const textMessage = `🔐 Seu código de verificação é: *${newCode}*\nEle expira em 5 minutos.`;
 
-      const uazapiResponse = await fetch(`${uazapiUrl}/message/sendText`, {
+      // Remove trailing slash from URL if present
+      const baseUrl = uazapiUrl.replace(/\/+$/, '');
+      const fullUrl = `${baseUrl}/message/sendText`;
+      console.log('Calling uazapi URL:', fullUrl);
+      console.log('Request body:', JSON.stringify({ number: whatsappNumber, text: textMessage }));
+
+      const uazapiResponse = await fetch(fullUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -76,7 +82,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           number: whatsappNumber,
-          text: message,
+          text: textMessage,
         }),
       });
 
