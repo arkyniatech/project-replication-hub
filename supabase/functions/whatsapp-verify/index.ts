@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       const cleanPhone = phone.replace(/\D/g, '');
       const whatsappNumber = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
-      const message = `🔐 *Código de Verificação*\n\nSeu código é: *${newCode}*\n\nEste código expira em 5 minutos.\n\n_Não compartilhe este código com ninguém._`;
+      const message = `🔐 Seu código de verificação é: *${newCode}*\nEle expira em 5 minutos.`;
 
       const uazapiResponse = await fetch(`${uazapiUrl}/message/sendText`, {
         method: 'POST',
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           number: whatsappNumber,
-          message,
+          text: message,
         }),
       });
 
