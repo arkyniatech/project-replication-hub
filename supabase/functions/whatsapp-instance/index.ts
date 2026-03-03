@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'admintoken': adminToken,
           },
-          body: JSON.stringify({ instanceName: instance_name }),
+          body: JSON.stringify({ name: instance_name }),
         });
 
         const initData = await initResponse.json();
@@ -150,13 +150,14 @@ Deno.serve(async (req) => {
 
         // Connect instance to get QR code
         console.log('Connecting instance:', instance.instance_name);
+        console.log('Connecting with token:', instance.instance_token ? 'present' : 'missing');
         const connectResponse = await fetch(`${uazapiUrl}/instance/connect`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'token': instance.instance_token || adminToken,
           },
-          body: JSON.stringify({ instanceName: instance.instance_name }),
+          body: JSON.stringify({}),
         });
 
         const connectData = await connectResponse.json();
@@ -204,12 +205,10 @@ Deno.serve(async (req) => {
         if (inst.instance_token) {
           try {
             const statusResp = await fetch(`${uazapiUrl}/instance/status`, {
-              method: 'POST',
+              method: 'GET',
               headers: {
-                'Content-Type': 'application/json',
                 'token': inst.instance_token,
               },
-              body: JSON.stringify({ instanceName: inst.instance_name }),
             });
             const statusData = await statusResp.json();
             console.log('uazapi status response:', JSON.stringify(statusData));
@@ -272,12 +271,11 @@ Deno.serve(async (req) => {
         try {
           console.log('Deleting instance on uazapi:', delInst.instance_name);
           await fetch(`${uazapiUrl}/instance/delete`, {
-            method: 'POST',
+            method: 'DELETE',
             headers: {
-              'Content-Type': 'application/json',
               'admintoken': adminToken,
+              'token': delInst.instance_token || '',
             },
-            body: JSON.stringify({ instanceName: delInst.instance_name }),
           });
         } catch (e) {
           console.error('uazapi delete error:', e);
