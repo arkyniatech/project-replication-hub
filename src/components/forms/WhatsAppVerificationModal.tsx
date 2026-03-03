@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Shield, Smartphone } from "lucide-react";
+import { CheckCircle2, Loader2, Shield, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WhatsAppVerificationModalProps {
   open: boolean;
@@ -21,38 +22,64 @@ export default function WhatsAppVerificationModal({
 }: WhatsAppVerificationModalProps) {
   const [step, setStep] = useState<'sending' | 'verify' | 'success'>('sending');
   const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSendCode = () => {
-    // Mock: simular envio do código
-    setTimeout(() => {
+  const handleSendCode = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-verify', {
+        body: { action: 'send', phone: phoneNumber },
+      });
+
+      if (error || data?.error) {
+        throw new Error(data?.error || error?.message || 'Erro ao enviar código');
+      }
+
       setStep('verify');
       toast({
         title: "Código enviado!",
         description: `Um código de verificação foi enviado para ${phoneNumber} via WhatsApp.`,
       });
-    }, 1000);
+    } catch (err: any) {
+      toast({
+        title: "Erro ao enviar código",
+        description: err.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerifyCode = () => {
-    // Mock: código correto é "123456"
-    if (code === '123456') {
+  const handleVerifyCode = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-verify', {
+        body: { action: 'verify', phone: phoneNumber, code },
+      });
+
+      if (error || data?.error) {
+        throw new Error(data?.error || error?.message || 'Código inválido');
+      }
+
       setStep('success');
       setTimeout(() => {
         onVerified();
         onOpenChange(false);
-        // Reset para próxima vez
         setTimeout(() => {
           setStep('sending');
           setCode('');
         }, 300);
       }, 1500);
-    } else {
+    } catch (err: any) {
       toast({
         title: "Código inválido",
-        description: "O código informado está incorreto. Tente novamente.",
-        variant: "destructive"
+        description: err.message || "O código informado está incorreto ou expirado. Tente novamente.",
+        variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -122,12 +149,8 @@ export default function WhatsAppVerificationModal({
                   autoFocus
                 />
                 <p className="text-xs text-muted-foreground text-center">
-                  Digite o código de 6 dígitos
+                  Digite o código de 6 dígitos (expira em 5 minutos)
                 </p>
-              </div>
-
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded text-xs text-blue-900 dark:text-blue-100">
-                <strong>💡 Dica para testes:</strong> Use o código <code className="px-1 py-0.5 bg-blue-100 dark:bg-blue-900 rounded">123456</code>
               </div>
             </div>
           )}
@@ -152,10 +175,11 @@ export default function WhatsAppVerificationModal({
         <DialogFooter>
           {step === 'sending' && (
             <>
-              <Button type="button" variant="outline" onClick={handleClose}>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
                 Cancelar
               </Button>
-              <Button type="button" onClick={handleSendCode}>
+              <Button type="button" onClick={handleSendCode} disabled={loading}>
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Enviar Código
               </Button>
             </>
@@ -163,14 +187,15 @@ export default function WhatsAppVerificationModal({
 
           {step === 'verify' && (
             <>
-              <Button type="button" variant="outline" onClick={handleClose}>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
                 Cancelar
               </Button>
               <Button 
                 type="button" 
                 onClick={handleVerifyCode}
-                disabled={code.length !== 6}
+                disabled={code.length !== 6 || loading}
               >
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Verificar
               </Button>
             </>
