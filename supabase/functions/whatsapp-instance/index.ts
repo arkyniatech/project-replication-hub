@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'admintoken': adminToken,
           },
-          body: JSON.stringify({ instance_name }),
+          body: JSON.stringify({ instanceName: instance_name }),
         });
 
         const initData = await initResponse.json();
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
             'token': instance.instance_token || adminToken,
           },
-          body: JSON.stringify({ instance_name: instance.instance_name }),
+          body: JSON.stringify({ instanceName: instance.instance_name }),
         });
 
         const connectData = await connectResponse.json();
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
                 'Content-Type': 'application/json',
                 'token': inst.instance_token,
               },
-              body: JSON.stringify({ instance_name: inst.instance_name }),
+              body: JSON.stringify({ instanceName: inst.instance_name }),
             });
             const statusData = await statusResp.json();
             console.log('uazapi status response:', JSON.stringify(statusData));
@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
               'Content-Type': 'application/json',
               'admintoken': adminToken,
             },
-            body: JSON.stringify({ instance_name: delInst.instance_name }),
+            body: JSON.stringify({ instanceName: delInst.instance_name }),
           });
         } catch (e) {
           console.error('uazapi delete error:', e);
