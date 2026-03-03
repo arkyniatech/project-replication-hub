@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, Download, Calendar, FileText, DollarSign, TrendingUp, ExternalLink } from "lucide-react";
+import { BarChart3, Download, Calendar, FileText, DollarSign, TrendingUp, ExternalLink, Wrench, Users, Receipt } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { clienteStorage, equipamentoStorage, contratoStorage, faturaStorage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { UtilizacaoTab } from "@/components/relatorios/UtilizacaoTab";
@@ -327,203 +328,209 @@ export default function Relatorios() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
-          <p className="text-muted-foreground">Gere relatórios customizáveis e análises do sistema</p>
+      {/* Header compacto com gradiente */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <BarChart3 className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Relatórios</h1>
+            <p className="text-sm text-muted-foreground">Análises e exportações do sistema</p>
+          </div>
+        </div>
+        
+        {/* Filtro de período inline */}
+        <div className="hidden md:flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-1.5 border border-border/50">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <input
+            type="date"
+            value={dateRange.inicio}
+            onChange={(e) => setDateRange(prev => ({ ...prev, inicio: e.target.value }))}
+            className="bg-transparent text-sm text-foreground border-none outline-none w-[130px]"
+          />
+          <span className="text-muted-foreground text-xs">até</span>
+          <input
+            type="date"
+            value={dateRange.fim}
+            onChange={(e) => setDateRange(prev => ({ ...prev, fim: e.target.value }))}
+            className="bg-transparent text-sm text-foreground border-none outline-none w-[130px]"
+          />
         </div>
       </div>
 
-      {/* Estatísticas Rápidas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="shadow-md">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-foreground">{estatisticas.contratosAtivos}</div>
-            <div className="text-sm text-muted-foreground">Contratos Ativos</div>
-            <div className="text-xs text-muted-foreground">de {estatisticas.totalContratos} total</div>
+      {/* Estatísticas Rápidas - Redesign com ícones coloridos */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="border-border/50 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-blue-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xl font-bold text-foreground">{estatisticas.contratosAtivos}</div>
+              <div className="text-xs text-muted-foreground truncate">Contratos Ativos</div>
+              <div className="text-[10px] text-muted-foreground/60">{estatisticas.totalContratos} total</div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-foreground">{estatisticas.equipamentosDisponiveis}</div>
-            <div className="text-sm text-muted-foreground">Equipamentos Disponíveis</div>
-            <div className="text-xs text-muted-foreground">de {estatisticas.totalEquipamentos} total</div>
+        <Card className="border-border/50 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <Wrench className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xl font-bold text-foreground">{estatisticas.equipamentosDisponiveis}</div>
+              <div className="text-xs text-muted-foreground truncate">Equip. Disponíveis</div>
+              <div className="text-[10px] text-muted-foreground/60">{estatisticas.totalEquipamentos} total</div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-foreground">{estatisticas.faturasPendentes}</div>
-            <div className="text-sm text-muted-foreground">Faturas Pendentes</div>
-            <div className="text-xs text-muted-foreground">de {estatisticas.totalFaturas} total</div>
+        <Card className="border-border/50 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+              <Receipt className="w-5 h-5 text-amber-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xl font-bold text-foreground">{estatisticas.faturasPendentes}</div>
+              <div className="text-xs text-muted-foreground truncate">Faturas Pendentes</div>
+              <div className="text-[10px] text-muted-foreground/60">{estatisticas.totalFaturas} total</div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-foreground">{estatisticas.clientesAtivos}</div>
-            <div className="text-sm text-muted-foreground">Clientes Ativos</div>
-            <div className="text-xs text-muted-foreground">de {estatisticas.totalClientes} total</div>
+        <Card className="border-border/50 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5 text-violet-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xl font-bold text-foreground">{estatisticas.clientesAtivos}</div>
+              <div className="text-xs text-muted-foreground truncate">Clientes Ativos</div>
+              <div className="text-[10px] text-muted-foreground/60">{estatisticas.totalClientes} total</div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filtros de Período */}
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" />
-            Período para Relatórios
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-foreground block mb-2">
-                Data Inicial
-              </label>
-              <input
-                type="date"
-                value={dateRange.inicio}
-                onChange={(e) => setDateRange(prev => ({ ...prev, inicio: e.target.value }))}
-                className="w-full px-3 py-2 bg-input border border-input-border rounded-md text-foreground shadow-input"
-              />
+      {/* Filtro de período mobile */}
+      <div className="md:hidden">
+        <Card className="border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">Período</span>
             </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium text-foreground block mb-2">
-                Data Final
-              </label>
-              <input
-                type="date"
-                value={dateRange.fim}
-                onChange={(e) => setDateRange(prev => ({ ...prev, fim: e.target.value }))}
-                className="w-full px-3 py-2 bg-input border border-input-border rounded-md text-foreground shadow-input"
-              />
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground mb-1 block">Início</label>
+                <input
+                  type="date"
+                  value={dateRange.inicio}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, inicio: e.target.value }))}
+                  className="w-full px-3 py-2 bg-muted/50 border border-border rounded-md text-sm text-foreground"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground mb-1 block">Fim</label>
+                <input
+                  type="date"
+                  value={dateRange.fim}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, fim: e.target.value }))}
+                  className="w-full px-3 py-2 bg-muted/50 border border-border rounded-md text-sm text-foreground"
+                />
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Relatórios Disponíveis */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Relatórios Disponíveis - Cards modernos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {relatoriosDisponiveis.map((relatorio) => (
-          <Card key={relatorio.id} className="shadow-md hover:shadow-lg transition-shadow">
-            <CardHeader>
+          <Card key={relatorio.id} className="border-border/50 hover:border-primary/20 hover:shadow-lg transition-all duration-200 group">
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg ${relatorio.cor} flex items-center justify-center`}>
-                  <relatorio.icone className="w-5 h-5 text-white" />
+                <div className={`w-9 h-9 rounded-lg ${relatorio.cor} flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform`}>
+                  <relatorio.icone className="w-4 h-4 text-white" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">{relatorio.titulo}</h3>
+                    <h3 className="text-base font-semibold text-foreground">{relatorio.titulo}</h3>
                     {relatorio.id === 'equipamentos' && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => navigate('/equipamentos/agenda-disponibilidade')}
-                        className="text-primary hover:text-primary/80 ml-auto"
+                        className="text-primary hover:text-primary/80 ml-auto h-7 text-xs"
                       >
-                        <Calendar className="w-4 h-4 mr-1" />
-                        Disponibilidade (30 dias)
+                        <Calendar className="w-3 h-3 mr-1" />
+                        Disponibilidade
                         <ExternalLink className="w-3 h-3 ml-1" />
                       </Button>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">{relatorio.descricao}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{relatorio.descricao}</p>
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               {relatorio.id === 'equipamentos' ? (
                 <Tabs value={activeEquipTab} onValueChange={setActiveEquipTab}>
-                  <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="resumo">Resumo</TabsTrigger>
-                    <TabsTrigger value="utilizacao">Utilização</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 mb-3 h-8">
+                    <TabsTrigger value="resumo" className="text-xs">Resumo</TabsTrigger>
+                    <TabsTrigger value="utilizacao" className="text-xs">Utilização</TabsTrigger>
                   </TabsList>
                   
-                  <TabsContent value="resumo" className="space-y-3">
-                    <div className="text-sm text-muted-foreground">
-                      Status dos equipamentos, histórico de locações e manutenção no período selecionado.
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Período: {new Date(dateRange.inicio).toLocaleDateString('pt-BR')} até {new Date(dateRange.fim).toLocaleDateString('pt-BR')}
-                    </div>
-                    
+                  <TabsContent value="resumo" className="space-y-3 mt-0">
+                    <p className="text-xs text-muted-foreground">
+                      Período: {new Date(dateRange.inicio).toLocaleDateString('pt-BR')} — {new Date(dateRange.fim).toLocaleDateString('pt-BR')}
+                    </p>
                     <div className="flex gap-2">
-                      <Button 
-                        className="flex-1"
-                        onClick={() => generateReport(relatorio.titulo, 'PDF')}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Gerar PDF
+                      <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'PDF')}>
+                        <Download className="w-3 h-3 mr-1.5" /> PDF
                       </Button>
-                      <Button 
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => generateReport(relatorio.titulo, 'Excel')}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Gerar Excel
+                      <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'Excel')}>
+                        <Download className="w-3 h-3 mr-1.5" /> Excel
                       </Button>
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="utilizacao" className="space-y-3">
+                  <TabsContent value="utilizacao" className="space-y-3 mt-0">
                     <UtilizacaoTab periodo={dateRange} />
-                    
-                    <div className="flex gap-2 mt-4">
-                      <Button 
-                        className="flex-1"
-                        onClick={() => generateReport(relatorio.titulo, 'PDF')}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Gerar PDF
+                    <div className="flex gap-2 mt-3">
+                      <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'PDF')}>
+                        <Download className="w-3 h-3 mr-1.5" /> PDF
                       </Button>
-                      <Button 
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => generateReport(relatorio.titulo, 'Excel')}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Gerar Excel
+                      <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'Excel')}>
+                        <Download className="w-3 h-3 mr-1.5" /> Excel
                       </Button>
                     </div>
                   </TabsContent>
                 </Tabs>
               ) : relatorio.id === 'financeiro' ? (
                 <Tabs value={activeFinanceiroTab} onValueChange={setActiveFinanceiroTab}>
-                  <TabsList className="grid w-full grid-cols-2 mb-4">
-                    <TabsTrigger value="resumo">Resumo</TabsTrigger>
-                    <TabsTrigger value="faturas">Faturas</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 mb-3 h-8">
+                    <TabsTrigger value="resumo" className="text-xs">Resumo</TabsTrigger>
+                    <TabsTrigger value="faturas" className="text-xs">Faturas</TabsTrigger>
                   </TabsList>
                   
-                  <TabsContent value="resumo" className="space-y-3">
-                    <div className="text-sm text-muted-foreground">
-                      Período selecionado: {new Date(dateRange.inicio).toLocaleDateString('pt-BR')} até {new Date(dateRange.fim).toLocaleDateString('pt-BR')}
-                    </div>
-                    
+                  <TabsContent value="resumo" className="space-y-3 mt-0">
+                    <p className="text-xs text-muted-foreground">
+                      Período: {new Date(dateRange.inicio).toLocaleDateString('pt-BR')} — {new Date(dateRange.fim).toLocaleDateString('pt-BR')}
+                    </p>
                     <div className="flex gap-2">
-                      <Button 
-                        className="flex-1"
-                        onClick={() => generateReport(relatorio.titulo, 'PDF')}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Gerar PDF
+                      <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'PDF')}>
+                        <Download className="w-3 h-3 mr-1.5" /> PDF
                       </Button>
-                      <Button 
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => generateReport(relatorio.titulo, 'Excel')}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Gerar Excel
+                      <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'Excel')}>
+                        <Download className="w-3 h-3 mr-1.5" /> Excel
                       </Button>
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="faturas" className="space-y-4">
+                  <TabsContent value="faturas" className="space-y-4 mt-0">
                     <FaturasFilters
                       dateRange={faturasDateRange}
                       onDateRangeChange={setFaturasDateRange}
@@ -539,7 +546,6 @@ export default function Relatorios() {
                       onClearFilters={handleClearFaturasFilters}
                       isApplying={isApplyingFilters}
                     />
-                    
                     <FaturasPreview
                       faturas={displayedFaturasData?.faturas || []}
                       totalFaturas={displayedFaturasData?.totalFaturas || 0}
@@ -554,25 +560,15 @@ export default function Relatorios() {
                 </Tabs>
               ) : (
                 <div className="space-y-3">
-                  <div className="text-sm text-muted-foreground">
-                    Período selecionado: {new Date(dateRange.inicio).toLocaleDateString('pt-BR')} até {new Date(dateRange.fim).toLocaleDateString('pt-BR')}
-                  </div>
-                  
+                  <p className="text-xs text-muted-foreground">
+                    Período: {new Date(dateRange.inicio).toLocaleDateString('pt-BR')} — {new Date(dateRange.fim).toLocaleDateString('pt-BR')}
+                  </p>
                   <div className="flex gap-2">
-                    <Button 
-                      className="flex-1"
-                      onClick={() => generateReport(relatorio.titulo, 'PDF')}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Gerar PDF
+                    <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'PDF')}>
+                      <Download className="w-3 h-3 mr-1.5" /> PDF
                     </Button>
-                    <Button 
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => generateReport(relatorio.titulo, 'Excel')}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Gerar Excel
+                    <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'Excel')}>
+                      <Download className="w-3 h-3 mr-1.5" /> Excel
                     </Button>
                   </div>
                 </div>
@@ -582,67 +578,72 @@ export default function Relatorios() {
         ))}
       </div>
 
-      {/* Relatórios Personalizados */}
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            Relatório Personalizado
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-muted-foreground">
-              Configure campos específicos, filtros avançados e agrupamentos para criar relatórios sob medida.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium text-foreground block mb-2">
-                  Fonte de Dados
-                </label>
-                <select className="w-full px-3 py-2 bg-input border border-input-border rounded-md text-foreground shadow-input">
-                  <option value="contratos">Contratos</option>
-                  <option value="equipamentos">Equipamentos</option>
-                  <option value="clientes">Clientes</option>
-                  <option value="faturas">Faturas</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-foreground block mb-2">
-                  Formato de Saída
-                </label>
-                <select className="w-full px-3 py-2 bg-input border border-input-border rounded-md text-foreground shadow-input">
-                  <option value="pdf">PDF</option>
-                  <option value="excel">Excel</option>
-                  <option value="csv">CSV</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-foreground block mb-2">
-                  Agrupamento
-                </label>
-                <select className="w-full px-3 py-2 bg-input border border-input-border rounded-md text-foreground shadow-input">
-                  <option value="">Sem agrupamento</option>
-                  <option value="cliente">Por Cliente</option>
-                  <option value="equipamento">Por Equipamento</option>
-                  <option value="status">Por Status</option>
-                  <option value="mes">Por Mês</option>
-                </select>
-              </div>
+      {/* Relatório Personalizado - Visual compacto */}
+      <Card className="border-border/50 border-dashed hover:border-primary/30 transition-colors">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <BarChart3 className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Relatório Personalizado</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configure campos, filtros e agrupamentos sob medida
+              </p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1.5">Fonte de Dados</label>
+              <Select defaultValue="contratos">
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="contratos">Contratos</SelectItem>
+                  <SelectItem value="equipamentos">Equipamentos</SelectItem>
+                  <SelectItem value="clientes">Clientes</SelectItem>
+                  <SelectItem value="faturas">Faturas</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
-            <Button 
-              size="lg" 
-              className="w-full md:w-auto"
-              onClick={() => generateReport("Personalizado")}
-            >
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Gerar Relatório Personalizado
-            </Button>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1.5">Formato</label>
+              <Select defaultValue="pdf">
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="excel">Excel</SelectItem>
+                  <SelectItem value="csv">CSV</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1.5">Agrupamento</label>
+              <Select defaultValue="none">
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem agrupamento</SelectItem>
+                  <SelectItem value="cliente">Por Cliente</SelectItem>
+                  <SelectItem value="equipamento">Por Equipamento</SelectItem>
+                  <SelectItem value="status">Por Status</SelectItem>
+                  <SelectItem value="mes">Por Mês</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          
+          <Button size="sm" className="h-9" onClick={() => generateReport("Personalizado")}>
+            <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
+            Gerar Relatório
+          </Button>
         </CardContent>
       </Card>
     </div>
