@@ -181,6 +181,9 @@ export function ProdutividadeLogistica() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
+                  {motoristas.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -502,10 +502,13 @@ export function ItinerarioDiario() {
         </CardContent>
       </Card>
 
-      {/* Grid de horários */}
+      {/* Grid de horários - only render slots with tasks */}
       <div className="grid gap-4">
         {timeSlots.map((slot) => {
           const tarefasDoSlot = getTarefasPorHorario(slot);
+          
+          // Skip empty slots
+          if (tarefasDoSlot.length === 0) return null;
           
           return (
             <div key={slot} className="grid grid-cols-12 gap-4 items-start">
@@ -521,145 +524,150 @@ export function ItinerarioDiario() {
 
               {/* Coluna das tarefas */}
               <div className="col-span-11">
-                {tarefasDoSlot.length > 0 ? (
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                    {tarefasDoSlot.map((tarefa) => (
-                      <Card 
-                        key={tarefa.id} 
-                        className={`border-l-4 ${getStatusColor(tarefa.status)} ${getPrioridadeColor(tarefa.prioridade)}`}
-                      >
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-3 h-3 rounded-full ${getTipoColor(tarefa.tipo)}`} />
-                              <Badge variant="outline">{tarefa.tipo}</Badge>
-                              {tarefa.prioridade !== 'NORMAL' && (
-                                <Badge variant="destructive" className="text-xs">
-                                  {tarefa.prioridade}
-                                </Badge>
-                              )}
-                            </div>
-                            <span className="text-xs font-mono text-muted-foreground">
-                              {tarefa.contratoNumero}
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {tarefasDoSlot.map((tarefa) => (
+                    <Card 
+                      key={tarefa.id} 
+                      className={`border-l-4 ${getStatusColor(tarefa.status)} ${getPrioridadeColor(tarefa.prioridade)}`}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${getTipoColor(tarefa.tipo)}`} />
+                            <Badge variant="outline">{tarefa.tipo}</Badge>
+                            {tarefa.prioridade !== 'NORMAL' && (
+                              <Badge variant="destructive" className="text-xs">
+                                {tarefa.prioridade}
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-xs font-mono text-muted-foreground">
+                            {tarefa.contratoNumero}
+                          </span>
+                        </div>
+                        <CardTitle className="text-sm">{tarefa.cliente.nome}</CardTitle>
+                      </CardHeader>
+                      
+                      <CardContent className="pt-0 space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex items-start gap-2 text-xs">
+                            <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                            <span className="text-muted-foreground break-all">
+                              {tarefa.endereco}
                             </span>
                           </div>
-                          <CardTitle className="text-sm">{tarefa.cliente.nome}</CardTitle>
-                        </CardHeader>
-                        
-                        <CardContent className="pt-0 space-y-3">
-                          <div className="space-y-1">
-                            <div className="flex items-start gap-2 text-xs">
-                              <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
-                              <span className="text-muted-foreground break-all">
-                                {tarefa.endereco}
-                              </span>
+                          
+                          {tarefa.telefone && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-muted-foreground">{tarefa.telefone}</span>
                             </div>
-                            
-                            {tarefa.telefone && (
-                              <div className="flex items-center gap-2 text-xs">
-                                <Phone className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">{tarefa.telefone}</span>
-                              </div>
+                          )}
+                          
+                          <div className="flex items-center gap-2 text-xs">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              {tarefa.janela.inicio} - {tarefa.janela.fim}
+                              {tarefa.duracao && ` (${Math.ceil(tarefa.duracao / 60)}h)`}
+                            </span>
+                          </div>
+                        </div>
+
+                        {tarefa.observacoes && (
+                          <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
+                            {tarefa.observacoes}
+                          </p>
+                        )}
+
+                        {tarefa.motivo && (
+                          <p className="text-xs text-destructive p-2 bg-destructive/10 rounded">
+                            <strong>Motivo:</strong> {tarefa.motivo}
+                          </p>
+                        )}
+
+                        {/* Ações */}
+                        {can('logistica:view') && (
+                          <div className="flex gap-1 flex-wrap">
+                            {tarefa.status === 'PENDENTE' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleStatusChange(tarefa.id, 'EM_ROTA')}
+                                className="h-7 text-xs"
+                              >
+                                <PlayCircle className="h-3 w-3 mr-1" />
+                                Iniciar
+                              </Button>
                             )}
                             
-                            <div className="flex items-center gap-2 text-xs">
-                              <Clock className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                {tarefa.janela.inicio} - {tarefa.janela.fim}
-                                {tarefa.duracao && ` (${Math.ceil(tarefa.duracao / 60)}h)`}
-                              </span>
-                            </div>
-                          </div>
-
-                          {tarefa.observacoes && (
-                            <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-                              {tarefa.observacoes}
-                            </p>
-                          )}
-
-                          {tarefa.motivo && (
-                            <p className="text-xs text-destructive p-2 bg-destructive/10 rounded">
-                              <strong>Motivo:</strong> {tarefa.motivo}
-                            </p>
-                          )}
-
-                          {/* Ações */}
-                          {can('logistica:view') && (
-                            <div className="flex gap-1 flex-wrap">
-                              {tarefa.status === 'PENDENTE' && (
+                            {tarefa.status === 'EM_ROTA' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleStatusChange(tarefa.id, 'CONCLUIDA')}
+                                className="h-7 text-xs"
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Concluir
+                              </Button>
+                            )}
+                            
+                            {['PENDENTE', 'EM_ROTA'].includes(tarefa.status) && (
+                              <>
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleStatusChange(tarefa.id, 'EM_ROTA')}
+                                  onClick={() => handleNaoSaida(tarefa)}
                                   className="h-7 text-xs"
                                 >
-                                  <PlayCircle className="h-3 w-3 mr-1" />
-                                  Iniciar
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Não saiu
                                 </Button>
-                              )}
-                              
-                              {tarefa.status === 'EM_ROTA' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleStatusChange(tarefa.id, 'CONCLUIDA')}
-                                  className="h-7 text-xs"
-                                >
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Concluir
-                                </Button>
-                              )}
-                              
-                              {['PENDENTE', 'EM_ROTA'].includes(tarefa.status) && (
-                                <>
+                                
+                                {tarefa.status === 'EM_ROTA' && (
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleNaoSaida(tarefa)}
+                                    onClick={() => handleNaoEntrega(tarefa)}
                                     className="h-7 text-xs"
                                   >
                                     <XCircle className="h-3 w-3 mr-1" />
-                                    Não saiu
+                                    Não entregue
                                   </Button>
-                                  
-                                  {tarefa.status === 'EM_ROTA' && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleNaoEntrega(tarefa)}
-                                      className="h-7 text-xs"
-                                    >
-                                      <XCircle className="h-3 w-3 mr-1" />
-                                      Não entregue
-                                    </Button>
-                                  )}
-                                </>
-                              )}
-                              
-                              {tarefa.telefone && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => enviarWhatsApp(tarefa)}
-                                  className="h-7 text-xs"
-                                >
-                                  <MessageCircle className="h-3 w-3 mr-1" />
-                                  WhatsApp
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="h-8"></div> // Espaçamento vazio
-                )}
+                                )}
+                              </>
+                            )}
+                            
+                            {tarefa.telefone && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => enviarWhatsApp(tarefa)}
+                                className="h-7 text-xs"
+                              >
+                                <MessageCircle className="h-3 w-3 mr-1" />
+                                WhatsApp
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
             </div>
           );
         })}
+
+        {/* Mensagem quando não há tarefas */}
+        {tarefasFiltradas.length === 0 && (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              Nenhuma tarefa agendada para este dia
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Área oculta para impressão */}

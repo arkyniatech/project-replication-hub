@@ -208,7 +208,7 @@ export function QuadroLogistica() {
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
           {COLUNAS.map((coluna) => {
             const tarefasColuna = getTarefasPorStatus(coluna.status);
             

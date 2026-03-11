@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Truck, MapPin, TrendingUp, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -8,7 +8,6 @@ export default function LogisticaLayout() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("itinerario");
 
-  // Determinar aba ativa baseada na rota atual
   useEffect(() => {
     const path = location.pathname;
     
@@ -72,23 +71,9 @@ export default function LogisticaLayout() {
             <span className="hidden sm:inline">Configurações</span>
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="itinerario" className="space-y-4">
-          <Outlet />
-        </TabsContent>
-        
-        <TabsContent value="quadro" className="space-y-4">
-          <Outlet />
-        </TabsContent>
-        
-        <TabsContent value="produtividade" className="space-y-4">
-          <Outlet />
-        </TabsContent>
-        
-        <TabsContent value="configuracoes" className="space-y-4">
-          <Outlet />
-        </TabsContent>
       </Tabs>
+
+      <Outlet />
     </div>
   );
 }
