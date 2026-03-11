@@ -23,6 +23,7 @@ export function AppShell() {
     isExpanded,
     isPinned,
     expandPanel,
+    collapsePanel,
     togglePin,
     onMouseEnterRail,
     onMouseLeavePanel,
