@@ -12,7 +12,6 @@ import {
   Car,
   Users2,
   ChevronDown,
-  Pin,
   Package,
   ShoppingCart
 } from 'lucide-react';

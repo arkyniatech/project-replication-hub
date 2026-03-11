@@ -2,7 +2,6 @@ import { forwardRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   Menu, 
-  Pin,
   LayoutDashboard,
   Users,
   Wrench,
@@ -11,7 +10,10 @@ import {
   ArrowDownCircle,
   BarChart3,
   Settings,
-  Truck
+  Truck,
+  Car,
+  Users2,
+  ShoppingCart
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -51,9 +53,11 @@ const operacaoItems = [
 // Gestão
 const gestaoItems = [
   { title: "Relatórios", url: "/relatorios", icon: BarChart3, id: "relatorios" },
+  { title: "RH", url: "/rh", icon: Users2, id: "rh" },
+  { title: "Veículos", url: "/veiculos", icon: Car, id: "veiculos" },
+  { title: "Compras", url: "/compras", icon: ShoppingCart, id: "compras" },
+  { title: "Config", url: "/configuracoes", icon: Settings, id: "configuracoes" },
 ];
-
-const allMenuItems = [...principalItems, ...operacaoItems, ...gestaoItems];
 
 export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
   isExpanded,
@@ -89,11 +93,15 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
       case 'financeiro-receber':
         return can('financeiro.cr:view');
       case 'financeiro-pagar':
-        return true; // Temporary - will add proper RBAC later for CP
+        return true;
       case 'logistica':
         return can('logistica:view');
       case 'manutencao':
         return can('manutencaoOS:ver');
+      case 'equipamentos':
+        return can('equipamentos:view');
+      case 'compras':
+        return can('compras:view') || can('almox:view');
       default:
         return true;
     }
@@ -107,6 +115,44 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
     }
     return null;
   };
+
+  const renderSection = (items: typeof principalItems, label: string) => (
+    <>
+      <div className="h-[28px] flex items-end px-2 pb-1">
+        <span className="text-[9px] uppercase font-bold text-muted-foreground/50 tracking-wider leading-tight truncate w-full text-center">
+          {label}
+        </span>
+      </div>
+      {items.map((item) => {
+        if (!hasAccess(item.id)) return null;
+        const active = isActive(item.url);
+        return (
+          <div key={item.id} className="relative px-2 mb-0.5">
+            {getActiveIndicator(item.url)}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <NavLink
+                  to={item.url}
+                  className={cn(
+                    "flex items-center justify-center w-12 h-10 rounded-lg",
+                    "transition-all ease-out [transition-duration:var(--nav-transition-duration,200ms)]",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    active && "bg-primary/10 text-primary"
+                  )}
+                  aria-label={item.title}
+                >
+                  <item.icon className="h-5 w-5 shrink-0" />
+                </NavLink>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                {item.title}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        );
+      })}
+    </>
+  );
 
   return (
     <nav
@@ -130,130 +176,26 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
       </div>
 
       {/* Menu Items */}
-      <div className="flex-1 py-3">
+      <div className="flex-1 py-3 overflow-y-auto custom-scrollbar">
         <TooltipProvider delayDuration={300}>
-          {/* Spacer matching overlay "PRINCIPAL" section header */}
-          <div className="h-[28px]" />
-          
-          {/* Principal */}
-          {principalItems.map((item) => {
-            if (!hasAccess(item.id)) return null;
-            
-            const active = isActive(item.url);
-            
-            return (
-              <div key={item.id} className="relative px-2 mb-0.5">
-                {getActiveIndicator(item.url)}
-                
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <NavLink
-                      to={item.url}
-                      className={cn(
-                        "flex items-center justify-center w-12 h-10 rounded-lg",
-                        "transition-all ease-out [transition-duration:var(--nav-transition-duration,200ms)]",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        active && "bg-primary/10 text-primary"
-                      )}
-                      aria-label={item.title}
-                    >
-                      <item.icon className="h-5 w-5 shrink-0" />
-                    </NavLink>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {item.title}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            );
-          })}
-          
-          {/* Spacer matching overlay "OPERAÇÃO" section header */}
-          <div className="h-[28px]" />
-          
-          {/* Operação */}
-          {operacaoItems.map((item) => {
-            if (!hasAccess(item.id)) return null;
-            
-            const active = isActive(item.url);
-            
-            return (
-              <div key={item.id} className="relative px-2 mb-0.5">
-                {getActiveIndicator(item.url)}
-                
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <NavLink
-                      to={item.url}
-                      className={cn(
-                        "flex items-center justify-center w-12 h-10 rounded-lg",
-                        "transition-all ease-out [transition-duration:var(--nav-transition-duration,200ms)]",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        active && "bg-primary/10 text-primary"
-                      )}
-                      aria-label={item.title}
-                    >
-                      <item.icon className="h-5 w-5 shrink-0" />
-                    </NavLink>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {item.title}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            );
-          })}
-          
-          {/* Spacer matching overlay "GESTÃO" section header */}
-          <div className="h-[28px]" />
-          
-          {/* Gestão */}
-          {gestaoItems.map((item) => {
-            if (!hasAccess(item.id)) return null;
-            
-            const active = isActive(item.url);
-            
-            return (
-              <div key={item.id} className="relative px-2 mb-0.5">
-                {getActiveIndicator(item.url)}
-                
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <NavLink
-                      to={item.url}
-                      className={cn(
-                        "flex items-center justify-center w-12 h-10 rounded-lg",
-                        "transition-all ease-out [transition-duration:var(--nav-transition-duration,200ms)]",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        active && "bg-primary/10 text-primary"
-                      )}
-                      aria-label={item.title}
-                    >
-                      <item.icon className="h-5 w-5 shrink-0" />
-                    </NavLink>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {item.title}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            );
-          })}
+          {renderSection(principalItems, "Principal")}
+          {renderSection(operacaoItems, "Operação")}
+          {renderSection(gestaoItems, "Gestão")}
         </TooltipProvider>
       </div>
 
       {/* Bottom Controls */}
-      <div className="p-2 space-y-2 border-t border-border">
+      <div className="p-2 border-t border-border">
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onToggleExpand}
+                onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
                 className="w-12 h-12"
                 aria-expanded={isExpanded}
-                aria-label="Expandir menu"
+                aria-label={isExpanded ? "Recolher menu" : "Expandir menu"}
               >
                 <Menu className="h-5 w-5" />
               </Button>
@@ -262,29 +204,6 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
               {isExpanded ? 'Recolher menu' : 'Expandir menu'}
             </TooltipContent>
           </Tooltip>
-
-          {isExpanded && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onTogglePin}
-                  className={cn(
-                    "w-12 h-12 transition-colors duration-200",
-                    isPinned && "bg-primary/10 text-primary"
-                  )}
-                  aria-pressed={isPinned}
-                  aria-label={isPinned ? 'Desafixar menu' : 'Fixar menu'}
-                >
-                  <Pin className={cn("h-5 w-5 transition-transform duration-200", isPinned && "rotate-45")} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>
-                {isPinned ? 'Desafixar menu' : 'Fixar menu aberto'}
-              </TooltipContent>
-            </Tooltip>
-          )}
         </TooltipProvider>
       </div>
     </nav>
