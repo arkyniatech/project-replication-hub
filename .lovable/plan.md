@@ -1,19 +1,32 @@
 
 
-# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
+# Fix: WhatsApp contact lookup case mismatch
 
-## Problema
-Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
+## Problem
+The `handleEnviarWhatsApp` function in `ContratoDetalhes.tsx` searches for `c.tipo === 'whatsapp'` (lowercase), but contacts are stored as `'WhatsApp'` (capitalized) in the `clientes.contatos` JSON. This causes the "cliente não possui WhatsApp cadastrado" error even when the contact exists.
 
-## Solução
-Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
+## Fix
 
-## Alterações
+**File: `src/pages/ContratoDetalhes.tsx`**
 
-**`src/components/layout/NavRail.tsx`**:
-- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
-- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
-- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
+Two locations need fixing (lines 312 and 403-404): change the `.find()` to use case-insensitive comparison:
 
-Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
+```typescript
+// Before
+const contatoWhatsApp = clienteContatos.find(
+  (c: any) => c.tipo === 'whatsapp' || c.tipo === 'celular'
+);
+
+// After
+const contatoWhatsApp = clienteContatos.find(
+  (c: any) => {
+    const tipo = (c.tipo || '').toLowerCase();
+    return tipo === 'whatsapp' || tipo === 'celular' || tipo === 'telefone';
+  }
+);
+```
+
+Both the `handleEnviarWhatsApp` function (line 403) and the earlier `handleAssinarDigitalmente` contact lookup (line 312) will be updated with the same fix.
+
+No edge function or database changes needed.
 
