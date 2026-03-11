@@ -169,7 +169,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
           })}
           
           {/* Spacer matching overlay "OPERAÇÃO" section header */}
-          <div className="h-5" />
+          <div className="h-[28px]" />
           
           {/* Operação */}
           {operacaoItems.map((item) => {
