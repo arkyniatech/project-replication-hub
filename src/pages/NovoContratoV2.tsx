@@ -1408,12 +1408,17 @@ export default function NovoContratoV2() {
               <Input 
                 type="date" 
                 value={contrato.entrega.data} 
-                disabled
-                className="bg-muted"
+                onChange={e => {
+                  setContrato(prev => ({
+                    ...prev,
+                    entrega: {
+                      ...prev.entrega,
+                      data: e.target.value
+                    }
+                  }));
+                  setHasChanges(true);
+                }}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Definida na etapa de Equipamentos
-              </p>
             </div>
             <div>
               <Label>Janela de Entrega</Label>
