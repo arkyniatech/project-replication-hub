@@ -488,6 +488,10 @@ export type Database = {
           valor_pago: number
           valor_pendente: number
           valor_total: number
+          zapsign_doc_token: string | null
+          zapsign_sign_url: string | null
+          zapsign_signed_at: string | null
+          zapsign_status: string | null
         }
         Insert: {
           ativo?: boolean
@@ -513,6 +517,10 @@ export type Database = {
           valor_pago?: number
           valor_pendente?: number
           valor_total?: number
+          zapsign_doc_token?: string | null
+          zapsign_sign_url?: string | null
+          zapsign_signed_at?: string | null
+          zapsign_status?: string | null
         }
         Update: {
           ativo?: boolean
@@ -538,6 +546,10 @@ export type Database = {
           valor_pago?: number
           valor_pendente?: number
           valor_total?: number
+          zapsign_doc_token?: string | null
+          zapsign_sign_url?: string | null
+          zapsign_signed_at?: string | null
+          zapsign_status?: string | null
         }
         Relationships: [
           {
