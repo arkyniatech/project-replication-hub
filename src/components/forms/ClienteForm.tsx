@@ -412,6 +412,33 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
     }
   };
 
+  // Ativar cliente
+  const handleActivate = () => {
+    if (!cliente) return;
+    
+    if (confirm('Deseja ativar este cliente?')) {
+      const updated = { 
+        ...cliente, 
+        status: 'ATIVO' as const,
+        statusCredito: 'Ativo' as const 
+      };
+      const supabaseData = legacyClienteToSupabase(updated);
+      
+      updateCliente.mutate(
+        { id: cliente.id, ...supabaseData },
+        {
+          onSuccess: () => {
+            toast({
+              title: "Cliente ativado",
+              description: "O status do cliente foi alterado para Ativo.",
+            });
+            onSave?.(updated);
+          }
+        }
+      );
+    }
+  };
+
   // Gerar proposta
   const handleGenerateProposal = () => {
     if (!cliente || cliente.statusCredito === 'Suspenso') {
