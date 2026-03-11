@@ -233,6 +233,15 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
+                        onClick={() => setAditivoVisualizando(aditivo)}
+                        title="Ver detalhes"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => handleGerarPDF(aditivo)}
                         title="Gerar PDF"
                       >
