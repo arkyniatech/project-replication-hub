@@ -1,19 +1,53 @@
 
 
-# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
+# Integração ZapSign — Enviar Contrato para Assinatura Digital
 
-## Problema
-Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
+## Visão Geral
+O PDF enviado para a ZapSign será gerado a partir do mesmo conteúdo do `ContratoResumoPreview` (cabeçalho da empresa, dados do cliente, tabela de equipamentos, condições de pagamento, campo de assinatura). Será usado `jsPDF` para gerar o documento programaticamente e enviá-lo em base64 para uma Edge Function que chama a API da ZapSign.
 
-## Solução
-Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
+## Fluxo
+
+```text
+[Usuário clica "Enviar p/ Assinatura"]
+  → Front gera PDF do contrato via jsPDF (mesmo layout do preview)
+  → Converte para base64
+  → Chama Edge Function "zapsign-enviar"
+  → Edge Function envia para ZapSign API
+  → Retorna link de assinatura
+  → Salva token/status no contrato
+  → Abre link ou exibe badge "Pendente Assinatura"
+```
 
 ## Alterações
 
-**`src/components/layout/NavRail.tsx`**:
-- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
-- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
-- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
+### 1. Secret: `ZAPSIGN_API_TOKEN`
+- Solicitar ao usuário via ferramenta de secrets (não existe ainda)
 
-Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
+### 2. Migration SQL — Colunas de rastreamento na tabela `contratos`
+- `zapsign_doc_token text` — token do documento na ZapSign
+- `zapsign_status text` — PENDENTE / ASSINADO
+- `zapsign_signed_at timestamptz` — data da assinatura
+- `zapsign_sign_url text` — link de assinatura do signatário
+
+### 3. Novo arquivo: `src/utils/contrato-pdf.ts`
+- Função `gerarContratoPDFBase64(contrato)` usando `jsPDF` + `jspdf-autotable` (já instalados)
+- Reproduz o layout do `ContratoResumoPreview`: cabeçalho empresa, dados cliente, tabela de itens, condições de pagamento, campo de assinatura
+- Retorna string base64
+
+### 4. Nova Edge Function: `supabase/functions/zapsign-enviar/index.ts`
+- Recebe: `{ pdf_base64, nome_documento, signatario: { nome, email, telefone }, contrato_id }`
+- Chama `POST https://api.zapsign.com.br/api/v1/docs/` com header `Authorization: Bearer {ZAPSIGN_API_TOKEN}`
+- Salva `zapsign_doc_token`, `zapsign_status = 'PENDENTE'`, `zapsign_sign_url` no contrato via service role
+- Retorna `{ sign_url }`
+
+### 5. `supabase/config.toml`
+- Adicionar `[functions.zapsign-enviar]` com `verify_jwt = false`
+
+### 6. `src/components/contratos/ContratoResumoPreview.tsx`
+- `handleEnviarAssinatura`: gerar PDF base64 → chamar edge function via `supabase.functions.invoke('zapsign-enviar', ...)` → abrir link de assinatura em nova aba
+- Botão "Baixar PDF": implementar download real usando a mesma função de geração
+
+### 7. `src/pages/ContratoDetalhes.tsx`
+- `onAssinar`: mesmo fluxo (gerar PDF + enviar ZapSign) para contratos já salvos
+- Exibir badge "Assinatura Pendente" / "Assinado ✅" baseado em `zapsign_status`
 
