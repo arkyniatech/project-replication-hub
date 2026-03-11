@@ -2213,8 +2213,8 @@ export default function NovoContratoV2() {
             </Button>
             
             <div className="text-sm text-muted-foreground">
-              {contrato.valorTotal > 0 && <span className="font-semibold">
-                  Total: R$ {contrato.valorTotal.toLocaleString('pt-BR', {
+               {valorTotalCalculado > 0 && <span className="font-semibold">
+                   Total: R$ {valorTotalCalculado.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2
               })}
                 </span>}
