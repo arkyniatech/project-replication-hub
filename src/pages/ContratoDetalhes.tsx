@@ -497,7 +497,7 @@ export default function ContratoDetalhes() {
           onChipFinanceiro={() => toast({ title: "Abrindo financeiro..." })}
           onContratoPDF={() => toast({ title: "Baixando contrato PDF..." })}
           onEntregaPDF={() => toast({ title: "Baixando entrega PDF..." })}
-          onAssinar={() => toast({ title: "Abrindo assinatura digital..." })}
+          onAssinar={handleAssinarDigitalmente}
           onWhatsApp={() => toast({ title: "Enviando por WhatsApp..." })}
         />
         
