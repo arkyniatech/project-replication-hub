@@ -813,6 +813,30 @@ export default function ContratoDetalhes() {
           });
         }}
       />
+      {/* Preview do Contrato */}
+      {contrato && showContratoPreview && (() => {
+        const dados = montarDadosPDF();
+        if (!dados) return null;
+        return (
+          <ContratoResumoPreview
+            open={showContratoPreview}
+            onClose={() => setShowContratoPreview(false)}
+            contrato={{
+              ...dados,
+              cliente: {
+                ...dados.cliente,
+                email: contrato.cliente.email || '',
+                telefone: contrato.cliente.telefone || '',
+              },
+              contratoId: contrato.id,
+            }}
+            onEnviarAssinatura={() => {
+              setShowContratoPreview(false);
+              toast({ title: "Contrato enviado para assinatura!" });
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
