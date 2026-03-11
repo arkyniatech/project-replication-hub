@@ -2315,8 +2315,8 @@ export default function NovoContratoV2() {
                   </>
                 )}
               </Button> : <Button onClick={finalizarContrato} disabled={!podeAvancar() || etapaAtual === 6 && !contrato.entrega.data} className="gap-2 bg-primary hover:bg-primary/90 relative z-[110]">
-                <CheckCircle className="h-4 w-4" />
-                Finalizar
+                <Send className="h-4 w-4" />
+                Enviar para Assinatura
               </Button>}
           </div>
         </div>
