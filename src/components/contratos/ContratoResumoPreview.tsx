@@ -69,11 +69,38 @@ export function ContratoResumoPreview({
 
   const handleBaixarPDF = () => {
     try {
-      downloadContratoPDF(contrato, `contrato-${contrato.cliente.nomeRazao.replace(/\s+/g, '-')}.pdf`);
+      const pdfData = {
+        cliente: {
+          nomeRazao: contrato.cliente.nomeRazao || '',
+          documento: contrato.cliente.documento || '',
+          endereco: contrato.cliente.endereco,
+        },
+        itens: (contrato.itens || []).map(item => ({
+          equipamento: {
+            nome: item.equipamento?.nome || '',
+            codigo: item.equipamento?.codigo || '',
+          },
+          quantidade: item.quantidade || 1,
+          periodoEscolhido: item.periodoEscolhido || '',
+          valorUnitario: item.valorUnitario || 0,
+          subtotal: item.subtotal || 0,
+        })),
+        entrega: {
+          data: contrato.entrega?.data || new Date().toISOString(),
+          janela: contrato.entrega?.janela || 'MANHA',
+          observacoes: contrato.entrega?.observacoes,
+        },
+        pagamento: {
+          forma: contrato.pagamento?.forma || '',
+          vencimentoISO: contrato.pagamento?.vencimentoISO || new Date().toISOString(),
+        },
+        valorTotal: contrato.valorTotal || 0,
+      };
+      downloadContratoPDF(pdfData, `contrato-${(contrato.cliente.nomeRazao || 'cliente').replace(/\s+/g, '-')}.pdf`);
       toast({ title: "PDF gerado com sucesso!" });
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
-      toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+      toast({ title: "Erro ao gerar PDF", description: String(err), variant: "destructive" });
     }
   };
 
