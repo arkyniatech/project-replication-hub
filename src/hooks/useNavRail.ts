@@ -72,9 +72,10 @@ export function useNavRail({ railRef, panelRef }: UseNavRailProps = {}): UseNavR
 
   const expandPanel = useCallback(() => {
     setIsExpanded(true);
+    setIsPinned(true);
+    localStorage.setItem('nav_pinned', 'true');
     setLastInteractionAt(Date.now());
     clearMouseLeaveTimer();
-    // Não iniciar timer de inatividade imediatamente - só quando mouse sair do menu
   }, [clearMouseLeaveTimer]);
 
   const collapsePanel = useCallback(() => {

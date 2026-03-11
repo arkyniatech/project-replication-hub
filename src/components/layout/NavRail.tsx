@@ -117,7 +117,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
         "transition-all ease-out",
         "[transition-duration:var(--nav-transition-duration,200ms)]"
       )}
-      onMouseEnter={onMouseEnter}
+      onClick={() => { if (!isExpanded) onToggleExpand(); }}
       aria-label="Navegação principal"
     >
       {/* Header */}
@@ -133,7 +133,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
       <div className="flex-1 py-3">
         <TooltipProvider delayDuration={300}>
           {/* Spacer matching overlay "PRINCIPAL" section header */}
-          <div className="h-5" />
+          <div className="h-[28px]" />
           
           {/* Principal */}
           {principalItems.map((item) => {
@@ -169,7 +169,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
           })}
           
           {/* Spacer matching overlay "OPERAÇÃO" section header */}
-          <div className="h-5" />
+          <div className="h-[28px]" />
           
           {/* Operação */}
           {operacaoItems.map((item) => {
@@ -205,7 +205,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
           })}
           
           {/* Spacer matching overlay "GESTÃO" section header */}
-          <div className="h-5" />
+          <div className="h-[28px]" />
           
           {/* Gestão */}
           {gestaoItems.map((item) => {
