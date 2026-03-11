@@ -1250,7 +1250,7 @@ export default function NovoContratoV2() {
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total do Contrato:</span>
                   <span className="text-primary">
-                    R$ {contrato.valorTotal.toLocaleString('pt-BR', {
+                    R$ {valorTotalCalculado.toLocaleString('pt-BR', {
                   minimumFractionDigits: 2
                 })}
                   </span>
