@@ -133,7 +133,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
       <div className="flex-1 py-3">
         <TooltipProvider delayDuration={300}>
           {/* Spacer matching overlay "PRINCIPAL" section header */}
-          <div className="h-5" />
+          <div className="h-[28px]" />
           
           {/* Principal */}
           {principalItems.map((item) => {
