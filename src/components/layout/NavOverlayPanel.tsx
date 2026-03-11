@@ -12,7 +12,6 @@ import {
   Car,
   Users2,
   ChevronDown,
-  Pin,
   Package,
   ShoppingCart
 } from 'lucide-react';
@@ -233,24 +232,11 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
         {renderMenuSection(gestaoItems, "Gestão")}
       </div>
 
-      {/* Footer / Pin */}
+      {/* Footer */}
       <div className="p-4 border-t border-border/40 bg-muted/5 mt-auto">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground pl-2">
-            {isPinned ? "Menu fixado" : "Fixar menu"}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onTogglePin}
-            className={cn(
-              "h-8 w-8 p-0 hover:bg-background hover:shadow-sm transition-all",
-              isPinned ? "text-primary bg-primary/10" : "text-muted-foreground"
-            )}
-          >
-            <Pin className={cn("h-4 w-4 transition-transform duration-200", isPinned && "rotate-45")} />
-          </Button>
-        </div>
+        <span className="text-[10px] text-muted-foreground pl-2">
+          Menu fixado
+        </span>
       </div>
     </aside>
   );
