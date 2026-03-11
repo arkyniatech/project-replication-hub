@@ -220,8 +220,9 @@ export default function Contratos() {
     }
   };
 
-  const handleRenovarClick = (contrato: any) => {
+  const handleRenovarClick = (contrato: any, modo: 'manter' | 'editar') => {
     setContratoParaRenovar(contrato);
+    setRenovarModo(modo);
     setRenovarModalOpen(true);
   };
 
