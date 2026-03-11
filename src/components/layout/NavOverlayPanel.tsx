@@ -151,7 +151,7 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
     }
 
     return (
-      <div key={item.title} className="px-3 py-1">
+      <div key={item.title} className="px-3 py-0.5">
         <NavLink
           to={item.url}
           className={cn(

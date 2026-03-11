@@ -205,7 +205,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
           })}
           
           {/* Spacer matching overlay "GESTÃO" section header */}
-          <div className="h-5" />
+          <div className="h-[28px]" />
           
           {/* Gestão */}
           {gestaoItems.map((item) => {

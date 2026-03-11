@@ -83,7 +83,7 @@ export function AppShell() {
         ref={railRef}
         isExpanded={isExpanded}
         isPinned={isPinned}
-        onMouseEnter={onMouseEnterRail}
+        onMouseEnter={() => {}}
         onToggleExpand={expandPanel}
         onTogglePin={togglePin}
       />
