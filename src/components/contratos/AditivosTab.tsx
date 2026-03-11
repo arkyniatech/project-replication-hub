@@ -2,13 +2,18 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, Edit2, Trash2, DollarSign } from "lucide-react";
+import { Plus, FileText, Edit2, Trash2, DollarSign, RotateCcw, Calendar, User, Link2, MoreHorizontal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Contrato, AditivoContratual, EventoTimeline, Titulo } from "@/types";
+import { Contrato, AditivoContratual } from "@/types";
 import NovoAditivoModal from "./NovoAditivoModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSupabaseAditivos } from "@/hooks/useSupabaseAditivos";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AditivosTabProps {
   contrato: Contrato;
@@ -21,10 +26,8 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
   const { toast } = useToast();
   const { can } = usePermissions();
   
-  // Usar hook do Supabase
   const { aditivos: aditivosSupabase, isLoading, deleteAditivo } = useSupabaseAditivos(String(contrato?.id));
 
-  // Mapear aditivos do Supabase para formato local
   const aditivos = useMemo(() => {
     if (!aditivosSupabase) return [];
     return aditivosSupabase.map((aditivo: any) => ({
@@ -54,24 +57,28 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
     return labels[tipo] || tipo;
   };
 
-  const getTipoBadgeVariant = (tipo: string) => {
-    const variants: Record<string, any> = {
-      RENOVACAO: "default",
-      DESCONTO: "success",
-      TAXA: "warning",
-      AJUSTE: "secondary",
-      OUTRO: "outline"
-    };
-    return variants[tipo] || "default";
+  const getTipoIcon = (tipo: string) => {
+    switch (tipo) {
+      case 'RENOVACAO': return <RotateCcw className="w-4 h-4" />;
+      case 'DESCONTO': return <DollarSign className="w-4 h-4" />;
+      case 'TAXA': return <DollarSign className="w-4 h-4" />;
+      default: return <FileText className="w-4 h-4" />;
+    }
+  };
+
+  const getTipoBgClass = (tipo: string) => {
+    switch (tipo) {
+      case 'RENOVACAO': return 'bg-primary/10 text-primary';
+      case 'DESCONTO': return 'bg-success/15 text-success';
+      case 'TAXA': return 'bg-warning/15 text-warning';
+      case 'AJUSTE': return 'bg-info/15 text-info';
+      default: return 'bg-muted text-muted-foreground';
+    }
   };
 
   const handleEditarAditivo = (aditivo: any) => {
     if (!can('contratos', 'editar')) {
-      toast({
-        title: "Sem permissão",
-        description: "Você não tem permissão para editar aditivos",
-        variant: "destructive"
-      });
+      toast({ title: "Sem permissão", description: "Você não tem permissão para editar aditivos", variant: "destructive" });
       return;
     }
     setAditivoEditando(aditivo);
@@ -80,76 +87,78 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
 
   const handleRemoverAditivo = async (aditivoId: string) => {
     if (!can('contratos', 'editar')) {
-      toast({
-        title: "Sem permissão",
-        description: "Você não tem permissão para remover aditivos",
-        variant: "destructive"
-      });
+      toast({ title: "Sem permissão", description: "Você não tem permissão para remover aditivos", variant: "destructive" });
       return;
     }
-
     await deleteAditivo.mutateAsync(aditivoId);
     onContratoUpdate();
   };
 
   const handleGerarPDF = (aditivo: AditivoContratual) => {
-    // Simular geração de PDF do aditivo
     console.log('📄 Gerando PDF do aditivo:', aditivo);
-    
-    toast({
-      title: "PDF gerado",
-      description: "PDF do aditivo foi gerado com sucesso (mock)"
-    });
+    toast({ title: "PDF gerado", description: "PDF do aditivo foi gerado com sucesso (mock)" });
   };
 
   const valorTotal = aditivos.reduce((total, aditivo) => {
     return aditivo.status === 'ATIVO' ? total + aditivo.valor : total;
   }, 0);
 
+  const aditivosAtivos = aditivos.filter(a => a.status === 'ATIVO').length;
+
   return (
     <>
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Aditivos Contratuais
-            </CardTitle>
+            <div className="space-y-1">
+              <CardTitle className="text-lg flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-primary" />
+                </div>
+                Aditivos Contratuais
+              </CardTitle>
+              {aditivos.length > 0 && (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground ml-[42px]">
+                  <span className="flex items-center gap-1">
+                    {aditivosAtivos} ativo{aditivosAtivos !== 1 ? 's' : ''}
+                  </span>
+                  <span className="text-border">•</span>
+                  <span className="flex items-center gap-1 font-medium text-foreground">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+            </div>
             {can('contratos', 'criar') && (
               <Button 
                 onClick={() => {
                   setAditivoEditando(null);
                   setShowNovoAditivoModal(true);
                 }}
-                className="gap-2"
+                className="gap-2 shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 Novo Aditivo
               </Button>
             )}
           </div>
-          {aditivos.length > 0 && (
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>Total de aditivos: {aditivos.length}</span>
-              <span className="flex items-center gap-1">
-                <DollarSign className="w-4 h-4" />
-                Valor total: R$ {valorTotal.toLocaleString('pt-BR')}
-              </span>
-            </div>
-          )}
         </CardHeader>
-        <CardContent>
+
+        <CardContent className="p-0">
           {aditivos.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Nenhum aditivo encontrado</h3>
-              <p className="text-muted-foreground mb-4">
-                Ainda não há aditivos para este contrato. 
-                Aditivos são usados para formalizar alterações como descontos, taxas ou outras modificações.
+            <div className="text-center py-16 px-6">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-7 h-7 text-muted-foreground" />
+              </div>
+              <h3 className="text-base font-semibold mb-1.5 text-foreground">Nenhum aditivo registrado</h3>
+              <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
+                Aditivos formalizam alterações como renovações, descontos ou taxas adicionais ao contrato.
               </p>
               {can('contratos', 'criar') && (
                 <Button 
                   onClick={() => setShowNovoAditivoModal(true)}
+                  variant="outline"
                   className="gap-2"
                 >
                   <Plus className="w-4 h-4" />
@@ -158,91 +167,102 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nº</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Vinculação</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {aditivos.map((aditivo) => (
-                  <TableRow key={aditivo.id}>
-                    <TableCell className="font-medium">{aditivo.numero}</TableCell>
-                    <TableCell>
-                      <Badge className={getTipoBadgeVariant(aditivo.tipo)}>
-                        {getTipoLabel(aditivo.tipo)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{aditivo.descricao}</p>
-                        <p className="text-sm text-muted-foreground">{aditivo.justificativa}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`font-medium ${aditivo.valor >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {aditivo.valor >= 0 ? '+' : ''}R$ {aditivo.valor.toLocaleString('pt-BR')}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {aditivo.vinculacao === 'CONTRATO' ? 'Contrato' : `Item ${aditivo.itemId}`}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={aditivo.status === 'ATIVO' ? 'default' : 'secondary'}>
-                        {aditivo.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(aditivo.criadoEm).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell>{aditivo.criadoPor}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleGerarPDF(aditivo)}
-                          className="gap-1"
+            <div className="divide-y divide-border">
+              {aditivos.map((aditivo, index) => (
+                <div
+                  key={aditivo.id}
+                  className="group px-6 py-4 hover:bg-muted/40 transition-colors duration-150"
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Icon */}
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${getTipoBgClass(aditivo.tipo)}`}>
+                      {getTipoIcon(aditivo.tipo)}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm text-foreground">{aditivo.numero}</span>
+                        <Badge variant="outline" className="text-[10px] font-medium px-2 py-0">
+                          {getTipoLabel(aditivo.tipo)}
+                        </Badge>
+                        <Badge 
+                          variant={aditivo.status === 'ATIVO' ? 'default' : 'secondary'} 
+                          className="text-[10px] font-medium px-2 py-0"
                         >
-                          <FileText className="w-3 h-3" />
-                          PDF
-                        </Button>
-                        {can('contratos', 'editar') && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditarAditivo(aditivo)}
-                              className="gap-1"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                              Editar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleRemoverAditivo(aditivo.id)}
-                              className="gap-1 text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              Remover
-                            </Button>
-                          </>
-                        )}
+                          {aditivo.status}
+                        </Badge>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+
+                      {aditivo.descricao && (
+                        <p className="text-sm text-foreground leading-snug">{aditivo.descricao}</p>
+                      )}
+
+                      {aditivo.justificativa && (
+                        <p className="text-xs text-muted-foreground italic leading-snug">{aditivo.justificativa}</p>
+                      )}
+
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground pt-0.5">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(aditivo.criadoEm).toLocaleDateString('pt-BR')}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {aditivo.criadoPor}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Link2 className="w-3 h-3" />
+                          {aditivo.vinculacao === 'CONTRATO' ? 'Contrato' : `Item ${aditivo.itemId}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Value */}
+                    <div className="text-right shrink-0">
+                      <span className={`text-sm font-semibold ${aditivo.valor >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {aditivo.valor >= 0 ? '+' : ''}R$ {Math.abs(aditivo.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleGerarPDF(aditivo)}
+                        title="Gerar PDF"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                      </Button>
+                      {can('contratos', 'editar') && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEditarAditivo(aditivo)}
+                            title="Editar"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleRemoverAditivo(aditivo.id)}
+                            title="Remover"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
