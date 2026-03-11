@@ -1100,7 +1100,18 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
         )}
         
         <div className="flex flex-col md:flex-row gap-2 ml-auto">
-          {cliente && (
+          {cliente && cliente.statusCredito !== 'Ativo' && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleActivate}
+              className="w-full md:w-auto border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+            >
+              <UserCheck className="w-4 h-4 mr-2" />
+              Ativar
+            </Button>
+          )}
+          {cliente && cliente.statusCredito === 'Ativo' && (
             <Button
               type="button"
               variant="outline"
