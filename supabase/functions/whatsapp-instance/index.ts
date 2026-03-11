@@ -276,11 +276,11 @@ Deno.serve(async (req) => {
         // Delete on uazapi using instance token
         try {
           console.log('Deleting instance on uazapi:', delInst.instance_name, 'token:', delInst.instance_token ? 'present' : 'missing');
-          const deleteResp = await fetch(`${uazapiUrl}/instance`, {
+          const deleteResp = await fetch(`${uazapiUrl}/instance/delete/${delInst.instance_name}`, {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
-              'token': delInst.instance_token || '',
+              'admintoken': adminToken,
             },
           });
           const deleteData = await deleteResp.text();
