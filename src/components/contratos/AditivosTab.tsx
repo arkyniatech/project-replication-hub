@@ -6,6 +6,7 @@ import { Plus, FileText, Edit2, Trash2, DollarSign, RotateCcw, Calendar, User, L
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, AditivoContratual } from "@/types";
 import NovoAditivoModal from "./NovoAditivoModal";
+import VisualizarAditivoModal from "./VisualizarAditivoModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSupabaseAditivos } from "@/hooks/useSupabaseAditivos";
 import {
