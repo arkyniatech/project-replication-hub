@@ -27,7 +27,8 @@ import EmitirFaturaModal from "@/components/modals/EmitirFaturaModal";
 import { parseISO, differenceInCalendarDays, startOfDay, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
-import { gerarContratoPDFBase64 } from "@/utils/contrato-pdf";
+import { gerarContratoPDFBase64, downloadContratoPDF } from "@/utils/contrato-pdf";
+import { ContratoResumoPreview } from "@/components/contratos/ContratoResumoPreview";
 
 export default function ContratoDetalhes() {
   const { id } = useParams();
@@ -54,6 +55,7 @@ export default function ContratoDetalhes() {
   const [showConfirmarRetiradaModal, setShowConfirmarRetiradaModal] = useState(false);
   const [showEmitirFaturaModal, setShowEmitirFaturaModal] = useState(false);
   const [entregaConfirmada, setEntregaConfirmada] = useState(false);
+  const [showContratoPreview, setShowContratoPreview] = useState(false);
 
   // Mapear contrato do Supabase para formato local
   const contrato = useMemo(() => {
@@ -456,6 +458,50 @@ export default function ContratoDetalhes() {
     }
   };
 
+  // Montar dados para PDF/Preview
+  const montarDadosPDF = () => {
+    if (!contrato) return null;
+    return {
+      cliente: {
+        nomeRazao: contrato.cliente.nomeRazao,
+        documento: contrato.cliente.documento,
+        endereco: contrato.cliente.endereco,
+      },
+      itens: contrato.itens.map((item: any) => ({
+        equipamento: {
+          nome: item.equipamento?.nome || item.modelo?.nome || item.grupo?.nome || 'Equipamento',
+          codigo: item.equipamento?.codigo || '',
+        },
+        quantidade: item.quantidade || 1,
+        periodoEscolhido: item.periodo || 'MES',
+        valorUnitario: item.valorUnitario || 0,
+        subtotal: item.valorTotal || 0,
+      })),
+      entrega: {
+        data: contrato.dataInicio,
+        janela: (contrato.logistica as any)?.entrega?.janela || 'MANHA',
+        observacoes: contrato.observacoes || '',
+      },
+      pagamento: {
+        forma: contrato.formaPagamento || 'PIX',
+        vencimentoISO: contrato.dataInicio,
+      },
+      valorTotal: contrato.valorTotal,
+    };
+  };
+
+  const handleBaixarContratoPDF = () => {
+    const dados = montarDadosPDF();
+    if (!dados) return;
+    try {
+      downloadContratoPDF(dados, `contrato-${contrato!.numero}.pdf`);
+      toast({ title: "PDF gerado com sucesso!" });
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      toast({ title: "Erro ao gerar PDF", description: String(err), variant: "destructive" });
+    }
+  };
+
   // Event handlers
   const handleSaveObservacoes = async (texto: string) => {
     if (!contrato) return;
@@ -567,7 +613,8 @@ export default function ContratoDetalhes() {
           saldoAberto={saldoAberto}
           saldoAtraso={saldoAtraso}
           onChipFinanceiro={() => toast({ title: "Abrindo financeiro..." })}
-          onContratoPDF={() => toast({ title: "Baixando contrato PDF..." })}
+          onContratoPDF={handleBaixarContratoPDF}
+          onVerContrato={() => setShowContratoPreview(true)}
           onEntregaPDF={() => toast({ title: "Baixando entrega PDF..." })}
           onAssinar={handleAssinarDigitalmente}
           onWhatsApp={handleEnviarWhatsApp}
@@ -766,6 +813,30 @@ export default function ContratoDetalhes() {
           });
         }}
       />
+      {/* Preview do Contrato */}
+      {contrato && showContratoPreview && (() => {
+        const dados = montarDadosPDF();
+        if (!dados) return null;
+        return (
+          <ContratoResumoPreview
+            open={showContratoPreview}
+            onClose={() => setShowContratoPreview(false)}
+            contrato={{
+              ...dados,
+              cliente: {
+                ...dados.cliente,
+                email: contrato.cliente.email || '',
+                telefone: contrato.cliente.telefone || '',
+              },
+              contratoId: contrato.id,
+            }}
+            onEnviarAssinatura={() => {
+              setShowContratoPreview(false);
+              toast({ title: "Contrato enviado para assinatura!" });
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

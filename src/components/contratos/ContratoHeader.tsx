@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Download, FileSignature, MessageCircle, FileText } from "lucide-react";
+import { Download, FileSignature, MessageCircle, FileText, Eye } from "lucide-react";
 
 interface ContratoHeaderProps {
   statusContrato: 'ATIVO' | 'ENCERRADO';
@@ -11,6 +11,7 @@ interface ContratoHeaderProps {
   saldoAtraso: number;
   onChipFinanceiro: () => void;
   onContratoPDF: () => void;
+  onVerContrato: () => void;
   onEntregaPDF: () => void;
   onAssinar: () => void;
   onWhatsApp: () => void;
@@ -23,6 +24,7 @@ export function ContratoHeader({
   saldoAtraso,
   onChipFinanceiro,
   onContratoPDF,
+  onVerContrato,
   onEntregaPDF,
   onAssinar,
   onWhatsApp
@@ -66,7 +68,23 @@ export function ContratoHeader({
 
       <div className="flex items-center gap-2">
         <TooltipProvider>
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-5 gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-9 h-9 p-0"
+                  onClick={onVerContrato}
+                  aria-label="Ver contrato"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Ver contrato</p>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
