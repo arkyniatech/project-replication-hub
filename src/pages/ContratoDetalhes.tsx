@@ -291,6 +291,99 @@ export default function ContratoDetalhes() {
     };
   }, [contrato]);
 
+  // Assinar digitalmente via ZapSign
+  const [enviandoAssinatura, setEnviandoAssinatura] = useState(false);
+
+  const handleAssinarDigitalmente = async () => {
+    if (!contrato) return;
+
+    // Se já existe URL de assinatura, abre direto
+    if (contratoSupabase?.zapsign_sign_url) {
+      window.open(contratoSupabase.zapsign_sign_url, '_blank');
+      toast({ title: "Abrindo link de assinatura..." });
+      return;
+    }
+
+    setEnviandoAssinatura(true);
+    try {
+      // Buscar contato do cliente (email/telefone) da tabela clientes.contatos
+      const clienteContatos = (contratoSupabase?.clientes?.contatos as any[]) || [];
+      const contatoEmail = clienteContatos.find((c: any) => c.tipo === 'email');
+      const contatoWhatsApp = clienteContatos.find((c: any) => c.tipo === 'whatsapp' || c.tipo === 'celular');
+
+      const nomeCliente = contrato.cliente.nomeRazao;
+
+      // Gerar PDF base64
+      const pdfBase64 = gerarContratoPDFBase64({
+        cliente: {
+          nomeRazao: nomeCliente,
+          documento: contrato.cliente.documento,
+          endereco: contrato.cliente.endereco,
+        },
+        itens: contrato.itens.map((item: any) => ({
+          equipamento: {
+            nome: item.equipamento?.nome || item.modelo?.nome || item.grupo?.nome || 'Equipamento',
+            codigo: item.equipamento?.codigo || '',
+          },
+          quantidade: item.quantidade || 1,
+          periodoEscolhido: item.periodo || 'MES',
+          valorUnitario: item.valorUnitario,
+          subtotal: item.valorTotal,
+        })),
+        entrega: {
+          data: contrato.dataInicio,
+          janela: (contrato.logistica as any)?.entrega?.janela || 'MANHA',
+          observacoes: contrato.observacoes || '',
+        },
+        pagamento: {
+          forma: contrato.formaPagamento || 'PIX',
+          vencimentoISO: contrato.dataInicio,
+        },
+        valorTotal: contrato.valorTotal,
+      });
+
+      const { data, error } = await supabase.functions.invoke('zapsign-enviar', {
+        body: {
+          pdf_base64: pdfBase64,
+          nome_documento: `Contrato ${contrato.numero} - ${nomeCliente}`,
+          signatario: {
+            nome: nomeCliente,
+            email: contatoEmail?.valor || contrato.cliente.email || '',
+            telefone: contatoWhatsApp?.valor || '',
+          },
+          contrato_id: contrato.id,
+        },
+      });
+
+      if (error) {
+        console.error('[ZAPSIGN] Erro:', error);
+        toast({
+          title: "Erro ao enviar para assinatura",
+          description: error.message || "Tente novamente.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('[ZAPSIGN] Sucesso:', data);
+        if (data?.sign_url) {
+          window.open(data.sign_url, '_blank');
+        }
+        toast({
+          title: "Contrato enviado para assinatura!",
+          description: "O cliente receberá o link por e-mail e/ou WhatsApp.",
+        });
+      }
+    } catch (err) {
+      console.error('[ZAPSIGN] Erro inesperado:', err);
+      toast({
+        title: "Erro inesperado",
+        description: "Não foi possível enviar para assinatura.",
+        variant: "destructive",
+      });
+    } finally {
+      setEnviandoAssinatura(false);
+    }
+  };
+
   // Event handlers
   const handleSaveObservacoes = async (texto: string) => {
     if (!contrato) return;
