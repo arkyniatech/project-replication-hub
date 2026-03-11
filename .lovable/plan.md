@@ -1,19 +1,30 @@
 
 
-# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
+## Plano: Webhook ZapSign + Corrigir Download PDF
 
-## Problema
-Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
+### 1. Contrato assinado automaticamente nos Anexos
 
-## Solução
-Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
+Atualmente **não existe webhook** para receber notificações da ZapSign. Quando o cliente assina, nada acontece automaticamente no sistema.
 
-## Alterações
+**Solução**: Criar edge function `zapsign-webhook` que:
+- Recebe o callback da ZapSign quando o documento é assinado
+- Baixa o PDF assinado da API ZapSign
+- Faz upload para o bucket `contratos-anexos/{contrato_id}/`
+- Adiciona automaticamente ao array `documentos` do contrato com tag `ASSINATURA`
+- Atualiza `zapsign_status = 'ASSINADO'` e `zapsign_signed_at`
 
-**`src/components/layout/NavRail.tsx`**:
-- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
-- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
-- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
+**Configuração necessária**: Após deploy, será preciso cadastrar a URL do webhook no painel da ZapSign (isso é feito uma vez só).
 
-Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
+### 2. Corrigir erro de download do PDF
+
+O botão "Baixar PDF" no preview do contrato usa `downloadContratoPDF()` que depende dos dados do rascunho (itens, cliente, entrega, pagamento). Preciso verificar se os dados estão chegando no formato correto — provavelmente o contrato salvo no banco tem estrutura diferente do rascunho esperado pela função.
+
+**Alterações**:
+
+| Arquivo | O que muda |
+|---|---|
+| `supabase/functions/zapsign-webhook/index.ts` | **Nova** edge function para receber callback da ZapSign, baixar PDF assinado e salvar nos anexos |
+| `supabase/config.toml` | Adicionar config do webhook com `verify_jwt = false` (ZapSign chama sem auth) |
+| `supabase/functions/zapsign-enviar/index.ts` | Adicionar `webhook_url` no payload enviado para ZapSign |
+| `src/utils/contrato-pdf.ts` | Investigar e corrigir erro de geração/download |
 
