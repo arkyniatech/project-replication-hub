@@ -297,6 +297,7 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
           setAditivoEditando(aditivo);
           setShowNovoAditivoModal(true);
         }}
+        itensContrato={contrato.itens}
       />
     </>
   );
