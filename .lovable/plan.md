@@ -1,37 +1,23 @@
 
 
-# Fix: RLS Policy para Contratos não inclui role `master`
+# Numeração de Contrato com Renovações: `1` → `1.1`, `1.2`, etc.
 
-## Problema
-A política de INSERT na tabela `contratos` verifica apenas roles `vendedor`, `gestor` e `admin`, mas o usuário logado tem role `master`. O `is_master()` não é verificado na política.
+## Situação Atual
+- Contratos recebem número sequencial simples (ex: `1`, `2`, `3`)
+- Renovações geram aditivos com formato `{numero}-01`, `{numero}-02` (separador traço, zero-padded)
 
-## Solução
-Atualizar a política de INSERT da tabela `contratos` para incluir `is_master(auth.uid())` como condição permitida, igual já é feito em outras tabelas do sistema (ex: `clientes`, `equipamentos`).
+## Alterações
 
-## Alteração
+### 1. `src/components/modals/RenovarContratoModal.tsx`
+- Linha 467: Mudar formato de `${contrato.numero}-${proximoSequencial.toString().padStart(2, '0')}` para `${contrato.numero}.${proximoSequencial}`
+- Resultado: contrato `1` gera renovações `1.1`, `1.2`, `1.3`...
 
-**Migration SQL** — Recriar a policy `Active staff can create contracts`:
+### 2. `src/pages/NovoContratoV2.tsx`
+- Atualmente usa `autoIncrementContrato()` que gera número numérico simples via localStorage
+- Manter como está — o número base do contrato continua sendo sequencial (`1`, `2`, `3`)
 
-```sql
-DROP POLICY IF EXISTS "Active staff can create contracts" ON public.contratos;
+### 3. Exibição nos listagens
+- Verificar se a listagem de contratos/aditivos já exibe o campo `numero` corretamente — como é só mudança de formato string, não precisa alterar componentes de listagem
 
-CREATE POLICY "Active staff can create contracts"
-ON public.contratos FOR INSERT
-TO public
-WITH CHECK (
-  is_active(auth.uid()) AND
-  (
-    is_master(auth.uid()) OR
-    has_role(auth.uid(), 'vendedor'::app_role) OR
-    has_role(auth.uid(), 'gestor'::app_role) OR
-    has_role(auth.uid(), 'admin'::app_role)
-  ) AND
-  loja_id IN (
-    SELECT loja_id FROM user_lojas_permitidas
-    WHERE user_id = auth.uid()
-  )
-);
-```
-
-Também verificar e corrigir a policy de INSERT em `contrato_itens`, que tem o mesmo problema (não inclui `is_master`).
+Mudança mínima: apenas 1 linha no `RenovarContratoModal.tsx`.
 
