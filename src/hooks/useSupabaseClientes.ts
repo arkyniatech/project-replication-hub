@@ -93,7 +93,7 @@ export function useSupabaseClientes(lojaId?: string) {
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Erro ao atualizar cliente:', error);
