@@ -1980,27 +1980,21 @@ export default function NovoContratoV2() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-1 gap-4">
           <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setShowPreview(true)}>
             <FileText className="h-6 w-6" />
             <span>Contrato de Locação (Resumo)</span>
-            <span className="text-xs text-muted-foreground">Visualizar documento</span>
-          </Button>
-
-          <Button variant="outline" className="h-24 flex-col gap-2" onClick={handleEnviarAssinatura}>
-            <MapPin className="h-6 w-6" />
-            <span>Enviar para Assinatura Digital</span>
-            <span className="text-xs text-muted-foreground">Via WhatsApp (mock)</span>
+            <span className="text-xs text-muted-foreground">Visualizar documento antes do envio</span>
           </Button>
         </div>
 
-        <div className="bg-gray-50 border rounded-lg p-4">
-          <h4 className="font-semibold mb-2">Sobre os Documentos</h4>
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+          <h4 className="font-semibold mb-2 text-primary">Envio para Assinatura Digital</h4>
           <ul className="text-sm space-y-1 text-muted-foreground">
-            <li>• O resumo contém as informações essenciais do contrato</li>
-            <li>• A versão completa será disponibilizada após assinatura digital</li>
-            <li>• As confirmações (7Ps) são apenas para registro interno</li>
-            <li>• O cabeçalho inclui dados da sua loja automaticamente</li>
+            <li>• Ao clicar em <strong>"Enviar para Assinatura"</strong> abaixo, o contrato será salvo e enviado via ZapSign</li>
+            <li>• O cliente receberá o link de assinatura por <strong>e-mail</strong> e <strong>WhatsApp</strong> automaticamente</li>
+            <li>• O status do contrato será atualizado para "Pendente de Assinatura"</li>
+            <li>• Você pode acompanhar o status na lista de contratos</li>
           </ul>
         </div>
 
