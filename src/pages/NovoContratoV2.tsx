@@ -328,11 +328,11 @@ export default function NovoContratoV2() {
     setEquipamentosFiltrados(filtrados);
   }, [searchEquipamento, equipamentosSupabase, loadingEquipamentos, lojaAtual]);
 
-  // Calcular total e aplicar política
-  useEffect(() => {
+  // Calcular total e aplicar política (derivado, sem loop)
+  const valorTotalCalculado = useMemo(() => {
     if (!contrato.cliente || contrato.itens.length === 0) {
       setPoliticaAplicada(null);
-      return;
+      return 0;
     }
     const total = contrato.itens.reduce((sum, item) => sum + item.subtotal, 0);
     const taxaDeslocamento = contrato.taxaDeslocamento?.aplicar ? (contrato.taxaDeslocamento.valor || 0) : 0;
@@ -348,7 +348,6 @@ export default function NovoContratoV2() {
           },
           lojaId: contrato.lojaId,
           periodoDias: 28,
-          // Período padrão; ajustar conforme necessário
           itens: contrato.itens.map(item => ({
             modeloId: item.equipamento?.id || item.equipamentoId,
             grupoId: item.equipamento?.grupoId || '',
@@ -358,26 +357,17 @@ export default function NovoContratoV2() {
           dataEventoISO: new Date().toISOString().split('T')[0]
         });
         setPoliticaAplicada(resultado);
-        setContrato(prev => ({
-          ...prev,
-          valorTotal: resultado.totalComDesconto + taxaDeslocamento
-        }));
+        return resultado.totalComDesconto + taxaDeslocamento;
       } catch (error) {
         console.error('Erro ao aplicar política:', error);
         setPoliticaAplicada(null);
-        setContrato(prev => ({
-          ...prev,
-          valorTotal: total + taxaDeslocamento
-        }));
+        return total + taxaDeslocamento;
       }
     } else {
       setPoliticaAplicada(null);
-      setContrato(prev => ({
-        ...prev,
-        valorTotal: total + taxaDeslocamento
-      }));
+      return total + taxaDeslocamento;
     }
-  }, [contrato.itens, contrato.cliente, contrato.taxaDeslocamento]);
+  }, [contrato.itens, contrato.cliente, contrato.taxaDeslocamento, contrato.lojaId]);
   const handleExit = () => {
     if (hasChanges) {
       if (confirm('Há alterações não salvas. Deseja sair mesmo assim?')) {
