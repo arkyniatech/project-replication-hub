@@ -52,25 +52,18 @@ export default function Contratos() {
     }));
   }, [contratosSupabase]);
 
-  // Build parent-child map from aditivos
-  const { parentChildMap, childToParentMap } = useMemo(() => {
-    const pcMap = new Map<string, string[]>(); // parentContratoId -> [childContratoNumero]
-    const cpMap = new Map<string, string>(); // childContratoNumero -> parentContratoId
-    
-    if (!aditivos) return { parentChildMap: pcMap, childToParentMap: cpMap };
+  // Build map: contrato_id -> aditivos[]
+  const aditivosPorContrato = useMemo(() => {
+    const map = new Map<string, typeof aditivos>();
+    if (!aditivos) return map;
     
     for (const aditivo of aditivos) {
-      const parentId = aditivo.contrato_id;
-      const childNumero = aditivo.numero; // e.g. "LOC001-01"
-      
-      if (!pcMap.has(parentId)) {
-        pcMap.set(parentId, []);
+      if (!map.has(aditivo.contrato_id)) {
+        map.set(aditivo.contrato_id, []);
       }
-      pcMap.get(parentId)!.push(childNumero);
-      cpMap.set(childNumero, parentId);
+      map.get(aditivo.contrato_id)!.push(aditivo);
     }
-    
-    return { parentChildMap: pcMap, childToParentMap: cpMap };
+    return map;
   }, [aditivos]);
 
   const toggleParent = (parentId: string) => {
