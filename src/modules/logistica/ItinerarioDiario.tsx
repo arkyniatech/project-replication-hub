@@ -106,7 +106,7 @@ export function ItinerarioDiario() {
       nome: t.cliente_nome,
       fone: t.cliente_telefone || ''
     },
-    endereco: typeof t.endereco === 'string' ? t.endereco : JSON.stringify(t.endereco),
+    endereco: formatEndereco(t.endereco),
     janela: {
       inicio: format(new Date(t.previsto_iso), 'HH:mm'),
       fim: format(new Date(new Date(t.previsto_iso).getTime() + t.duracao_min * 60000), 'HH:mm')
