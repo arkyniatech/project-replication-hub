@@ -5,12 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Send, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { APP_CONFIG } from "@/config/app";
+import { gerarContratoPDFBase64, downloadContratoPDF } from "@/utils/contrato-pdf";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ContratoRascunho {
   cliente: {
     nomeRazao: string;
     documento: string;
     endereco: any;
+    email?: string;
+    telefone?: string;
   };
   itens: Array<{
     equipamento: {
@@ -32,6 +36,7 @@ interface ContratoRascunho {
     vencimentoISO: string;
   };
   valorTotal: number;
+  contratoId?: string;
 }
 
 interface ContratoResumoPreviewProps {
@@ -41,45 +46,79 @@ interface ContratoResumoPreviewProps {
   onEnviarAssinatura: () => void;
 }
 
+const formatarPeriodo = (periodo: string) => {
+  const periodos: Record<string, string> = {
+    'DIARIA': 'Diária', 'SEMANA': 'Semanal', 'QUINZENA': 'Quinzenal',
+    '21DIAS': '21 Dias', 'MES': 'Mensal'
+  };
+  return periodos[periodo] || periodo;
+};
+
+const formatarForma = (forma: string) => {
+  const formas: Record<string, string> = {
+    'BOLETO': 'Boleto Bancário', 'PIX': 'PIX', 'CARTAO': 'Cartão', 'DINHEIRO': 'Dinheiro'
+  };
+  return formas[forma] || forma;
+};
+
 export function ContratoResumoPreview({ 
-  open, 
-  onClose, 
-  contrato,
-  onEnviarAssinatura
+  open, onClose, contrato, onEnviarAssinatura
 }: ContratoResumoPreviewProps) {
   const { toast } = useToast();
   const [enviando, setEnviando] = useState(false);
 
-  const formatarPeriodo = (periodo: string) => {
-    const periodos: Record<string, string> = {
-      'DIARIA': 'Diária',
-      'SEMANA': 'Semanal',
-      'QUINZENA': 'Quinzenal',
-      '21DIAS': '21 Dias',
-      'MES': 'Mensal'
-    };
-    return periodos[periodo] || periodo;
-  };
-
-  const formatarForma = (forma: string) => {
-    const formas: Record<string, string> = {
-      'BOLETO': 'Boleto Bancário',
-      'PIX': 'PIX',
-      'CARTAO': 'Cartão',
-      'DINHEIRO': 'Dinheiro'
-    };
-    return formas[forma] || forma;
+  const handleBaixarPDF = () => {
+    try {
+      downloadContratoPDF(contrato, `contrato-${contrato.cliente.nomeRazao.replace(/\s+/g, '-')}.pdf`);
+      toast({ title: "PDF gerado com sucesso!" });
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+    }
   };
 
   const handleEnviarAssinatura = async () => {
+    if (!contrato.contratoId) {
+      toast({ title: "Salve o contrato antes de enviar para assinatura", variant: "destructive" });
+      return;
+    }
+
     setEnviando(true);
-    
-    // Mock delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    onEnviarAssinatura();
-    setEnviando(false);
-    onClose();
+    try {
+      const pdfBase64 = gerarContratoPDFBase64(contrato);
+
+      const { data, error } = await supabase.functions.invoke('zapsign-enviar', {
+        body: {
+          pdf_base64: pdfBase64,
+          nome_documento: `Contrato - ${contrato.cliente.nomeRazao}`,
+          signatario: {
+            nome: contrato.cliente.nomeRazao,
+            email: contrato.cliente.email || '',
+            telefone: contrato.cliente.telefone || '',
+          },
+          contrato_id: contrato.contratoId,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.sign_url) {
+        window.open(data.sign_url, '_blank');
+      }
+
+      toast({ title: "Contrato enviado para assinatura!" });
+      onEnviarAssinatura();
+      onClose();
+    } catch (err: any) {
+      console.error('Erro ao enviar para assinatura:', err);
+      toast({ 
+        title: "Erro ao enviar para assinatura", 
+        description: err?.message || 'Tente novamente',
+        variant: "destructive" 
+      });
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
@@ -93,7 +132,7 @@ export function ContratoResumoPreview({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Cabeçalho da Empresa (Mock) */}
+          {/* Cabeçalho da Empresa */}
           <div className="text-center border-b pb-4">
             <h1 className="text-2xl font-bold text-primary">{APP_CONFIG.company.fullName}</h1>
             <p className="text-sm text-muted-foreground">
@@ -107,9 +146,7 @@ export function ContratoResumoPreview({
           {/* Dados do Cliente */}
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                Dados do Cliente
-              </h3>
+              <h3 className="text-lg font-semibold mb-2">Dados do Cliente</h3>
               <div className="space-y-1">
                 <p><strong>{contrato.cliente.nomeRazao}</strong></p>
                 <p className="text-sm text-muted-foreground">{contrato.cliente.documento}</p>
@@ -121,7 +158,6 @@ export function ContratoResumoPreview({
                 )}
               </div>
             </div>
-
             <div>
               <h3 className="text-lg font-semibold mb-2">Entrega</h3>
               <div className="space-y-1">
@@ -186,19 +222,15 @@ export function ContratoResumoPreview({
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
             <h3 className="text-lg font-semibold mb-2 text-primary">Condições de Pagamento</h3>
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <p><strong>Forma:</strong> {formatarForma(contrato.pagamento.forma)}</p>
-              </div>
-              <div>
-                <p><strong>Vencimento:</strong> {new Date(contrato.pagamento.vencimentoISO).toLocaleDateString('pt-BR')}</p>
-              </div>
+              <p><strong>Forma:</strong> {formatarForma(contrato.pagamento.forma)}</p>
+              <p><strong>Vencimento:</strong> {new Date(contrato.pagamento.vencimentoISO).toLocaleDateString('pt-BR')}</p>
             </div>
           </div>
 
           {/* Assinatura */}
           <div className="border-t pt-4 text-center text-sm text-muted-foreground">
             <p>Este documento representa um resumo do contrato de locação.</p>
-            <p>A versão completa com todas as cláusulas será disponibilizada após a assinatura digital.</p>
+            <p>O PDF completo será gerado e enviado para assinatura digital via ZapSign.</p>
           </div>
         </div>
 
@@ -207,7 +239,7 @@ export function ContratoResumoPreview({
           <Button variant="outline" onClick={onClose} className="flex-1">
             Fechar Preview
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleBaixarPDF}>
             <Download className="h-4 w-4" />
             Baixar PDF
           </Button>
