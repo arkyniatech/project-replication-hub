@@ -616,7 +616,7 @@ export default function ContratoDetalhes() {
       />
 
       {/* Tabs */}
-      <Tabs defaultValue="geral" className="space-y-6">
+      <Tabs defaultValue={initialTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="geral">Geral</TabsTrigger>
           <TabsTrigger value="aditivos">Aditivos</TabsTrigger>
