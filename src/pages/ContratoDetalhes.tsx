@@ -498,7 +498,7 @@ export default function ContratoDetalhes() {
           onContratoPDF={() => toast({ title: "Baixando contrato PDF..." })}
           onEntregaPDF={() => toast({ title: "Baixando entrega PDF..." })}
           onAssinar={handleAssinarDigitalmente}
-          onWhatsApp={() => toast({ title: "Enviando por WhatsApp..." })}
+          onWhatsApp={handleEnviarWhatsApp}
         />
         
         <div className="flex gap-2 ml-4">
