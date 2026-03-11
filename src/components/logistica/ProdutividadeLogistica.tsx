@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSupabaseLogisticaMetricas, useLogisticaKPIs } from "@/hooks/useSupabaseLogisticaMetricas";
+import { useSupabaseLogisticaMotoristas } from "@/hooks/useSupabaseLogisticaMotoristas";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { 
   BarChart, 
@@ -45,6 +46,8 @@ export function ProdutividadeLogistica() {
   
   const [periodo, setPeriodo] = useState('hoje');
   const [motoristaFiltro, setMotoristaFiltro] = useState<string>('todos');
+
+  const { motoristas } = useSupabaseLogisticaMotoristas(lojaId);
 
   // Calcular datas com base no período
   const { dataInicio, dataFim } = useMemo(() => {
@@ -178,6 +181,9 @@ export function ProdutividadeLogistica() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
+                  {motoristas.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

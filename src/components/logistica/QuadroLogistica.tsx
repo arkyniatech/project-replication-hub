@@ -26,7 +26,8 @@ const COLUNAS = [
   { id: 'PROGRAMADO', title: 'Programado', status: 'PROGRAMADO', color: 'bg-blue-50' },
   { id: 'EM_ROTA', title: 'Em Rota', status: 'EM_ROTA', color: 'bg-yellow-50' },
   { id: 'CONCLUIDO', title: 'Concluído', status: 'CONCLUIDO', color: 'bg-green-50' },
-  { id: 'REAGENDADO', title: 'Reagendado/Cancelado', status: 'REAGENDADO', color: 'bg-red-50' }
+  { id: 'REAGENDADO', title: 'Reagendado', status: 'REAGENDADO', color: 'bg-amber-50' },
+  { id: 'CANCELADO', title: 'Cancelado', status: 'CANCELADO', color: 'bg-red-50' }
 ];
 
 const MOTIVOS_NAO_SAIDA = [
@@ -207,7 +208,7 @@ export function QuadroLogistica() {
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
           {COLUNAS.map((coluna) => {
             const tarefasColuna = getTarefasPorStatus(coluna.status);
             

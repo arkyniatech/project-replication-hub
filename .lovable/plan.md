@@ -1,43 +1,19 @@
 
 
-## Avaliação: Gestão Logística — Problemas e Melhorias
+# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
 
-### Problemas de Performance Identificados
+## Problema
+Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
 
-**1. Layout renderiza 4x `<Outlet />`**
-O `LogisticaLayout` usa Radix Tabs com 4 `TabsContent`, cada um com `<Outlet />`. Radix Tabs mantém todos os conteúdos montados por padrão. Solução: usar `forceMount` apenas na aba ativa, ou trocar para renderização condicional simples.
+## Solução
+Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
 
-**2. Itinerário renderiza 20 slots vazios**
-O grid de horários renderiza todos os slots de 30min entre 08:00-18:00 mesmo sem tarefas, gerando DOM desnecessário. Solução: ocultar slots vazios ou colapsá-los.
+## Alterações
 
-**3. Endereço exibe `[object Object]`**
-Linha 109 do ItinerarioDiario faz `JSON.stringify(t.endereco)` quando o endereço é um objeto JSON. Precisa formatar como `logradouro, numero - bairro`.
+**`src/components/layout/NavRail.tsx`**:
+- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
+- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
+- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
 
-### Funcionalidades Incompletas
-
-**4. Filtro de Motorista na Produtividade está vazio**
-O Select de motoristas só mostra "Todos" — não carrega motoristas reais do Supabase.
-
-**5. Quadro mistura Reagendado e Cancelado na mesma coluna**
-A coluna "Reagendado/Cancelado" agrupa dois status diferentes. Melhor separar ou ao menos usar badges para diferenciar.
-
-### Plano de Implementação
-
-**`src/layouts/LogisticaLayout.tsx`**
-- Substituir 4 `TabsContent` com `<Outlet />` por um único `<Outlet />` fora das tabs
-- As tabs ficam apenas como navegação visual (já fazem navigate)
-
-**`src/modules/logistica/ItinerarioDiario.tsx`**
-- Formatar endereço: extrair `logradouro`, `numero`, `bairro`, `cidade` do objeto JSON
-- Filtrar slots vazios: só renderizar slots que tenham tarefas (com opção de ver todos)
-
-**`src/components/logistica/ProdutividadeLogistica.tsx`**
-- Importar e usar `useSupabaseLogisticaMotoristas` para popular o Select de motoristas
-
-**`src/components/logistica/QuadroLogistica.tsx`**
-- Separar coluna CANCELADO de REAGENDADO, ou adicionar badge visual diferenciando
-
----
-
-**Resumo**: 3 correções de performance/bugs + 2 melhorias funcionais. Foco principal no layout que monta componentes desnecessários e no endereço que aparece como JSON bruto.
+Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
 
