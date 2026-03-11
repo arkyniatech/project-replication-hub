@@ -54,7 +54,8 @@ export default function Contratos() {
   const { canViewContratos, canCreateContratos, canEditContratos } = usePermissionChecks();
 
   // Estados para Renovações
-  const [renovacaoFilter, setRenovacaoFilter] = useState<'HOJE' | 'AMANHA' | 'PROXIMOS_7' | 'ENCERRADOS' | 'TODOS'>('PROXIMOS_7');
+  const [renovacaoFilter, setRenovacaoFilter] = useState<'HOJE' | 'AMANHA' | 'PROXIMOS_7' | 'ENCERRADOS' | 'TODOS_ATIVOS' | 'TODOS'>('TODOS_ATIVOS');
+  const [renovarModo, setRenovarModo] = useState<'manter' | 'editar'>('editar');
   const [renovacaoDateRange, setRenovacaoDateRange] = useState<{ start: string; end: string } | null>(null);
   const [renovarModalOpen, setRenovarModalOpen] = useState(false);
   const [contratoParaRenovar, setContratoParaRenovar] = useState<any>(null);
