@@ -47,6 +47,8 @@ export function ProdutividadeLogistica() {
   const [periodo, setPeriodo] = useState('hoje');
   const [motoristaFiltro, setMotoristaFiltro] = useState<string>('todos');
 
+  const { motoristas } = useSupabaseLogisticaMotoristas(lojaId);
+
   // Calcular datas com base no período
   const { dataInicio, dataFim } = useMemo(() => {
     const hoje = new Date();
