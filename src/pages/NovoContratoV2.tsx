@@ -946,11 +946,95 @@ export default function NovoContratoV2() {
         localStorage.removeItem(`contrato-rascunho-${contrato.id}`);
       }
 
-      toast({
-        title: "Contrato criado com sucesso!",
-        description: `Contrato ${numeroContrato} foi salvo no banco de dados`,
-        duration: 3000
-      });
+      // === ENVIAR PARA ASSINATURA DIGITAL VIA ZAPSIGN ===
+      try {
+        console.log('[ZAPSIGN] Gerando PDF e enviando para assinatura...');
+        
+        // Extrair email e telefone do cliente
+        const contatoEmail = contrato.cliente?.contatos?.find(
+          c => c.tipo === 'Email' || c.tipo === 'email'
+        );
+        const contatoWhatsApp = contrato.cliente?.contatos?.find(
+          c => c.tipo === 'WhatsApp' || c.tipo === 'Telefone' || c.tipo === 'whatsapp' || c.tipo === 'telefone'
+        );
+
+        const nomeCliente = contrato.cliente?.tipo === 'PJ'
+          ? (contrato.cliente.razaoSocial || contrato.cliente.nomeFantasia || contrato.cliente.nomeRazao || '')
+          : (contrato.cliente?.nome || contrato.cliente?.nomeRazao || '');
+
+        // Gerar PDF base64
+        const { gerarContratoPDFBase64 } = await import('@/utils/contrato-pdf');
+        const pdfBase64 = gerarContratoPDFBase64({
+          cliente: {
+            nomeRazao: nomeCliente,
+            documento: contrato.cliente?.documento || contrato.cliente?.cpf || contrato.cliente?.cnpj || '',
+            endereco: contrato.cliente?.endereco,
+          },
+          itens: contrato.itens.map(item => ({
+            equipamento: {
+              nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
+              codigo: item.equipamento?.codigo || '',
+            },
+            quantidade: item.quantidade,
+            periodoEscolhido: item.periodoEscolhido,
+            valorUnitario: item.valorUnitario,
+            subtotal: item.subtotal,
+          })),
+          entrega: {
+            data: contrato.entrega.data,
+            janela: contrato.entrega.janela,
+            observacoes: contrato.entrega.observacoes,
+          },
+          pagamento: {
+            forma: contrato.pagamento.forma,
+            vencimentoISO: contrato.pagamento.vencimentoISO,
+          },
+          valorTotal: valorTotalCalculado,
+        });
+
+        const { data: signData, error: signError } = await supabase.functions.invoke('zapsign-enviar', {
+          body: {
+            pdf_base64: pdfBase64,
+            nome_documento: `Contrato ${numeroContrato} - ${nomeCliente}`,
+            signatario: {
+              nome: nomeCliente,
+              email: contatoEmail?.valor || '',
+              telefone: contatoWhatsApp?.valor || '',
+            },
+            contrato_id: contratoSupabase.id,
+          },
+        });
+
+        if (signError) {
+          console.error('[ZAPSIGN] Erro ao enviar:', signError);
+          toast({
+            title: "Contrato criado, mas falha na assinatura",
+            description: "O contrato foi salvo. Tente enviar para assinatura novamente pela lista de contratos.",
+            variant: "destructive",
+            duration: 6000,
+          });
+        } else {
+          console.log('[ZAPSIGN] Enviado com sucesso:', signData);
+          const canais = [
+            contatoEmail?.valor ? 'e-mail' : '',
+            contatoWhatsApp?.valor ? 'WhatsApp' : '',
+          ].filter(Boolean).join(' e ');
+
+          toast({
+            title: "Contrato enviado para assinatura!",
+            description: `Contrato ${numeroContrato} enviado${canais ? ` via ${canais}` : ''}`,
+            duration: 5000,
+          });
+        }
+      } catch (signErr) {
+        console.error('[ZAPSIGN] Erro inesperado:', signErr);
+        toast({
+          title: "Contrato criado, mas falha na assinatura",
+          description: "O contrato foi salvo. Tente enviar para assinatura novamente depois.",
+          variant: "destructive",
+          duration: 6000,
+        });
+      }
 
       navigate('/contratos');
     } catch (error) {
