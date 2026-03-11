@@ -98,6 +98,10 @@ export default function Contratos() {
       .filter((contrato) => {
         // Apenas contratos ativos
         if (!['Ativo', 'ATIVO', 'EM_ANDAMENTO'].includes(contrato.status)) return false;
+        
+        // Para TODOS_ATIVOS, mostrar todos os ativos (com ou sem dataFim)
+        if (renovacaoFilter === 'TODOS_ATIVOS' && !renovacaoDateRange) return true;
+        
         if (!contrato.dataFim) return false;
         
         const dataFim = parseISO(contrato.dataFim);
@@ -121,16 +125,16 @@ export default function Contratos() {
           case 'ENCERRADOS':
             return diasRestantes < 0;
           case 'TODOS':
-            return diasRestantes <= 30; // Próximos 30 dias ou já encerrados
+            return diasRestantes <= 30;
           default:
             return true;
         }
       })
       .map((contrato) => {
-        const dataFim = parseISO(contrato.dataFim);
-        const diasRestantes = differenceInDays(dataFim, hoje);
+        const diasRestantes = contrato.dataFim 
+          ? differenceInDays(parseISO(contrato.dataFim), hoje) 
+          : 999;
         
-        // Se o contrato está ATIVO mas data_fim passou, considerar como "precisa renovar"
         let criticidade;
         if (['ATIVO', 'Ativo', 'EM_ANDAMENTO'].includes(contrato.status) && diasRestantes < 0) {
           criticidade = 'RENOVACAO_PENDENTE';
