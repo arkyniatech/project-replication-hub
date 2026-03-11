@@ -1,34 +1,19 @@
 
 
-## Plano: Anexos reais com Supabase Storage
+# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
 
-### Situação atual
-- A aba **Anexos** existe mas usa **dados mock** (hardcoded) — nada é salvo de verdade
-- O upload converte para base64 mas não persiste em nenhum lugar
-- A tabela `contratos` já tem um campo `documentos` (jsonb, default `[]`) que pode armazenar metadados dos anexos
-- **Não existe nenhum bucket** de Storage no Supabase ainda
-- O contrato assinado via ZapSign já gera um PDF base64 — seria ideal salvá-lo automaticamente nos anexos
+## Problema
+Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
 
-### Alterações
+## Solução
+Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
 
-**1. Criar bucket `contratos-anexos` no Supabase Storage** (migração SQL)
-- Bucket público para leitura, com RLS para upload/delete
-- Estrutura de pastas: `{contrato_id}/{filename}`
+## Alterações
 
-**2. Reescrever `AnexosTab.tsx`** — Usar dados reais
-- Ler anexos do campo `contratos.documentos` (jsonb array com metadados: nome, path, tag, tamanho, usuario, data)
-- Exibir com layout limpo: ícone por tipo, tag colorida, botões de ação
-- Download real via Storage URL pública
-- Preview inline para imagens e PDFs
+**`src/components/layout/NavRail.tsx`**:
+- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
+- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
+- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
 
-**3. Reescrever `UploadAnexoModal.tsx`** — Upload real
-- Upload do arquivo para o bucket `contratos-anexos/{contrato_id}/`
-- Salvar metadados no campo `documentos` do contrato (append ao array jsonb)
-- Tags: CONTRATO, ASSINATURA, OS, FOTO, OUTROS
-
-**4. Salvar PDF assinado automaticamente** (opcional, próxima etapa)
-- Quando ZapSign retorna status ASSINADO, salvar o PDF no bucket e adicionar aos documentos do contrato
-
-### Resultado
-Upload real de arquivos (PDF, fotos) vinculados ao contrato, com download funcional e visualização. O contrato assinado pode ser anexado manualmente ou automaticamente via ZapSign.
+Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
 

@@ -4,52 +4,49 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
-import { Paperclip, Upload, FileText, Image, Download, Trash2, Eye } from "lucide-react";
-import { AnexoContrato, Contrato } from "@/types";
+import { Paperclip, Upload, FileText, Image, Download, Trash2, Eye, AlertCircle } from "lucide-react";
 import { UploadAnexoModal } from "./UploadAnexoModal";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+export interface DocumentoAnexo {
+  id: string;
+  nome: string;
+  path: string;
+  tipo: string;
+  tamanho: number;
+  tag: 'CONTRATO' | 'ASSINATURA' | 'OS' | 'FOTO' | 'OUTROS';
+  observacao?: string;
+  usuarioNome: string;
+  createdAt: string;
+}
 
 interface AnexosTabProps {
-  contrato: Contrato;
+  contrato: {
+    id: string;
+    status: string;
+    documentos?: DocumentoAnexo[];
+  };
   onContratoUpdate: () => void;
 }
 
 export default function AnexosTab({ contrato, onContratoUpdate }: AnexosTabProps) {
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const { can } = usePermissions();
 
-  // Mock anexos - in real app would come from contrato.anexos
-  const anexos: AnexoContrato[] = [
-    {
-      id: "1",
-      contratoId: String(contrato.id),
-      nome: "Contrato_Assinado.pdf",
-      url: "mock-url", // Required by base Anexo interface
-      tipo: "pdf",
-      tamanho: 2456789,
-      tag: "CONTRATO",
-      observacao: "Contrato principal assinado pelo cliente",
-      base64: "mock-base64-data",
-      usuarioId: "1",
-      usuarioNome: "João Silva",
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: "2",
-      contratoId: String(contrato.id),
-      nome: "Foto_Equipamento.jpg",
-      url: "mock-url", // Required by base Anexo interface
-      tipo: "jpg",
-      tamanho: 1234567,
-      tag: "OS",
-      observacao: "Foto do equipamento antes da entrega",
-      base64: "mock-base64-data",
-      usuarioId: "2",
-      usuarioNome: "Maria Santos",
-      createdAt: new Date().toISOString()
-    }
-  ];
-
+  const anexos: DocumentoAnexo[] = (contrato.documentos as DocumentoAnexo[] | undefined) || [];
   const canUpload = can('contratos', 'edit') && contrato.status !== 'ENCERRADO';
   const canDelete = can('contratos', 'edit') && contrato.status !== 'ENCERRADO';
 
@@ -64,80 +61,92 @@ export default function AnexosTab({ contrato, onContratoUpdate }: AnexosTabProps
   const getFileIcon = (tipo: string) => {
     switch (tipo.toLowerCase()) {
       case 'pdf':
-        return <FileText className="w-8 h-8 text-red-500" />;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-        return <Image className="w-8 h-8 text-blue-500" />;
+        return <FileText className="w-8 h-8 text-destructive" />;
+      case 'jpg': case 'jpeg': case 'png':
+        return <Image className="w-8 h-8 text-primary" />;
       default:
-        return <FileText className="w-8 h-8 text-gray-500" />;
+        return <FileText className="w-8 h-8 text-muted-foreground" />;
     }
   };
 
   const getTagColor = (tag: string) => {
     switch (tag) {
-      case 'CONTRATO':
-        return 'bg-blue-100 text-blue-800';
-      case 'ASSINATURA':
-        return 'bg-green-100 text-green-800';
-      case 'OS':
-        return 'bg-orange-100 text-orange-800';
-      case 'OUTROS':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'CONTRATO': return 'bg-primary/10 text-primary border-primary/20';
+      case 'ASSINATURA': return 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20';
+      case 'OS': return 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20';
+      case 'FOTO': return 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 
-  const handleDownload = (anexo: AnexoContrato) => {
-    // Mock download - in real app would handle base64 or file URL
-    toast({
-      title: "Download iniciado",
-      description: `Baixando ${anexo.nome}...`
-    });
+  const getPublicUrl = (path: string) => {
+    const { data } = supabase.storage.from('contratos-anexos').getPublicUrl(path);
+    return data.publicUrl;
   };
 
-  const handlePreview = (anexo: AnexoContrato) => {
-    // Mock preview - in real app would open modal with file preview
-    toast({
-      title: "Visualizando arquivo",
-      description: `Abrindo ${anexo.nome}...`
-    });
+  const handleDownload = (anexo: DocumentoAnexo) => {
+    const url = getPublicUrl(anexo.path);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = anexo.nome;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
-  const handleDelete = (anexo: AnexoContrato) => {
-    if (!canDelete) return;
-    
-    // Mock delete - in real app would remove from storage and update contract
-    toast({
-      title: "Anexo removido",
-      description: `${anexo.nome} foi removido do contrato`
-    });
-    
-    // Would trigger timeline event: ANEXO_REMOVIDO
-    onContratoUpdate();
+  const handlePreview = (anexo: DocumentoAnexo) => {
+    const url = getPublicUrl(anexo.path);
+    window.open(url, '_blank');
   };
 
-  const handleUploadSuccess = () => {
-    toast({
-      title: "Anexo adicionado",
-      description: "Arquivo carregado com sucesso"
-    });
-    
-    // Would trigger timeline event: ANEXO_ADICIONADO
-    onContratoUpdate();
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    const anexo = anexos.find(a => a.id === deletingId);
+    if (!anexo) return;
+
+    setIsDeleting(true);
+    try {
+      // Remove from storage
+      const { error: storageError } = await supabase.storage
+        .from('contratos-anexos')
+        .remove([anexo.path]);
+
+      if (storageError) throw storageError;
+
+      // Update contratos.documentos (remove from array)
+      const updatedDocs = anexos.filter(a => a.id !== deletingId);
+      const { error: dbError } = await supabase
+        .from('contratos')
+        .update({ documentos: updatedDocs as any })
+        .eq('id', contrato.id);
+
+      if (dbError) throw dbError;
+
+      toast({ title: "Anexo removido", description: `${anexo.nome} foi removido` });
+      onContratoUpdate();
+    } catch (err) {
+      console.error('Delete error:', err);
+      toast({ title: "Erro ao remover", description: "Tente novamente", variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+      setDeletingId(null);
+    }
   };
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Paperclip className="w-5 h-5" />
             Anexos e Documentos
+            {anexos.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{anexos.length}</Badge>
+            )}
           </CardTitle>
           {canUpload && (
-            <Button onClick={() => setShowUploadModal(true)}>
+            <Button size="sm" onClick={() => setShowUploadModal(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Upload
             </Button>
@@ -159,15 +168,15 @@ export default function AnexosTab({ contrato, onContratoUpdate }: AnexosTabProps
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {anexos.map((anexo) => (
-                <div key={anexo.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                  <div className="flex items-center gap-4">
+                <div key={anexo.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors group">
+                  <div className="flex items-center gap-4 min-w-0">
                     {getFileIcon(anexo.tipo)}
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium">{anexo.nome}</h4>
-                        <Badge variant="secondary" className={getTagColor(anexo.tag)}>
+                        <h4 className="font-medium truncate">{anexo.nome}</h4>
+                        <Badge variant="outline" className={`shrink-0 ${getTagColor(anexo.tag)}`}>
                           {anexo.tag}
                         </Badge>
                       </div>
@@ -175,33 +184,26 @@ export default function AnexosTab({ contrato, onContratoUpdate }: AnexosTabProps
                         {formatFileSize(anexo.tamanho)} • {anexo.usuarioNome} • {new Date(anexo.createdAt).toLocaleString('pt-BR')}
                       </p>
                       {anexo.observacao && (
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-muted-foreground mt-1 italic">
                           {anexo.observacao}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handlePreview(anexo)}
-                    >
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="sm" onClick={() => handlePreview(anexo)} title="Visualizar">
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDownload(anexo)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => handleDownload(anexo)} title="Download">
                       <Download className="w-4 h-4" />
                     </Button>
                     {canDelete && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDelete(anexo)}
+                        onClick={() => setDeletingId(anexo.id)}
                         className="text-destructive hover:text-destructive"
+                        title="Remover"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -216,10 +218,28 @@ export default function AnexosTab({ contrato, onContratoUpdate }: AnexosTabProps
 
       <UploadAnexoModal
         contratoId={String(contrato.id)}
+        documentosAtuais={anexos}
         open={showUploadModal}
         onOpenChange={setShowUploadModal}
-        onSuccess={handleUploadSuccess}
+        onSuccess={onContratoUpdate}
       />
+
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover anexo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O arquivo será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isDeleting ? "Removendo..." : "Remover"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

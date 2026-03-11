@@ -7,15 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, X, FileText, Image, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import type { DocumentoAnexo } from "./AnexosTab";
 
 interface UploadAnexoModalProps {
   contratoId: string;
+  documentosAtuais: DocumentoAnexo[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: UploadAnexoModalProps) {
+export function UploadAnexoModal({ contratoId, documentosAtuais, open, onOpenChange, onSuccess }: UploadAnexoModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [tag, setTag] = useState<string>('');
   const [observacao, setObservacao] = useState('');
@@ -23,7 +26,6 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
   const [error, setError] = useState<string>('');
   const { toast } = useToast();
 
-  // Reset form when modal opens/closes
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setSelectedFile(null);
@@ -38,14 +40,12 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       setError('Arquivo muito grande. Máximo permitido: 10MB');
       return;
     }
 
-    // Validate file type
     const allowedTypes = ['pdf', 'jpg', 'jpeg', 'png'];
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     if (!fileExtension || !allowedTypes.includes(fileExtension)) {
@@ -66,17 +66,10 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
   };
 
   const getFileIcon = (file: File) => {
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    switch (extension) {
-      case 'pdf':
-        return <FileText className="w-8 h-8 text-red-500" />;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-        return <Image className="w-8 h-8 text-blue-500" />;
-      default:
-        return <FileText className="w-8 h-8 text-gray-500" />;
-    }
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return <FileText className="w-8 h-8 text-destructive" />;
+    if (['jpg', 'jpeg', 'png'].includes(ext || '')) return <Image className="w-8 h-8 text-primary" />;
+    return <FileText className="w-8 h-8 text-muted-foreground" />;
   };
 
   const handleSubmit = async () => {
@@ -86,42 +79,61 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
     }
 
     setIsLoading(true);
-    
-    try {
-      // Mock file upload - convert to base64
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(selectedFile);
-      });
 
-      // Mock save to storage
-      const anexo = {
-        id: Date.now().toString(),
-        contratoId,
+    try {
+      // Get current user name
+      const { data: { user } } = await supabase.auth.getUser();
+      let usuarioNome = 'Usuário';
+      if (user) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('pessoa_id, pessoas(nome)')
+          .eq('id', user.id)
+          .single();
+        if (profile?.pessoas && typeof profile.pessoas === 'object' && 'nome' in profile.pessoas) {
+          usuarioNome = (profile.pessoas as any).nome || 'Usuário';
+        }
+      }
+
+      const fileExt = selectedFile.name.split('.').pop()?.toLowerCase() || '';
+      const uniqueName = `${Date.now()}_${selectedFile.name}`;
+      const storagePath = `${contratoId}/${uniqueName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('contratos-anexos')
+        .upload(storagePath, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      // Build metadata
+      const novoDoc: DocumentoAnexo = {
+        id: crypto.randomUUID(),
         nome: selectedFile.name,
-        tipo: selectedFile.name.split('.').pop()?.toLowerCase() || '',
+        path: storagePath,
+        tipo: fileExt,
         tamanho: selectedFile.size,
-        tag: tag as 'CONTRATO' | 'ASSINATURA' | 'OS' | 'OUTROS',
+        tag: tag as DocumentoAnexo['tag'],
         observacao: observacao.trim() || undefined,
-        base64,
-        usuarioId: "1", // Mock user
-        usuarioNome: "João Silva", // Mock user
-        createdAt: new Date().toISOString()
+        usuarioNome,
+        createdAt: new Date().toISOString(),
       };
 
-      // In real app, would save to storage and update contract
-      console.log('Anexo criado:', anexo);
+      // Append to contratos.documentos
+      const updatedDocs = [...documentosAtuais, novoDoc];
+      const { error: dbError } = await supabase
+        .from('contratos')
+        .update({ documentos: updatedDocs as any })
+        .eq('id', contratoId);
 
-      // Mock delay for upload
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (dbError) throw dbError;
 
+      toast({ title: "Anexo adicionado", description: `${selectedFile.name} foi salvo com sucesso` });
       onSuccess();
       handleOpenChange(false);
-      
-    } catch (err) {
-      setError('Erro ao fazer upload do arquivo');
+    } catch (err: any) {
       console.error('Upload error:', err);
+      setError(err.message || 'Erro ao fazer upload do arquivo');
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +147,6 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* File Upload */}
           <div className="space-y-2">
             <Label>Arquivo</Label>
             <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
@@ -152,20 +163,9 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
                     {getFileIcon(selectedFile)}
                     <div className="flex-1">
                       <p className="font-medium">{selectedFile.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatFileSize(selectedFile.size)}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setSelectedFile(null);
-                        setError('');
-                      }}
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.preventDefault(); setSelectedFile(null); setError(''); }}>
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -173,16 +173,13 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
                   <div className="text-center">
                     <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="font-medium">Clique para selecionar arquivo</p>
-                    <p className="text-sm text-muted-foreground">
-                      PDF, JPG ou PNG (máx. 10MB)
-                    </p>
+                    <p className="text-sm text-muted-foreground">PDF, JPG ou PNG (máx. 10MB)</p>
                   </div>
                 )}
               </label>
             </div>
           </div>
 
-          {/* Tag Selection */}
           <div className="space-y-2">
             <Label htmlFor="tag">Tag *</Label>
             <Select value={tag} onValueChange={setTag}>
@@ -193,12 +190,12 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
                 <SelectItem value="CONTRATO">Contrato</SelectItem>
                 <SelectItem value="ASSINATURA">Assinatura</SelectItem>
                 <SelectItem value="OS">OS</SelectItem>
+                <SelectItem value="FOTO">Foto</SelectItem>
                 <SelectItem value="OUTROS">Outros</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Observação */}
           <div className="space-y-2">
             <Label htmlFor="observacao">Observação</Label>
             <Textarea
@@ -210,7 +207,6 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
             />
           </div>
 
-          {/* Error Alert */}
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -218,16 +214,10 @@ export function UploadAnexoModal({ contratoId, open, onOpenChange, onSuccess }: 
             </Alert>
           )}
 
-          {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleSubmit}
-              disabled={!selectedFile || !tag || isLoading}
-            >
-              {isLoading ? "Carregando..." : "Upload"}
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={!selectedFile || !tag || isLoading}>
+              {isLoading ? "Enviando..." : "Upload"}
             </Button>
           </div>
         </div>
