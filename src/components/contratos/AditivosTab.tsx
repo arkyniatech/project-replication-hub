@@ -2,10 +2,11 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, Edit2, Trash2, DollarSign, RotateCcw, Calendar, User, Link2, MoreHorizontal } from "lucide-react";
+import { Plus, FileText, Edit2, Trash2, DollarSign, RotateCcw, Calendar, User, Link2, MoreHorizontal, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, AditivoContratual } from "@/types";
 import NovoAditivoModal from "./NovoAditivoModal";
+import VisualizarAditivoModal from "./VisualizarAditivoModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSupabaseAditivos } from "@/hooks/useSupabaseAditivos";
 import {
@@ -23,6 +24,7 @@ interface AditivosTabProps {
 export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabProps) {
   const [showNovoAditivoModal, setShowNovoAditivoModal] = useState(false);
   const [aditivoEditando, setAditivoEditando] = useState<any>(null);
+  const [aditivoVisualizando, setAditivoVisualizando] = useState<any>(null);
   const { toast } = useToast();
   const { can } = usePermissions();
   
@@ -231,6 +233,15 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
+                        onClick={() => setAditivoVisualizando(aditivo)}
+                        title="Ver detalhes"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => handleGerarPDF(aditivo)}
                         title="Gerar PDF"
                       >
@@ -275,6 +286,16 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
         onSuccess={() => {
           onContratoUpdate();
           setAditivoEditando(null);
+        }}
+      />
+
+      <VisualizarAditivoModal
+        aditivo={aditivoVisualizando}
+        open={!!aditivoVisualizando}
+        onOpenChange={(open) => { if (!open) setAditivoVisualizando(null); }}
+        onEditar={(aditivo) => {
+          setAditivoEditando(aditivo);
+          setShowNovoAditivoModal(true);
         }}
       />
     </>

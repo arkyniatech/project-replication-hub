@@ -207,7 +207,7 @@ export default function NovoAditivoModal({
             <Label className="text-sm font-medium">Tipo de Aditivo</Label>
             <div className="mt-2 space-y-3">
               <RadioGroup value={tipo} onValueChange={(value) => setTipo(value)}>
-                {(['RENOVACAO', 'DESCONTO', 'TAXA', 'AJUSTE', 'OUTRO']).map((tipoOption) => (
+                {(['DESCONTO', 'TAXA', 'AJUSTE', 'OUTRO']).map((tipoOption) => (
                   <div key={tipoOption} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/20">
                     <RadioGroupItem value={tipoOption} id={tipoOption} className="mt-1" />
                     <label htmlFor={tipoOption} className="flex-1 cursor-pointer">
