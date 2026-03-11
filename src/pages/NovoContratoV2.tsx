@@ -672,12 +672,7 @@ export default function NovoContratoV2() {
     setHasChanges(true);
   };
   const handleEnviarAssinatura = () => {
-    // Mock - registrar evento na timeline
-    toast({
-      title: "Documento enviado",
-      description: "Contrato enviado para assinatura digital via WhatsApp",
-      duration: 1500
-    });
+    // Usado pelo ContratoResumoPreview - no-op pois assinatura agora é integrada na finalização
   };
 
   // Calcular data de fim baseada no período do contrato (corrigido para evitar bug de timezone)
