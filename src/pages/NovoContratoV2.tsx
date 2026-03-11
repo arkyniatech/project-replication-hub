@@ -2130,7 +2130,7 @@ export default function NovoContratoV2() {
                   })}</span>
                   </div>}
                 <div className="text-2xl font-bold text-primary">
-                  R$ {contrato.valorTotal.toLocaleString('pt-BR', {
+                   R$ {valorTotalCalculado.toLocaleString('pt-BR', {
                   minimumFractionDigits: 2
                 })}
                 </div>
