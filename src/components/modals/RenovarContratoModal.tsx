@@ -27,7 +27,8 @@ interface RenovarContratoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  itensSelecionados?: string[]; // Para renovar apenas itens específicos
+  itensSelecionados?: string[];
+  modo?: 'manter' | 'editar';
 }
 
 export default function RenovarContratoModal({
@@ -36,6 +37,7 @@ export default function RenovarContratoModal({
   onOpenChange,
   onSuccess,
   itensSelecionados = [],
+  modo = 'editar',
 }: RenovarContratoModalProps) {
   const contrato = contratoInicial; // Usar prop diretamente sem estado local
   const [periodo, setPeriodo] = useState<'1' | '7' | '14' | '21' | '28'>('28');
