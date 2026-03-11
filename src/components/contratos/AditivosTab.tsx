@@ -24,6 +24,7 @@ interface AditivosTabProps {
 export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabProps) {
   const [showNovoAditivoModal, setShowNovoAditivoModal] = useState(false);
   const [aditivoEditando, setAditivoEditando] = useState<any>(null);
+  const [aditivoVisualizando, setAditivoVisualizando] = useState<any>(null);
   const { toast } = useToast();
   const { can } = usePermissions();
   
