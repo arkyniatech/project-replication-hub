@@ -614,6 +614,7 @@ export default function Contratos() {
           open={renovarModalOpen}
           onOpenChange={setRenovarModalOpen}
           contrato={contratoParaRenovar}
+          modo={renovarModo}
         />
       )}
     </div>

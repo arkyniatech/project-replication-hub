@@ -656,8 +656,9 @@ export default function RenovarContratoModal({
                        value={dias}
                        checked={periodo === dias}
                        onChange={(e) => setPeriodo(e.target.value as any)}
+                       disabled={modo === 'manter'}
                      />
-                     <Label htmlFor={`periodo-${dias}`}>
+                     <Label htmlFor={`periodo-${dias}`} className={modo === 'manter' ? 'text-muted-foreground' : ''}>
                        {dias === '1' ? 'Diária' : `${dias} dias`}
                      </Label>
                    </div>
@@ -675,6 +676,7 @@ export default function RenovarContratoModal({
                  value={numPeriodos}
                  onChange={(e) => setNumPeriodos(parseInt(e.target.value) || 1)}
                  className="mt-1"
+                 disabled={modo === 'manter'}
                />
                <p className="text-sm text-muted-foreground mt-1">
                  Total: {parseInt(periodo) * numPeriodos} dias
@@ -688,6 +690,7 @@ export default function RenovarContratoModal({
                  value={formaCobranca}
                  onChange={(e) => setFormaCobranca(e.target.value as any)}
                  className="w-full mt-1 px-3 py-2 bg-input border border-input-border rounded-md text-foreground"
+                 disabled={modo === 'manter'}
                >
                  <option value="PIX">PIX</option>
                  <option value="BOLETO">Boleto</option>
