@@ -437,29 +437,35 @@ export default function Contratos() {
         {/* Aba: Renovações */}
         <TabsContent value="renovacoes" className="mt-6 space-y-6">
           {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('TODOS_ATIVOS'); setRenovacaoDateRange(null); }}>
+              <CardContent className="p-4">
+                <div className="text-sm text-muted-foreground">Total Ativos</div>
+                <div className="text-2xl font-bold text-primary">{renovacaoKPIs.totalAtivos}</div>
+              </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('HOJE'); setRenovacaoDateRange(null); }}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">Encerram Hoje</div>
                 <div className="text-2xl font-bold text-orange-600">{renovacaoKPIs.hoje}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('AMANHA'); setRenovacaoDateRange(null); }}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">Encerram Amanhã</div>
                 <div className="text-2xl font-bold text-yellow-600">{renovacaoKPIs.amanha}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('PROXIMOS_7'); setRenovacaoDateRange(null); }}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">Próximos 7 dias</div>
                 <div className="text-2xl font-bold">{renovacaoKPIs.proximos7}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('ENCERRADOS'); setRenovacaoDateRange(null); }}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">Já Encerrados</div>
-                <div className="text-2xl font-bold text-red-600">{renovacaoKPIs.atrasados}</div>
+                <div className="text-2xl font-bold text-destructive">{renovacaoKPIs.atrasados}</div>
               </CardContent>
             </Card>
           </div>
