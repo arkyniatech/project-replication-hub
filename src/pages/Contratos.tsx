@@ -161,17 +161,19 @@ export default function Contratos() {
   const renovacaoKPIs = useMemo(() => {
     const hoje = startOfDay(new Date());
     const todosAtivos = contratos.filter(c => 
-      ['Ativo', 'ATIVO', 'EM_ANDAMENTO'].includes(c.status) && c.dataFim
+      ['Ativo', 'ATIVO', 'EM_ANDAMENTO'].includes(c.status)
     );
+    const comDataFim = todosAtivos.filter(c => c.dataFim);
     
     return {
-      hoje: todosAtivos.filter(c => isToday(parseISO(c.dataFim))).length,
-      amanha: todosAtivos.filter(c => isTomorrow(parseISO(c.dataFim))).length,
-      proximos7: todosAtivos.filter(c => {
+      totalAtivos: todosAtivos.length,
+      hoje: comDataFim.filter(c => isToday(parseISO(c.dataFim))).length,
+      amanha: comDataFim.filter(c => isTomorrow(parseISO(c.dataFim))).length,
+      proximos7: comDataFim.filter(c => {
         const dias = differenceInDays(parseISO(c.dataFim), hoje);
         return dias >= 0 && dias <= 7;
       }).length,
-      atrasados: todosAtivos.filter(c => differenceInDays(parseISO(c.dataFim), hoje) < 0).length,
+      atrasados: comDataFim.filter(c => differenceInDays(parseISO(c.dataFim), hoje) < 0).length,
     };
   }, [contratos]);
 
