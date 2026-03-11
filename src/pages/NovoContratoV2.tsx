@@ -709,7 +709,7 @@ export default function NovoContratoV2() {
         clienteId: contrato.clienteId,
         obraId: contrato.obra?.id,
         qtdItens: contrato.itens.length,
-        valorTotal: contrato.valorTotal
+        valorTotal: valorTotalCalculado
       }));
 
       // Gerar número do contrato
