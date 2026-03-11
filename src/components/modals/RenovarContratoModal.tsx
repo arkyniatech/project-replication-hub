@@ -588,8 +588,13 @@ export default function RenovarContratoModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            🔄 Renovar Contrato
+            {modo === 'manter' ? '⚡ Renovar Rápido' : '🔄 Editar e Renovar'}
           </DialogTitle>
+          {modo === 'manter' && (
+            <p className="text-sm text-muted-foreground">
+              Mesmas condições do contrato atual. Apenas as datas serão atualizadas.
+            </p>
+          )}
         </DialogHeader>
 
         <div className="space-y-6">
