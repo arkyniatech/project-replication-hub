@@ -637,6 +637,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
 
   return {
     contratos,
+    aditivos,
     isLoading,
     error,
     useContrato,
