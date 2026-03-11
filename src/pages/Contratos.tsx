@@ -212,7 +212,7 @@ export default function Contratos() {
     setSearchParams({ tab: value });
     // Reset filtros ao trocar de aba
     if (value === 'renovacoes') {
-      setRenovacaoFilter('PROXIMOS_7');
+      setRenovacaoFilter('TODOS_ATIVOS');
       setRenovacaoDateRange(null);
     } else {
       setSearchTerm('');
