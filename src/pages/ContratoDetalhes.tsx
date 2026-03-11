@@ -309,7 +309,10 @@ export default function ContratoDetalhes() {
       // Buscar contato do cliente (email/telefone) da tabela clientes.contatos
       const clienteContatos = (contratoSupabase?.clientes?.contatos as any[]) || [];
       const contatoEmail = clienteContatos.find((c: any) => c.tipo === 'email');
-      const contatoWhatsApp = clienteContatos.find((c: any) => c.tipo === 'whatsapp' || c.tipo === 'celular');
+      const contatoWhatsApp = clienteContatos.find((c: any) => {
+        const tipo = (c.tipo || '').toLowerCase();
+        return tipo === 'whatsapp' || tipo === 'celular' || tipo === 'telefone';
+      });
 
       const nomeCliente = contrato.cliente.nomeRazao;
 
