@@ -27,6 +27,7 @@ import {
   Save,
   UserPlus,
   UserX,
+  UserCheck,
   File,
   DollarSign,
   CheckCircle2
@@ -403,6 +404,33 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
               title: "Cliente suspenso",
               description: "O status do cliente foi alterado para Suspenso.",
               variant: "destructive"
+            });
+            onSave?.(updated);
+          }
+        }
+      );
+    }
+  };
+
+  // Ativar cliente
+  const handleActivate = () => {
+    if (!cliente) return;
+    
+    if (confirm('Deseja ativar este cliente?')) {
+      const updated = { 
+        ...cliente, 
+        status: 'ATIVO' as const,
+        statusCredito: 'Ativo' as const 
+      };
+      const supabaseData = legacyClienteToSupabase(updated);
+      
+      updateCliente.mutate(
+        { id: cliente.id, ...supabaseData },
+        {
+          onSuccess: () => {
+            toast({
+              title: "Cliente ativado",
+              description: "O status do cliente foi alterado para Ativo.",
             });
             onSave?.(updated);
           }
@@ -1072,7 +1100,18 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
         )}
         
         <div className="flex flex-col md:flex-row gap-2 ml-auto">
-          {cliente && (
+          {cliente && cliente.statusCredito !== 'Ativo' && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleActivate}
+              className="w-full md:w-auto border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+            >
+              <UserCheck className="w-4 h-4 mr-2" />
+              Ativar
+            </Button>
+          )}
+          {cliente && cliente.statusCredito === 'Ativo' && (
             <Button
               type="button"
               variant="outline"
