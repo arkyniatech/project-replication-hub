@@ -156,6 +156,7 @@ Deno.serve(async (req) => {
           headers: {
             'Content-Type': 'application/json',
             'token': instance.instance_token || adminToken,
+            'admintoken': adminToken,
           },
           body: JSON.stringify({}),
         });
