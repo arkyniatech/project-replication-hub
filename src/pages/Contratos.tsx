@@ -54,7 +54,8 @@ export default function Contratos() {
   const { canViewContratos, canCreateContratos, canEditContratos } = usePermissionChecks();
 
   // Estados para Renovações
-  const [renovacaoFilter, setRenovacaoFilter] = useState<'HOJE' | 'AMANHA' | 'PROXIMOS_7' | 'ENCERRADOS' | 'TODOS'>('PROXIMOS_7');
+  const [renovacaoFilter, setRenovacaoFilter] = useState<'HOJE' | 'AMANHA' | 'PROXIMOS_7' | 'ENCERRADOS' | 'TODOS_ATIVOS' | 'TODOS'>('TODOS_ATIVOS');
+  const [renovarModo, setRenovarModo] = useState<'manter' | 'editar'>('editar');
   const [renovacaoDateRange, setRenovacaoDateRange] = useState<{ start: string; end: string } | null>(null);
   const [renovarModalOpen, setRenovarModalOpen] = useState(false);
   const [contratoParaRenovar, setContratoParaRenovar] = useState<any>(null);
@@ -97,6 +98,10 @@ export default function Contratos() {
       .filter((contrato) => {
         // Apenas contratos ativos
         if (!['Ativo', 'ATIVO', 'EM_ANDAMENTO'].includes(contrato.status)) return false;
+        
+        // Para TODOS_ATIVOS, mostrar todos os ativos (com ou sem dataFim)
+        if (renovacaoFilter === 'TODOS_ATIVOS' && !renovacaoDateRange) return true;
+        
         if (!contrato.dataFim) return false;
         
         const dataFim = parseISO(contrato.dataFim);
@@ -120,16 +125,16 @@ export default function Contratos() {
           case 'ENCERRADOS':
             return diasRestantes < 0;
           case 'TODOS':
-            return diasRestantes <= 30; // Próximos 30 dias ou já encerrados
+            return diasRestantes <= 30;
           default:
             return true;
         }
       })
       .map((contrato) => {
-        const dataFim = parseISO(contrato.dataFim);
-        const diasRestantes = differenceInDays(dataFim, hoje);
+        const diasRestantes = contrato.dataFim 
+          ? differenceInDays(parseISO(contrato.dataFim), hoje) 
+          : 999;
         
-        // Se o contrato está ATIVO mas data_fim passou, considerar como "precisa renovar"
         let criticidade;
         if (['ATIVO', 'Ativo', 'EM_ANDAMENTO'].includes(contrato.status) && diasRestantes < 0) {
           criticidade = 'RENOVACAO_PENDENTE';
@@ -156,17 +161,19 @@ export default function Contratos() {
   const renovacaoKPIs = useMemo(() => {
     const hoje = startOfDay(new Date());
     const todosAtivos = contratos.filter(c => 
-      ['Ativo', 'ATIVO', 'EM_ANDAMENTO'].includes(c.status) && c.dataFim
+      ['Ativo', 'ATIVO', 'EM_ANDAMENTO'].includes(c.status)
     );
+    const comDataFim = todosAtivos.filter(c => c.dataFim);
     
     return {
-      hoje: todosAtivos.filter(c => isToday(parseISO(c.dataFim))).length,
-      amanha: todosAtivos.filter(c => isTomorrow(parseISO(c.dataFim))).length,
-      proximos7: todosAtivos.filter(c => {
+      totalAtivos: todosAtivos.length,
+      hoje: comDataFim.filter(c => isToday(parseISO(c.dataFim))).length,
+      amanha: comDataFim.filter(c => isTomorrow(parseISO(c.dataFim))).length,
+      proximos7: comDataFim.filter(c => {
         const dias = differenceInDays(parseISO(c.dataFim), hoje);
         return dias >= 0 && dias <= 7;
       }).length,
-      atrasados: todosAtivos.filter(c => differenceInDays(parseISO(c.dataFim), hoje) < 0).length,
+      atrasados: comDataFim.filter(c => differenceInDays(parseISO(c.dataFim), hoje) < 0).length,
     };
   }, [contratos]);
 
@@ -205,7 +212,7 @@ export default function Contratos() {
     setSearchParams({ tab: value });
     // Reset filtros ao trocar de aba
     if (value === 'renovacoes') {
-      setRenovacaoFilter('PROXIMOS_7');
+      setRenovacaoFilter('TODOS_ATIVOS');
       setRenovacaoDateRange(null);
     } else {
       setSearchTerm('');
@@ -213,8 +220,9 @@ export default function Contratos() {
     }
   };
 
-  const handleRenovarClick = (contrato: any) => {
+  const handleRenovarClick = (contrato: any, modo: 'manter' | 'editar') => {
     setContratoParaRenovar(contrato);
+    setRenovarModo(modo);
     setRenovarModalOpen(true);
   };
 
@@ -429,29 +437,35 @@ export default function Contratos() {
         {/* Aba: Renovações */}
         <TabsContent value="renovacoes" className="mt-6 space-y-6">
           {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('TODOS_ATIVOS'); setRenovacaoDateRange(null); }}>
+              <CardContent className="p-4">
+                <div className="text-sm text-muted-foreground">Total Ativos</div>
+                <div className="text-2xl font-bold text-primary">{renovacaoKPIs.totalAtivos}</div>
+              </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('HOJE'); setRenovacaoDateRange(null); }}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">Encerram Hoje</div>
                 <div className="text-2xl font-bold text-orange-600">{renovacaoKPIs.hoje}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('AMANHA'); setRenovacaoDateRange(null); }}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">Encerram Amanhã</div>
                 <div className="text-2xl font-bold text-yellow-600">{renovacaoKPIs.amanha}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('PROXIMOS_7'); setRenovacaoDateRange(null); }}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">Próximos 7 dias</div>
                 <div className="text-2xl font-bold">{renovacaoKPIs.proximos7}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setRenovacaoFilter('ENCERRADOS'); setRenovacaoDateRange(null); }}>
               <CardContent className="p-4">
                 <div className="text-sm text-muted-foreground">Já Encerrados</div>
-                <div className="text-2xl font-bold text-red-600">{renovacaoKPIs.atrasados}</div>
+                <div className="text-2xl font-bold text-destructive">{renovacaoKPIs.atrasados}</div>
               </CardContent>
             </Card>
           </div>
@@ -461,56 +475,26 @@ export default function Contratos() {
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant={renovacaoFilter === 'HOJE' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('HOJE');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Hoje
-                  </Button>
-                  <Button
-                    variant={renovacaoFilter === 'AMANHA' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('AMANHA');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Amanhã
-                  </Button>
-                  <Button
-                    variant={renovacaoFilter === 'PROXIMOS_7' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('PROXIMOS_7');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Próximos 7 dias
-                  </Button>
-                  <Button
-                    variant={renovacaoFilter === 'ENCERRADOS' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('ENCERRADOS');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Encerrados
-                  </Button>
-                  <Button
-                    variant={renovacaoFilter === 'TODOS' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('TODOS');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Todos (30 dias)
-                  </Button>
+                  {([
+                    { key: 'TODOS_ATIVOS' as const, label: 'Todos Ativos' },
+                    { key: 'HOJE' as const, label: 'Hoje' },
+                    { key: 'AMANHA' as const, label: 'Amanhã' },
+                    { key: 'PROXIMOS_7' as const, label: 'Próximos 7 dias' },
+                    { key: 'ENCERRADOS' as const, label: 'Vencidos' },
+                    { key: 'TODOS' as const, label: 'Todos (30 dias)' },
+                  ]).map(f => (
+                    <Button
+                      key={f.key}
+                      variant={renovacaoFilter === f.key ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setRenovacaoFilter(f.key);
+                        setRenovacaoDateRange(null);
+                      }}
+                    >
+                      {f.label}
+                    </Button>
+                  ))}
                 </div>
 
                 <div className="flex gap-4 items-end">
@@ -597,11 +581,19 @@ export default function Contratos() {
                             </Button>
                             <IfPerm perm="contratos:renew">
                               <Button
+                                variant="outline"
                                 size="sm"
-                                onClick={() => handleRenovarClick(contrato)}
+                                onClick={() => handleRenovarClick(contrato, 'manter')}
                               >
                                 <RotateCcw className="h-4 w-4 mr-2" />
-                                Renovar
+                                Renovar Rápido
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleRenovarClick(contrato, 'editar')}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar e Renovar
                               </Button>
                             </IfPerm>
                           </div>
@@ -622,6 +614,7 @@ export default function Contratos() {
           open={renovarModalOpen}
           onOpenChange={setRenovarModalOpen}
           contrato={contratoParaRenovar}
+          modo={renovarModo}
         />
       )}
     </div>

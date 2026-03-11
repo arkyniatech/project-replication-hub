@@ -27,7 +27,8 @@ interface RenovarContratoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  itensSelecionados?: string[]; // Para renovar apenas itens específicos
+  itensSelecionados?: string[];
+  modo?: 'manter' | 'editar';
 }
 
 export default function RenovarContratoModal({
@@ -36,6 +37,7 @@ export default function RenovarContratoModal({
   onOpenChange,
   onSuccess,
   itensSelecionados = [],
+  modo = 'editar',
 }: RenovarContratoModalProps) {
   const contrato = contratoInicial; // Usar prop diretamente sem estado local
   const [periodo, setPeriodo] = useState<'1' | '7' | '14' | '21' | '28'>('28');
@@ -60,15 +62,41 @@ export default function RenovarContratoModal({
   // Calcular nova data de início (mesma data de término - diárias de 24h)
   React.useEffect(() => {
     if (contrato && open) {
-      // A nova data de início é a MESMA data de fim do contrato atual
-      // Garantir que não haja conversão de timezone
-      const dataFimOriginal = contrato.dataFim; // Já está em YYYY-MM-DD
-      
-      // Importante: manter o formato YYYY-MM-DD puro sem conversão
+      const dataFimOriginal = contrato.dataFim;
       setNovaDataInicio(dataFimOriginal);
-      
-      console.log('[RenovarContrato] Data de fim do contrato:', dataFimOriginal);
-      console.log('[RenovarContrato] Nova data de início definida:', dataFimOriginal);
+
+      // No modo "manter", preservar período e forma do contrato original
+      if (modo === 'manter') {
+        // Detectar período dos itens do contrato
+        const primeiroItem = contrato.itens?.[0] as any;
+        if (primeiroItem) {
+          const periodoItem = primeiroItem.periodo || primeiroItem.periodo_base;
+          const mapPeriodo: Record<string, '1' | '7' | '14' | '21' | '28'> = {
+            'DIARIA': '1', 'D1': '1', '1': '1',
+            'SEMANA': '7', 'D7': '7', '7': '7',
+            'QUINZENA': '14', 'D14': '14', '14': '14',
+            '21DIAS': '21', 'D21': '21', '21': '21',
+            'MENSAL': '28', 'D28': '28', '28': '28',
+          };
+          if (periodoItem && mapPeriodo[periodoItem]) {
+            setPeriodo(mapPeriodo[periodoItem]);
+          }
+        }
+        // Preservar forma de cobrança
+        const formaOriginal = (contrato as any).formaPagamento || (contrato as any).forma_pagamento;
+        if (formaOriginal) {
+          const mapForma: Record<string, 'BOLETO' | 'PIX' | 'CARTAO' | 'DINHEIRO'> = {
+            'Boleto': 'BOLETO', 'BOLETO': 'BOLETO',
+            'PIX': 'PIX', 'Pix': 'PIX',
+            'Cartão': 'CARTAO', 'CARTAO': 'CARTAO',
+            'Dinheiro': 'DINHEIRO', 'DINHEIRO': 'DINHEIRO',
+          };
+          if (mapForma[formaOriginal]) {
+            setFormaCobranca(mapForma[formaOriginal]);
+          }
+        }
+        setNumPeriodos(1);
+      }
 
       // Verificar se cliente é inadimplente
       const titulosVencidosCliente = titulos?.filter(t => 
@@ -79,7 +107,7 @@ export default function RenovarContratoModal({
       setTitulosVencidos(titulosVencidosCliente);
       setClienteInadimplente(titulosVencidosCliente.length > 0);
     }
-  }, [open, titulos]); // Adicionar titulos para atualizar quando títulos mudarem
+  }, [open, titulos, modo]);
 
   // Preservar dados da renovação quando abrindo modal de recebimento
   const handlePagarERenovar = () => {
@@ -560,8 +588,13 @@ export default function RenovarContratoModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            🔄 Renovar Contrato
+            {modo === 'manter' ? '⚡ Renovar Rápido' : '🔄 Editar e Renovar'}
           </DialogTitle>
+          {modo === 'manter' && (
+            <p className="text-sm text-muted-foreground">
+              Mesmas condições do contrato atual. Apenas as datas serão atualizadas.
+            </p>
+          )}
         </DialogHeader>
 
         <div className="space-y-6">
@@ -623,8 +656,9 @@ export default function RenovarContratoModal({
                        value={dias}
                        checked={periodo === dias}
                        onChange={(e) => setPeriodo(e.target.value as any)}
+                       disabled={modo === 'manter'}
                      />
-                     <Label htmlFor={`periodo-${dias}`}>
+                     <Label htmlFor={`periodo-${dias}`} className={modo === 'manter' ? 'text-muted-foreground' : ''}>
                        {dias === '1' ? 'Diária' : `${dias} dias`}
                      </Label>
                    </div>
@@ -642,6 +676,7 @@ export default function RenovarContratoModal({
                  value={numPeriodos}
                  onChange={(e) => setNumPeriodos(parseInt(e.target.value) || 1)}
                  className="mt-1"
+                 disabled={modo === 'manter'}
                />
                <p className="text-sm text-muted-foreground mt-1">
                  Total: {parseInt(periodo) * numPeriodos} dias
@@ -655,6 +690,7 @@ export default function RenovarContratoModal({
                  value={formaCobranca}
                  onChange={(e) => setFormaCobranca(e.target.value as any)}
                  className="w-full mt-1 px-3 py-2 bg-input border border-input-border rounded-md text-foreground"
+                 disabled={modo === 'manter'}
                >
                  <option value="PIX">PIX</option>
                  <option value="BOLETO">Boleto</option>
