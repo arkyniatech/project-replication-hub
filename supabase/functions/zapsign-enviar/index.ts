@@ -44,6 +44,10 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Build webhook URL
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const webhookUrl = `${supabaseUrl}/functions/v1/zapsign-webhook`
+
     // Send to ZapSign
     const zapsignBody = {
       name: nome_documento,
@@ -59,6 +63,7 @@ Deno.serve(async (req) => {
       }],
       lang: 'pt-br',
       disable_signer_emails: false,
+      url_notifications: webhookUrl,
     }
 
     console.log('Enviando para ZapSign:', { nome_documento, contrato_id })
