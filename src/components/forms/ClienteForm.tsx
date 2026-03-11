@@ -27,6 +27,7 @@ import {
   Save,
   UserPlus,
   UserX,
+  UserCheck,
   File,
   DollarSign,
   CheckCircle2
