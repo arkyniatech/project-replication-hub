@@ -475,56 +475,26 @@ export default function Contratos() {
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant={renovacaoFilter === 'HOJE' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('HOJE');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Hoje
-                  </Button>
-                  <Button
-                    variant={renovacaoFilter === 'AMANHA' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('AMANHA');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Amanhã
-                  </Button>
-                  <Button
-                    variant={renovacaoFilter === 'PROXIMOS_7' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('PROXIMOS_7');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Próximos 7 dias
-                  </Button>
-                  <Button
-                    variant={renovacaoFilter === 'ENCERRADOS' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('ENCERRADOS');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Encerrados
-                  </Button>
-                  <Button
-                    variant={renovacaoFilter === 'TODOS' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setRenovacaoFilter('TODOS');
-                      setRenovacaoDateRange(null);
-                    }}
-                  >
-                    Todos (30 dias)
-                  </Button>
+                  {([
+                    { key: 'TODOS_ATIVOS' as const, label: 'Todos Ativos' },
+                    { key: 'HOJE' as const, label: 'Hoje' },
+                    { key: 'AMANHA' as const, label: 'Amanhã' },
+                    { key: 'PROXIMOS_7' as const, label: 'Próximos 7 dias' },
+                    { key: 'ENCERRADOS' as const, label: 'Vencidos' },
+                    { key: 'TODOS' as const, label: 'Todos (30 dias)' },
+                  ]).map(f => (
+                    <Button
+                      key={f.key}
+                      variant={renovacaoFilter === f.key ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setRenovacaoFilter(f.key);
+                        setRenovacaoDateRange(null);
+                      }}
+                    >
+                      {f.label}
+                    </Button>
+                  ))}
                 </div>
 
                 <div className="flex gap-4 items-end">
