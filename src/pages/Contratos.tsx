@@ -52,25 +52,18 @@ export default function Contratos() {
     }));
   }, [contratosSupabase]);
 
-  // Build parent-child map from aditivos
-  const { parentChildMap, childToParentMap } = useMemo(() => {
-    const pcMap = new Map<string, string[]>(); // parentContratoId -> [childContratoNumero]
-    const cpMap = new Map<string, string>(); // childContratoNumero -> parentContratoId
-    
-    if (!aditivos) return { parentChildMap: pcMap, childToParentMap: cpMap };
+  // Build map: contrato_id -> aditivos[]
+  const aditivosPorContrato = useMemo(() => {
+    const map = new Map<string, typeof aditivos>();
+    if (!aditivos) return map;
     
     for (const aditivo of aditivos) {
-      const parentId = aditivo.contrato_id;
-      const childNumero = aditivo.numero; // e.g. "LOC001-01"
-      
-      if (!pcMap.has(parentId)) {
-        pcMap.set(parentId, []);
+      if (!map.has(aditivo.contrato_id)) {
+        map.set(aditivo.contrato_id, []);
       }
-      pcMap.get(parentId)!.push(childNumero);
-      cpMap.set(childNumero, parentId);
+      map.get(aditivo.contrato_id)!.push(aditivo);
     }
-    
-    return { parentChildMap: pcMap, childToParentMap: cpMap };
+    return map;
   }, [aditivos]);
 
   const toggleParent = (parentId: string) => {
@@ -351,24 +344,18 @@ export default function Contratos() {
                 </div>
               ) : filteredContratos.length > 0 ? (
                 <div className="space-y-2">
-                  {filteredContratos
-                    .filter(c => !childToParentMap.has(c.numero)) // Show only parents/standalone
-                    .map((contrato) => {
-                      const childNumeros = parentChildMap.get(contrato.id) || [];
-                      const childContratos = childNumeros
-                        .map(num => filteredContratos.find(c => c.numero === num))
-                        .filter(Boolean) as typeof filteredContratos;
-                      const hasChildren = childContratos.length > 0;
+                  {filteredContratos.map((contrato) => {
+                      const contratoAditivos = aditivosPorContrato.get(contrato.id) || [];
+                      const hasAditivos = contratoAditivos.length > 0;
                       const isExpanded = expandedParents.has(contrato.id);
 
                       return (
                         <div key={contrato.id}>
-                          {/* Parent / Standalone Contract */}
                           <div
-                            className={`flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors ${hasChildren ? 'border-l-4 border-l-primary' : ''}`}
+                            className={`flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors ${hasAditivos ? 'border-l-4 border-l-primary' : ''}`}
                           >
                             <div className="flex items-start gap-4">
-                              {hasChildren && (
+                              {hasAditivos && (
                                 <button
                                   onClick={() => toggleParent(contrato.id)}
                                   className="mt-3 p-1 rounded hover:bg-muted"
@@ -383,10 +370,10 @@ export default function Contratos() {
                                 <div className="flex items-center gap-3">
                                   <h3 className="font-semibold text-foreground">{contrato.numero}</h3>
                                   <StatusBadge status={getStatusInfo(contrato.status)} />
-                                  {hasChildren && (
+                                  {hasAditivos && (
                                     <Badge variant="outline" className="text-xs gap-1">
                                       <GitBranch className="w-3 h-3" />
-                                      {childContratos.length} renovação(ões)
+                                      {contratoAditivos.length} renovação(ões)
                                     </Badge>
                                   )}
                                 </div>
@@ -438,12 +425,12 @@ export default function Contratos() {
                             </div>
                           </div>
 
-                          {/* Child Contracts (Renovações) */}
-                          {hasChildren && isExpanded && (
+                          {/* Aditivos (Renovações) como sub-linhas */}
+                          {hasAditivos && isExpanded && (
                             <div className="ml-8 mt-1 space-y-1">
-                              {childContratos.map((child) => (
+                              {contratoAditivos.map((aditivo) => (
                                 <div
-                                  key={child.id}
+                                  key={aditivo.id}
                                   className="flex items-center justify-between p-3 border border-border/60 rounded-lg hover:bg-muted/50 transition-colors bg-muted/20 border-l-4 border-l-accent"
                                 >
                                   <div className="flex items-start gap-3">
@@ -452,21 +439,22 @@ export default function Contratos() {
                                     </div>
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-2">
-                                        <h4 className="font-medium text-sm text-foreground">{child.numero}</h4>
-                                        <StatusBadge status={getStatusInfo(child.status)} />
-                                        <Badge variant="secondary" className="text-[10px]">Renovação</Badge>
+                                        <h4 className="font-medium text-sm text-foreground">{aditivo.numero}</h4>
+                                        <Badge variant={aditivo.status === 'ATIVO' ? 'default' : 'secondary'} className="text-[10px]">
+                                          {aditivo.status}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-[10px]">{aditivo.tipo}</Badge>
                                       </div>
                                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                        <span>Início: {formatDate(child.dataInicio)}</span>
-                                        <span>Fim: {formatDate(child.dataFim)}</span>
-                                        <span className="font-medium">R$ {child.valorTotal.toLocaleString('pt-BR')}</span>
+                                        <span>Criado em: {formatDate(aditivo.criado_em)}</span>
+                                        {aditivo.valor ? (
+                                          <span className="font-medium">R$ {Number(aditivo.valor).toLocaleString('pt-BR')}</span>
+                                        ) : null}
+                                        {aditivo.descricao && (
+                                          <span className="truncate max-w-[200px]">{aditivo.descricao}</span>
+                                        )}
                                       </div>
                                     </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/contratos/${child.id}`)}>
-                                      <Eye className="w-3.5 h-3.5" />
-                                    </Button>
                                   </div>
                                 </div>
                               ))}
@@ -475,39 +463,6 @@ export default function Contratos() {
                         </div>
                       );
                     })}
-                  {/* Also show children that matched search but whose parent didn't */}
-                  {filteredContratos
-                    .filter(c => childToParentMap.has(c.numero) && !filteredContratos.some(p => p.id === childToParentMap.get(c.numero)))
-                    .map(contrato => (
-                      <div
-                        key={contrato.id}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <FileText className="w-6 h-6 text-primary" />
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-3">
-                              <h3 className="font-semibold text-foreground">{contrato.numero}</h3>
-                              <StatusBadge status={getStatusInfo(contrato.status)} />
-                              <Badge variant="secondary" className="text-xs">Renovação</Badge>
-                            </div>
-                            <p className="text-sm font-medium text-foreground">Cliente: {contrato.cliente.nome}</p>
-                            <div className="flex items-center gap-4 text-sm">
-                              <span className="text-muted-foreground">Início: <span className="font-medium text-foreground">{formatDate(contrato.dataInicio)}</span></span>
-                              <span className="text-muted-foreground">Fim: <span className="font-medium text-foreground">{formatDate(contrato.dataFim)}</span></span>
-                              <span className="text-muted-foreground">R$ <span className="font-bold text-foreground">{contrato.valorTotal.toLocaleString('pt-BR')}</span></span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => navigate(`/contratos/${contrato.id}`)}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
                 </div>
               ) : (
                 <div className="text-center py-8">

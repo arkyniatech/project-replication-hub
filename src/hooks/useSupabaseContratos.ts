@@ -47,15 +47,13 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
     },
   });
 
-  // Query para buscar aditivos (renovações) - relação mãe/filho
+  // Query para buscar aditivos (renovações) - sub-registros do contrato
   const { data: aditivos = [] } = useQuery({
     queryKey: ['aditivos_contratos', lojaId],
     queryFn: async () => {
       let query = supabase
         .from('aditivos_contratuais')
-        .select('id, contrato_id, numero, tipo, status, criado_em, valor, descricao')
-        .eq('tipo', 'RENOVACAO')
-        .eq('status', 'ATIVO')
+        .select('id, contrato_id, numero, tipo, status, criado_em, valor, descricao, justificativa')
         .order('criado_em', { ascending: true });
 
       if (lojaId) {

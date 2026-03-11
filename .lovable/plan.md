@@ -1,47 +1,19 @@
 
 
-## Diagnóstico
+# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
 
-O sistema de renovação **não cria contratos filhos** — ele apenas estende as datas do contrato existente e cria um registro na tabela `aditivos_contratuais`. Porém, a implementação anterior de "mãe e filhos" no `Contratos.tsx` tentava vincular `aditivo.numero` a `contrato.numero`, o que nunca funciona porque nenhum contrato novo é criado.
+## Problema
+Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
 
-**Dados atuais no banco:**
-- 1 contrato: número "4", status ATIVO
-- 0 registros em `aditivos_contratuais` (as renovações falharam por erros anteriores de RLS/schema)
+## Solução
+Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
 
-## Plano: Mostrar histórico de renovações no contrato
+## Alterações
 
-Como a arquitetura atual não cria contratos filhos (apenas aditivos), a abordagem correta é mostrar os **aditivos como sub-registros** do contrato pai na listagem.
+**`src/components/layout/NavRail.tsx`**:
+- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
+- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
+- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
 
-### Alterações
-
-**1. `src/pages/Contratos.tsx`** — Reescrever a lógica parent-child
-
-- Em vez de tentar mapear `aditivo.numero` → `contrato.numero`, mostrar os aditivos diretamente como linhas filhas expandíveis abaixo do contrato pai.
-- Cada contrato que tem aditivos mostra um botão de expandir com badge "X renovação(ões)".
-- Ao expandir, exibe as renovações com: número do aditivo, data de criação, valor, status.
-
-**2. `src/hooks/useSupabaseContratos.ts`** — Ajustar query de aditivos
-
-- Trazer campos adicionais: `justificativa`, `criado_em`, `valor`, `descricao`.
-- Remover a dependência de `childToParentMap` baseada em `contrato.numero`.
-
-**3. `src/components/modals/RenovarContratoModal.tsx`** — Corrigir criação do aditivo
-
-- A RLS de INSERT para `aditivos_contratuais` exige roles `vendedor`, `gestor` ou `admin`. Verificar se `master` está incluído (mesmo problema do `titulos`).
-
-**4. Migração SQL** — Adicionar `is_master` na RLS de INSERT de `aditivos_contratuais`
-
-```sql
-DROP POLICY IF EXISTS "Staff pode criar aditivos" ON public.aditivos_contratuais;
-CREATE POLICY "Staff pode criar aditivos" ON public.aditivos_contratuais 
-FOR INSERT TO authenticated
-WITH CHECK (
-  (is_master(auth.uid()) OR has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
-  AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
-);
-```
-
-### Resultado esperado
-
-Na aba "Todos", cada contrato mostra suas renovações (aditivos) como linhas aninhadas com ícone de renovação, número (ex: "4.1"), valor e data. O fluxo de renovação também passa a funcionar para usuários `master`.
+Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
 
