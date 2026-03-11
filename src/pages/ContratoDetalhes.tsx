@@ -384,6 +384,72 @@ export default function ContratoDetalhes() {
     }
   };
 
+  // Enviar link de assinatura por WhatsApp
+  const [enviandoWhatsApp, setEnviandoWhatsApp] = useState(false);
+
+  const handleEnviarWhatsApp = async () => {
+    if (!contrato || !contratoSupabase) return;
+
+    if (!contratoSupabase.zapsign_sign_url) {
+      toast({
+        title: "Sem link de assinatura",
+        description: "Envie o contrato para assinatura digital primeiro.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const clienteContatos = (contratoSupabase.clientes?.contatos as any[]) || [];
+    const contatoWhatsApp = clienteContatos.find(
+      (c: any) => c.tipo === 'whatsapp' || c.tipo === 'celular'
+    );
+
+    if (!contatoWhatsApp?.valor) {
+      toast({
+        title: "Telefone não encontrado",
+        description: "O cliente não possui WhatsApp ou celular cadastrado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEnviandoWhatsApp(true);
+    try {
+      const nomeCliente = contrato.cliente.nomeRazao;
+      const message = `Olá ${nomeCliente}, segue o link para assinatura do contrato ${contrato.numero}:\n\n${contratoSupabase.zapsign_sign_url}\n\nQualquer dúvida, estamos à disposição!`;
+
+      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          loja_id: contrato.lojaId,
+          phone: contatoWhatsApp.valor,
+          message,
+        },
+      });
+
+      if (error || data?.error) {
+        toast({
+          title: "Erro ao enviar WhatsApp",
+          description: data?.error || error?.message || "Tente novamente.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Link enviado por WhatsApp!",
+          description: `Mensagem enviada para ${contatoWhatsApp.valor}.`,
+        });
+      }
+    } catch (err) {
+      console.error('[WHATSAPP] Erro:', err);
+      toast({
+        title: "Erro inesperado",
+        description: "Não foi possível enviar a mensagem.",
+        variant: "destructive",
+      });
+    } finally {
+      setEnviandoWhatsApp(false);
+    }
+  };
+
   // Event handlers
   const handleSaveObservacoes = async (texto: string) => {
     if (!contrato) return;
@@ -498,7 +564,7 @@ export default function ContratoDetalhes() {
           onContratoPDF={() => toast({ title: "Baixando contrato PDF..." })}
           onEntregaPDF={() => toast({ title: "Baixando entrega PDF..." })}
           onAssinar={handleAssinarDigitalmente}
-          onWhatsApp={() => toast({ title: "Enviando por WhatsApp..." })}
+          onWhatsApp={handleEnviarWhatsApp}
         />
         
         <div className="flex gap-2 ml-4">
