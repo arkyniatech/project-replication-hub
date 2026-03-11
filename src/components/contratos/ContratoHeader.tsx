@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Download, FileSignature, MessageCircle, FileText } from "lucide-react";
+import { Download, FileSignature, MessageCircle, FileText, Eye } from "lucide-react";
 
 interface ContratoHeaderProps {
   statusContrato: 'ATIVO' | 'ENCERRADO';
@@ -11,6 +11,7 @@ interface ContratoHeaderProps {
   saldoAtraso: number;
   onChipFinanceiro: () => void;
   onContratoPDF: () => void;
+  onVerContrato: () => void;
   onEntregaPDF: () => void;
   onAssinar: () => void;
   onWhatsApp: () => void;
