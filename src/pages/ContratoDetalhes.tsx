@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
@@ -32,7 +32,9 @@ import { gerarContratoPDFBase64 } from "@/utils/contrato-pdf";
 export default function ContratoDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const initialTab = searchParams.get('tab') || 'geral';
   
   const { useContrato, updateContrato, cancelContrato, confirmarRetirada } = useSupabaseContratos();
   const { data: contratoSupabase, isLoading: loading } = useContrato(id || '');
@@ -614,7 +616,7 @@ export default function ContratoDetalhes() {
       />
 
       {/* Tabs */}
-      <Tabs defaultValue="geral" className="space-y-6">
+      <Tabs defaultValue={initialTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="geral">Geral</TabsTrigger>
           <TabsTrigger value="aditivos">Aditivos</TabsTrigger>

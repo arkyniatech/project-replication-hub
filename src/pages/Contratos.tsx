@@ -453,9 +453,24 @@ export default function Contratos() {
                                         {aditivo.descricao && (
                                           <span className="truncate max-w-[200px]">{aditivo.descricao}</span>
                                         )}
+                                        {aditivo.justificativa && (
+                                          <span className="truncate max-w-[200px] italic">{aditivo.justificativa}</span>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1.5 shrink-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/contratos/${aditivo.contrato_id}?tab=aditivos`);
+                                    }}
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    Ver
+                                  </Button>
                                 </div>
                               ))}
                             </div>
