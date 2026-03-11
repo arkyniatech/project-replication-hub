@@ -1,19 +1,27 @@
 
 
-# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
+# Renovações: Listar todos os contratos ativos com opção rápida
 
-## Problema
-Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
-
-## Solução
-Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
+## Problema atual
+A aba "Renovações" só mostra contratos próximos do vencimento (30 dias). O usuário quer ver **todos** os contratos ativos com opção de renovar. Além disso, quer dois modos de renovação: **manter tudo** (só muda a data) ou **editar** (permite alterar itens/valores).
 
 ## Alterações
 
-**`src/components/layout/NavRail.tsx`**:
-- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
-- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
-- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
+### 1. `src/pages/Contratos.tsx` — Filtro de renovações
+- Alterar `contratosParaRenovacao` para incluir **todos** os contratos ativos, não só os próximos do vencimento
+- Adicionar filtro "TODOS_ATIVOS" como padrão
+- Manter filtros de criticidade (Hoje, Amanhã, 7 dias, Encerrados) como sub-filtros opcionais
 
-Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
+### 2. `src/pages/Contratos.tsx` — Dois botões por contrato
+Na listagem de cada contrato na aba Renovações, trocar o botão único "Renovar" por dois:
+- **"Renovar Rápido"** — abre o modal com modo `manter`, que preenche automaticamente o mesmo período/forma e só pede confirmação da nova data
+- **"Editar e Renovar"** — abre o modal no modo atual (editável), permitindo mudar período, quantidade, forma de cobrança
+
+### 3. `src/components/modals/RenovarContratoModal.tsx` — Modo "manter"
+- Adicionar prop `modo: 'manter' | 'editar'` (default: `'editar'`)
+- No modo `'manter'`: pré-preencher período e forma com os mesmos do contrato original, desabilitar edição dos campos, mostrar resumo simplificado
+- No modo `'editar'`: manter comportamento atual
+
+### 4. KPIs atualizados
+- Adicionar KPI "Total Ativos" para dar visibilidade de todos os contratos renováveis
 
