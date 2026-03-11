@@ -1,19 +1,33 @@
 
 
-# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
+# "Assinar Digitalmente" → Enviar para ZapSign
 
-## Problema
-Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
+## Situação atual
 
-## Solução
-Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
+O botão "Assinar Digitalmente" na página de detalhes do contrato (`ContratoDetalhes.tsx`, linha 406) apenas exibe um toast genérico — não faz nada real.
+
+## O que será feito
+
+Ao clicar em "Assinar Digitalmente", o sistema irá:
+1. Montar os dados do contrato no formato esperado pelo `gerarContratoPDFBase64`
+2. Chamar a edge function `zapsign-enviar` com o PDF, dados do signatário (nome, email, telefone do cliente) e o `contrato_id`
+3. Se houver `sign_url` na resposta, abrir em nova aba
+4. Exibir toast de sucesso ou erro
+5. Se o contrato já tiver `zapsign_sign_url` salvo, abrir diretamente essa URL ao invés de reenviar
 
 ## Alterações
 
-**`src/components/layout/NavRail.tsx`**:
-- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
-- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
-- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
+### `src/pages/ContratoDetalhes.tsx`
 
-Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
+- Importar `gerarContratoPDFBase64` de `@/utils/contrato-pdf`
+- Substituir o handler `onAssinar` (linha 406) por uma função `handleAssinarDigitalmente` que:
+  - Verifica se já existe `zapsign_sign_url` no contrato → abre direto
+  - Caso contrário, busca email/telefone do cliente no Supabase (tabela `cliente_contatos`)
+  - Monta o objeto do contrato para gerar o PDF
+  - Chama `supabase.functions.invoke('zapsign-enviar', { body: {...} })`
+  - Abre `sign_url` retornada em nova aba
+  - Toast de sucesso/erro
+
+### Sem alterações na edge function
+A `zapsign-enviar` já está funcional e usando sandbox.
 
