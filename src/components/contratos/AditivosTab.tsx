@@ -288,6 +288,16 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
           setAditivoEditando(null);
         }}
       />
+
+      <VisualizarAditivoModal
+        aditivo={aditivoVisualizando}
+        open={!!aditivoVisualizando}
+        onOpenChange={(open) => { if (!open) setAditivoVisualizando(null); }}
+        onEditar={(aditivo) => {
+          setAditivoEditando(aditivo);
+          setShowNovoAditivoModal(true);
+        }}
+      />
     </>
   );
 }
