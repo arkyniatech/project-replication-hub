@@ -171,9 +171,11 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
 
   const renderMenuSection = (items: any[], sectionName: string, isFirst: boolean = false) => {
     return (
-      <div className={cn(!isFirst && "mt-2")}>
-        <div className="px-6 py-1 text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider leading-tight">
-          {sectionName}
+      <div className={cn(!isFirst && "mt-1")}>
+        <div className="h-[28px] flex items-end px-6 pb-1">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider leading-tight">
+            {sectionName}
+          </span>
         </div>
         <div className="space-y-0.5">
           {items.map((item) => {
