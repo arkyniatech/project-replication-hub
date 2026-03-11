@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTriangle, CheckCircle, Clock, MapPin, CreditCard, Truck, Wrench } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTriangle, CheckCircle, Clock, MapPin, CreditCard, Truck, Wrench, Send } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -672,12 +672,7 @@ export default function NovoContratoV2() {
     setHasChanges(true);
   };
   const handleEnviarAssinatura = () => {
-    // Mock - registrar evento na timeline
-    toast({
-      title: "Documento enviado",
-      description: "Contrato enviado para assinatura digital via WhatsApp",
-      duration: 1500
-    });
+    // Usado pelo ContratoResumoPreview - no-op pois assinatura agora é integrada na finalização
   };
 
   // Calcular data de fim baseada no período do contrato (corrigido para evitar bug de timezone)
@@ -951,11 +946,95 @@ export default function NovoContratoV2() {
         localStorage.removeItem(`contrato-rascunho-${contrato.id}`);
       }
 
-      toast({
-        title: "Contrato criado com sucesso!",
-        description: `Contrato ${numeroContrato} foi salvo no banco de dados`,
-        duration: 3000
-      });
+      // === ENVIAR PARA ASSINATURA DIGITAL VIA ZAPSIGN ===
+      try {
+        console.log('[ZAPSIGN] Gerando PDF e enviando para assinatura...');
+        
+        // Extrair email e telefone do cliente
+        const contatoEmail = contrato.cliente?.contatos?.find(
+          c => c.tipo === 'Email' || c.tipo === 'email'
+        );
+        const contatoWhatsApp = contrato.cliente?.contatos?.find(
+          c => c.tipo === 'WhatsApp' || c.tipo === 'Telefone' || c.tipo === 'whatsapp' || c.tipo === 'telefone'
+        );
+
+        const nomeCliente = contrato.cliente?.tipo === 'PJ'
+          ? (contrato.cliente.razaoSocial || contrato.cliente.nomeFantasia || contrato.cliente.nomeRazao || '')
+          : (contrato.cliente?.nome || contrato.cliente?.nomeRazao || '');
+
+        // Gerar PDF base64
+        const { gerarContratoPDFBase64 } = await import('@/utils/contrato-pdf');
+        const pdfBase64 = gerarContratoPDFBase64({
+          cliente: {
+            nomeRazao: nomeCliente,
+            documento: contrato.cliente?.documento || contrato.cliente?.cpf || contrato.cliente?.cnpj || '',
+            endereco: contrato.cliente?.endereco,
+          },
+          itens: contrato.itens.map(item => ({
+            equipamento: {
+              nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
+              codigo: item.equipamento?.codigo || '',
+            },
+            quantidade: item.quantidade,
+            periodoEscolhido: item.periodoEscolhido,
+            valorUnitario: item.valorUnitario,
+            subtotal: item.subtotal,
+          })),
+          entrega: {
+            data: contrato.entrega.data,
+            janela: contrato.entrega.janela,
+            observacoes: contrato.entrega.observacoes,
+          },
+          pagamento: {
+            forma: contrato.pagamento.forma,
+            vencimentoISO: contrato.pagamento.vencimentoISO,
+          },
+          valorTotal: valorTotalCalculado,
+        });
+
+        const { data: signData, error: signError } = await supabase.functions.invoke('zapsign-enviar', {
+          body: {
+            pdf_base64: pdfBase64,
+            nome_documento: `Contrato ${numeroContrato} - ${nomeCliente}`,
+            signatario: {
+              nome: nomeCliente,
+              email: contatoEmail?.valor || '',
+              telefone: contatoWhatsApp?.valor || '',
+            },
+            contrato_id: contratoSupabase.id,
+          },
+        });
+
+        if (signError) {
+          console.error('[ZAPSIGN] Erro ao enviar:', signError);
+          toast({
+            title: "Contrato criado, mas falha na assinatura",
+            description: "O contrato foi salvo. Tente enviar para assinatura novamente pela lista de contratos.",
+            variant: "destructive",
+            duration: 6000,
+          });
+        } else {
+          console.log('[ZAPSIGN] Enviado com sucesso:', signData);
+          const canais = [
+            contatoEmail?.valor ? 'e-mail' : '',
+            contatoWhatsApp?.valor ? 'WhatsApp' : '',
+          ].filter(Boolean).join(' e ');
+
+          toast({
+            title: "Contrato enviado para assinatura!",
+            description: `Contrato ${numeroContrato} enviado${canais ? ` via ${canais}` : ''}`,
+            duration: 5000,
+          });
+        }
+      } catch (signErr) {
+        console.error('[ZAPSIGN] Erro inesperado:', signErr);
+        toast({
+          title: "Contrato criado, mas falha na assinatura",
+          description: "O contrato foi salvo. Tente enviar para assinatura novamente depois.",
+          variant: "destructive",
+          duration: 6000,
+        });
+      }
 
       navigate('/contratos');
     } catch (error) {
@@ -1901,27 +1980,21 @@ export default function NovoContratoV2() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-1 gap-4">
           <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setShowPreview(true)}>
             <FileText className="h-6 w-6" />
             <span>Contrato de Locação (Resumo)</span>
-            <span className="text-xs text-muted-foreground">Visualizar documento</span>
-          </Button>
-
-          <Button variant="outline" className="h-24 flex-col gap-2" onClick={handleEnviarAssinatura}>
-            <MapPin className="h-6 w-6" />
-            <span>Enviar para Assinatura Digital</span>
-            <span className="text-xs text-muted-foreground">Via WhatsApp (mock)</span>
+            <span className="text-xs text-muted-foreground">Visualizar documento antes do envio</span>
           </Button>
         </div>
 
-        <div className="bg-gray-50 border rounded-lg p-4">
-          <h4 className="font-semibold mb-2">Sobre os Documentos</h4>
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+          <h4 className="font-semibold mb-2 text-primary">Envio para Assinatura Digital</h4>
           <ul className="text-sm space-y-1 text-muted-foreground">
-            <li>• O resumo contém as informações essenciais do contrato</li>
-            <li>• A versão completa será disponibilizada após assinatura digital</li>
-            <li>• As confirmações (7Ps) são apenas para registro interno</li>
-            <li>• O cabeçalho inclui dados da sua loja automaticamente</li>
+            <li>• Ao clicar em <strong>"Enviar para Assinatura"</strong> abaixo, o contrato será salvo e enviado via ZapSign</li>
+            <li>• O cliente receberá o link de assinatura por <strong>e-mail</strong> e <strong>WhatsApp</strong> automaticamente</li>
+            <li>• O status do contrato será atualizado para "Pendente de Assinatura"</li>
+            <li>• Você pode acompanhar o status na lista de contratos</li>
           </ul>
         </div>
 
@@ -2242,8 +2315,8 @@ export default function NovoContratoV2() {
                   </>
                 )}
               </Button> : <Button onClick={finalizarContrato} disabled={!podeAvancar() || etapaAtual === 6 && !contrato.entrega.data} className="gap-2 bg-primary hover:bg-primary/90 relative z-[110]">
-                <CheckCircle className="h-4 w-4" />
-                Finalizar
+                <Send className="h-4 w-4" />
+                Enviar para Assinatura
               </Button>}
           </div>
         </div>
