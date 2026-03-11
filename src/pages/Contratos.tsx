@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Plus, Search, Edit, Eye, FileText, RotateCcw, Calendar } from "lucide-react";
+import { Plus, Search, Edit, Eye, FileText, RotateCcw, Calendar, ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { IfPerm, PermButton } from "@/components/rbac";
@@ -19,9 +19,10 @@ export default function Contratos() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
   
   const { lojaAtual } = useMultiunidade();
-  const { contratos: contratosSupabase, isLoading } = useSupabaseContratos(lojaAtual?.id);
+  const { contratos: contratosSupabase, aditivos, isLoading } = useSupabaseContratos(lojaAtual?.id);
   
   // Mapear contratos do Supabase para formato local
   const contratos = useMemo(() => {
@@ -50,6 +51,36 @@ export default function Contratos() {
       createdAt: c.created_at,
     }));
   }, [contratosSupabase]);
+
+  // Build parent-child map from aditivos
+  const { parentChildMap, childToParentMap } = useMemo(() => {
+    const pcMap = new Map<string, string[]>(); // parentContratoId -> [childContratoNumero]
+    const cpMap = new Map<string, string>(); // childContratoNumero -> parentContratoId
+    
+    if (!aditivos) return { parentChildMap: pcMap, childToParentMap: cpMap };
+    
+    for (const aditivo of aditivos) {
+      const parentId = aditivo.contrato_id;
+      const childNumero = aditivo.numero; // e.g. "LOC001-01"
+      
+      if (!pcMap.has(parentId)) {
+        pcMap.set(parentId, []);
+      }
+      pcMap.get(parentId)!.push(childNumero);
+      cpMap.set(childNumero, parentId);
+    }
+    
+    return { parentChildMap: pcMap, childToParentMap: cpMap };
+  }, [aditivos]);
+
+  const toggleParent = (parentId: string) => {
+    setExpandedParents(prev => {
+      const next = new Set(prev);
+      if (next.has(parentId)) next.delete(parentId);
+      else next.add(parentId);
+      return next;
+    });
+  };
   
   const { canViewContratos, canCreateContratos, canEditContratos } = usePermissionChecks();
 
