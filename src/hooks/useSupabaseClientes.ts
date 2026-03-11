@@ -100,6 +100,11 @@ export function useSupabaseClientes(lojaId?: string) {
         throw error;
       }
 
+      if (!data) {
+        console.error('Nenhum registro atualizado — possível bloqueio de RLS. ID:', id, 'Updates:', updates);
+        throw new Error('Sem permissão para atualizar este cliente. Verifique suas permissões.');
+      }
+
       return data as Cliente;
     },
     onSuccess: () => {
