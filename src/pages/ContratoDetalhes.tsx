@@ -458,6 +458,50 @@ export default function ContratoDetalhes() {
     }
   };
 
+  // Montar dados para PDF/Preview
+  const montarDadosPDF = () => {
+    if (!contrato) return null;
+    return {
+      cliente: {
+        nomeRazao: contrato.cliente.nomeRazao,
+        documento: contrato.cliente.documento,
+        endereco: contrato.cliente.endereco,
+      },
+      itens: contrato.itens.map((item: any) => ({
+        equipamento: {
+          nome: item.equipamento?.nome || item.modelo?.nome || item.grupo?.nome || 'Equipamento',
+          codigo: item.equipamento?.codigo || '',
+        },
+        quantidade: item.quantidade || 1,
+        periodoEscolhido: item.periodo || 'MES',
+        valorUnitario: item.valorUnitario || 0,
+        subtotal: item.valorTotal || 0,
+      })),
+      entrega: {
+        data: contrato.dataInicio,
+        janela: (contrato.logistica as any)?.entrega?.janela || 'MANHA',
+        observacoes: contrato.observacoes || '',
+      },
+      pagamento: {
+        forma: contrato.formaPagamento || 'PIX',
+        vencimentoISO: contrato.dataInicio,
+      },
+      valorTotal: contrato.valorTotal,
+    };
+  };
+
+  const handleBaixarContratoPDF = () => {
+    const dados = montarDadosPDF();
+    if (!dados) return;
+    try {
+      downloadContratoPDF(dados, `contrato-${contrato!.numero}.pdf`);
+      toast({ title: "PDF gerado com sucesso!" });
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      toast({ title: "Erro ao gerar PDF", description: String(err), variant: "destructive" });
+    }
+  };
+
   // Event handlers
   const handleSaveObservacoes = async (texto: string) => {
     if (!contrato) return;
