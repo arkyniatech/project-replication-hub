@@ -39,6 +39,24 @@ import { useSupabaseLogisticaMotoristas } from '@/hooks/useSupabaseLogisticaMoto
 import { useSupabaseLogisticaVeiculos } from '@/hooks/useSupabaseLogisticaVeiculos';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 
+// Formatar endereço JSON para string legível
+const formatEndereco = (endereco: any): string => {
+  if (!endereco) return 'Endereço não informado';
+  if (typeof endereco === 'string') return endereco;
+  
+  const parts: string[] = [];
+  if (endereco.logradouro) {
+    let rua = endereco.logradouro;
+    if (endereco.numero) rua += `, ${endereco.numero}`;
+    parts.push(rua);
+  }
+  if (endereco.bairro) parts.push(endereco.bairro);
+  if (endereco.cidade) parts.push(endereco.cidade);
+  if (endereco.uf) parts.push(endereco.uf);
+  
+  return parts.length > 0 ? parts.join(' - ') : 'Endereço não informado';
+};
+
 // Converter HH:MM:SS para minutos
 const timeToMinutes = (timeStr: string) => {
   const [hours, minutes] = timeStr.split(':').map(Number);
