@@ -163,7 +163,7 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
         "transition-all ease-out",
         "[transition-duration:var(--nav-transition-duration,200ms)]"
       )}
-      onClick={() => { if (!isExpanded) onToggleExpand(); }}
+      
       aria-label="Navegação principal"
     >
       {/* Header */}

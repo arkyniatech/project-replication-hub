@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Plus, Search, Edit, Eye, FileText, RotateCcw, Calendar } from "lucide-react";
+import { Plus, Search, Edit, Eye, FileText, RotateCcw, Calendar, ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { IfPerm, PermButton } from "@/components/rbac";
@@ -19,9 +19,10 @@ export default function Contratos() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
   
   const { lojaAtual } = useMultiunidade();
-  const { contratos: contratosSupabase, isLoading } = useSupabaseContratos(lojaAtual?.id);
+  const { contratos: contratosSupabase, aditivos, isLoading } = useSupabaseContratos(lojaAtual?.id);
   
   // Mapear contratos do Supabase para formato local
   const contratos = useMemo(() => {
@@ -50,6 +51,36 @@ export default function Contratos() {
       createdAt: c.created_at,
     }));
   }, [contratosSupabase]);
+
+  // Build parent-child map from aditivos
+  const { parentChildMap, childToParentMap } = useMemo(() => {
+    const pcMap = new Map<string, string[]>(); // parentContratoId -> [childContratoNumero]
+    const cpMap = new Map<string, string>(); // childContratoNumero -> parentContratoId
+    
+    if (!aditivos) return { parentChildMap: pcMap, childToParentMap: cpMap };
+    
+    for (const aditivo of aditivos) {
+      const parentId = aditivo.contrato_id;
+      const childNumero = aditivo.numero; // e.g. "LOC001-01"
+      
+      if (!pcMap.has(parentId)) {
+        pcMap.set(parentId, []);
+      }
+      pcMap.get(parentId)!.push(childNumero);
+      cpMap.set(childNumero, parentId);
+    }
+    
+    return { parentChildMap: pcMap, childToParentMap: cpMap };
+  }, [aditivos]);
+
+  const toggleParent = (parentId: string) => {
+    setExpandedParents(prev => {
+      const next = new Set(prev);
+      if (next.has(parentId)) next.delete(parentId);
+      else next.add(parentId);
+      return next;
+    });
+  };
   
   const { canViewContratos, canCreateContratos, canEditContratos } = usePermissionChecks();
 
@@ -319,10 +350,135 @@ export default function Contratos() {
                   <p className="text-muted-foreground">Carregando contratos...</p>
                 </div>
               ) : filteredContratos.length > 0 ? (
-                <div className="space-y-4">
-                  {filteredContratos.map((contrato) => {
-                    const diasRestantes = calcularDiasRestantes(contrato.dataFim);
-                    return (
+                <div className="space-y-2">
+                  {filteredContratos
+                    .filter(c => !childToParentMap.has(c.numero)) // Show only parents/standalone
+                    .map((contrato) => {
+                      const childNumeros = parentChildMap.get(contrato.id) || [];
+                      const childContratos = childNumeros
+                        .map(num => filteredContratos.find(c => c.numero === num))
+                        .filter(Boolean) as typeof filteredContratos;
+                      const hasChildren = childContratos.length > 0;
+                      const isExpanded = expandedParents.has(contrato.id);
+
+                      return (
+                        <div key={contrato.id}>
+                          {/* Parent / Standalone Contract */}
+                          <div
+                            className={`flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors ${hasChildren ? 'border-l-4 border-l-primary' : ''}`}
+                          >
+                            <div className="flex items-start gap-4">
+                              {hasChildren && (
+                                <button
+                                  onClick={() => toggleParent(contrato.id)}
+                                  className="mt-3 p-1 rounded hover:bg-muted"
+                                >
+                                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                </button>
+                              )}
+                              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <FileText className="w-6 h-6 text-primary" />
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-3">
+                                  <h3 className="font-semibold text-foreground">{contrato.numero}</h3>
+                                  <StatusBadge status={getStatusInfo(contrato.status)} />
+                                  {hasChildren && (
+                                    <Badge variant="outline" className="text-xs gap-1">
+                                      <GitBranch className="w-3 h-3" />
+                                      {childContratos.length} renovação(ões)
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium text-foreground">
+                                    Cliente: {contrato.cliente.nome}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {contrato.cliente.documento}
+                                  </p>
+                                  <div className="flex items-center gap-4 text-sm">
+                                    <span className="text-muted-foreground">
+                                      Início: <span className="font-medium text-foreground">{formatDate(contrato.dataInicio)}</span>
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      Fim: <span className="font-medium text-foreground">{formatDate(contrato.dataFim)}</span>
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm">
+                                    <span className="text-muted-foreground">
+                                      Valor Total: <span className="font-bold text-foreground">R$ {contrato.valorTotal.toLocaleString('pt-BR')}</span>
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                      Equipamentos: <span className="font-medium text-foreground">{contrato.itens.length}</span>
+                                    </span>
+                                  </div>
+                                  {['ATIVO', 'Ativo'].includes(contrato.status) && contrato.dataFim && (
+                                    <div className="flex items-center gap-2">
+                                      {(() => {
+                                        const dias = calcularDiasRestantes(contrato.dataFim);
+                                        if (dias > 0) return <span className="text-xs bg-info/20 text-info px-2 py-1 rounded">{dias} dias restantes</span>;
+                                        if (dias === 0) return <span className="text-xs bg-warning/20 text-warning px-2 py-1 rounded">Vence hoje</span>;
+                                        return <span className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded">Vencido há {Math.abs(dias)} dias</span>;
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => navigate(`/contratos/${contrato.id}`)}>
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <IfPerm perm="contratos:edit">
+                                <Button variant="ghost" size="icon" onClick={() => navigate(`/contratos/${contrato.id}`)}>
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </IfPerm>
+                            </div>
+                          </div>
+
+                          {/* Child Contracts (Renovações) */}
+                          {hasChildren && isExpanded && (
+                            <div className="ml-8 mt-1 space-y-1">
+                              {childContratos.map((child) => (
+                                <div
+                                  key={child.id}
+                                  className="flex items-center justify-between p-3 border border-border/60 rounded-lg hover:bg-muted/50 transition-colors bg-muted/20 border-l-4 border-l-accent"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                                      <RotateCcw className="w-4 h-4 text-accent-foreground" />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-medium text-sm text-foreground">{child.numero}</h4>
+                                        <StatusBadge status={getStatusInfo(child.status)} />
+                                        <Badge variant="secondary" className="text-[10px]">Renovação</Badge>
+                                      </div>
+                                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                        <span>Início: {formatDate(child.dataInicio)}</span>
+                                        <span>Fim: {formatDate(child.dataFim)}</span>
+                                        <span className="font-medium">R$ {child.valorTotal.toLocaleString('pt-BR')}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/contratos/${child.id}`)}>
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  {/* Also show children that matched search but whose parent didn't */}
+                  {filteredContratos
+                    .filter(c => childToParentMap.has(c.numero) && !filteredContratos.some(p => p.id === childToParentMap.get(c.numero)))
+                    .map(contrato => (
                       <div
                         key={contrato.id}
                         className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
@@ -335,79 +491,23 @@ export default function Contratos() {
                             <div className="flex items-center gap-3">
                               <h3 className="font-semibold text-foreground">{contrato.numero}</h3>
                               <StatusBadge status={getStatusInfo(contrato.status)} />
+                              <Badge variant="secondary" className="text-xs">Renovação</Badge>
                             </div>
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium text-foreground">
-                                Cliente: {contrato.cliente.nome}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {contrato.cliente.documento}
-                              </p>
-                              <div className="flex items-center gap-4 text-sm">
-                                <span className="text-muted-foreground">
-                                  Início: <span className="font-medium text-foreground">
-                                    {formatDate(contrato.dataInicio)}
-                                  </span>
-                                </span>
-                                <span className="text-muted-foreground">
-                                  Fim: <span className="font-medium text-foreground">
-                                    {formatDate(contrato.dataFim)}
-                                  </span>
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4 text-sm">
-                                <span className="text-muted-foreground">
-                                  Valor Total: <span className="font-bold text-foreground">
-                                    R$ {contrato.valorTotal.toLocaleString('pt-BR')}
-                                  </span>
-                                </span>
-                                <span className="text-muted-foreground">
-                                  Equipamentos: <span className="font-medium text-foreground">
-                                    {contrato.itens.length}
-                                  </span>
-                                </span>
-                              </div>
-                              {['ATIVO', 'Ativo'].includes(contrato.status) && (
-                                <div className="flex items-center gap-2">
-                                  {diasRestantes > 0 ? (
-                                    <span className="text-xs bg-info/20 text-info px-2 py-1 rounded">
-                                      {diasRestantes} dias restantes
-                                    </span>
-                                  ) : diasRestantes === 0 ? (
-                                    <span className="text-xs bg-warning/20 text-warning px-2 py-1 rounded">
-                                      Vence hoje
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded">
-                                      Vencido há {Math.abs(diasRestantes)} dias
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                            <p className="text-sm font-medium text-foreground">Cliente: {contrato.cliente.nome}</p>
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="text-muted-foreground">Início: <span className="font-medium text-foreground">{formatDate(contrato.dataInicio)}</span></span>
+                              <span className="text-muted-foreground">Fim: <span className="font-medium text-foreground">{formatDate(contrato.dataFim)}</span></span>
+                              <span className="text-muted-foreground">R$ <span className="font-bold text-foreground">{contrato.valorTotal.toLocaleString('pt-BR')}</span></span>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => navigate(`/contratos/${contrato.id}`)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/contratos/${contrato.id}`)}>
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <IfPerm perm="contratos:edit">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => navigate(`/contratos/${contrato.id}`)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </IfPerm>
                         </div>
                       </div>
-                    );
-                  })}
+                    ))}
                 </div>
               ) : (
                 <div className="text-center py-8">
