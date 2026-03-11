@@ -68,7 +68,23 @@ export function ContratoHeader({
 
       <div className="flex items-center gap-2">
         <TooltipProvider>
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-5 gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-9 h-9 p-0"
+                  onClick={onVerContrato}
+                  aria-label="Ver contrato"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Ver contrato</p>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
