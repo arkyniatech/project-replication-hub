@@ -852,7 +852,7 @@ export default function NovoContratoV2() {
         status: contratoData.status as any,
         rascunho: false,
         timeline: [],
-        valorTotal: contrato.valorTotal,
+        valorTotal: valorTotalCalculado,
         dataInicio: contrato.entrega.data,
         dataFim: dataFimCalculada,
         formaPagamento: contrato.pagamento.forma as any,
