@@ -451,7 +451,7 @@ export default function RenovarContratoModal({
           numero: numeroTitulo,
           categoria: 'Locação',
           subcategoria: 'Renovação',
-          descricao: `Renovação do contrato ${contrato.numero} - ${numPeriodos}x ${periodo} dias`,
+          observacoes: `Renovação do contrato ${contrato.numero} - ${numPeriodos}x ${periodo} dias`,
           origem: 'CONTRATO',
           emissao: new Date().toISOString(),
           vencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
