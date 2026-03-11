@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
 
     console.log('Enviando para ZapSign:', { nome_documento, contrato_id })
 
-    const zapsignRes = await fetch('https://api.zapsign.com.br/api/v1/docs/', {
+    const zapsignRes = await fetch('https://sandbox.api.zapsign.com.br/api/v1/docs/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
