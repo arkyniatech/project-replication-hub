@@ -62,15 +62,41 @@ export default function RenovarContratoModal({
   // Calcular nova data de início (mesma data de término - diárias de 24h)
   React.useEffect(() => {
     if (contrato && open) {
-      // A nova data de início é a MESMA data de fim do contrato atual
-      // Garantir que não haja conversão de timezone
-      const dataFimOriginal = contrato.dataFim; // Já está em YYYY-MM-DD
-      
-      // Importante: manter o formato YYYY-MM-DD puro sem conversão
+      const dataFimOriginal = contrato.dataFim;
       setNovaDataInicio(dataFimOriginal);
-      
-      console.log('[RenovarContrato] Data de fim do contrato:', dataFimOriginal);
-      console.log('[RenovarContrato] Nova data de início definida:', dataFimOriginal);
+
+      // No modo "manter", preservar período e forma do contrato original
+      if (modo === 'manter') {
+        // Detectar período dos itens do contrato
+        const primeiroItem = contrato.itens?.[0] as any;
+        if (primeiroItem) {
+          const periodoItem = primeiroItem.periodo || primeiroItem.periodo_base;
+          const mapPeriodo: Record<string, '1' | '7' | '14' | '21' | '28'> = {
+            'DIARIA': '1', 'D1': '1', '1': '1',
+            'SEMANA': '7', 'D7': '7', '7': '7',
+            'QUINZENA': '14', 'D14': '14', '14': '14',
+            '21DIAS': '21', 'D21': '21', '21': '21',
+            'MENSAL': '28', 'D28': '28', '28': '28',
+          };
+          if (periodoItem && mapPeriodo[periodoItem]) {
+            setPeriodo(mapPeriodo[periodoItem]);
+          }
+        }
+        // Preservar forma de cobrança
+        const formaOriginal = (contrato as any).formaPagamento || (contrato as any).forma_pagamento;
+        if (formaOriginal) {
+          const mapForma: Record<string, 'BOLETO' | 'PIX' | 'CARTAO' | 'DINHEIRO'> = {
+            'Boleto': 'BOLETO', 'BOLETO': 'BOLETO',
+            'PIX': 'PIX', 'Pix': 'PIX',
+            'Cartão': 'CARTAO', 'CARTAO': 'CARTAO',
+            'Dinheiro': 'DINHEIRO', 'DINHEIRO': 'DINHEIRO',
+          };
+          if (mapForma[formaOriginal]) {
+            setFormaCobranca(mapForma[formaOriginal]);
+          }
+        }
+        setNumPeriodos(1);
+      }
 
       // Verificar se cliente é inadimplente
       const titulosVencidosCliente = titulos?.filter(t => 
@@ -81,7 +107,7 @@ export default function RenovarContratoModal({
       setTitulosVencidos(titulosVencidosCliente);
       setClienteInadimplente(titulosVencidosCliente.length > 0);
     }
-  }, [open, titulos]); // Adicionar titulos para atualizar quando títulos mudarem
+  }, [open, titulos, modo]);
 
   // Preservar dados da renovação quando abrindo modal de recebimento
   const handlePagarERenovar = () => {
