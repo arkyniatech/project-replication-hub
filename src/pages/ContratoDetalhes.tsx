@@ -55,6 +55,7 @@ export default function ContratoDetalhes() {
   const [showConfirmarRetiradaModal, setShowConfirmarRetiradaModal] = useState(false);
   const [showEmitirFaturaModal, setShowEmitirFaturaModal] = useState(false);
   const [entregaConfirmada, setEntregaConfirmada] = useState(false);
+  const [showContratoPreview, setShowContratoPreview] = useState(false);
 
   // Mapear contrato do Supabase para formato local
   const contrato = useMemo(() => {
