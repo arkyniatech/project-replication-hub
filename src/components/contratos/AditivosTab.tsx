@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, Edit2, Trash2, DollarSign, RotateCcw, Calendar, User, Link2, MoreHorizontal } from "lucide-react";
+import { Plus, FileText, Edit2, Trash2, DollarSign, RotateCcw, Calendar, User, Link2, MoreHorizontal, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, AditivoContratual } from "@/types";
 import NovoAditivoModal from "./NovoAditivoModal";
