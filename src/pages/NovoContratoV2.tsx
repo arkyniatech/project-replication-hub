@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTriangle, CheckCircle, Clock, MapPin, CreditCard, Truck, Wrench } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTriangle, CheckCircle, Clock, MapPin, CreditCard, Truck, Wrench, Send } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
