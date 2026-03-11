@@ -95,6 +95,7 @@ export function AppShell() {
         isPinned={isPinned}
         onMouseLeave={onMouseLeavePanel}
         onTogglePin={togglePin}
+        onCollapse={collapsePanel}
       />
 
       {/* Main Content Area - Adjusts when sidebar is pinned */}

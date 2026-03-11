@@ -79,11 +79,12 @@ export function useNavRail({ railRef, panelRef }: UseNavRailProps = {}): UseNavR
   }, [clearMouseLeaveTimer]);
 
   const collapsePanel = useCallback(() => {
-    if (!isPinned) {
-      setIsExpanded(false);
-      clearInactivityTimer();
-    }
-  }, [isPinned, clearInactivityTimer]);
+    setIsExpanded(false);
+    setIsPinned(false);
+    localStorage.setItem('nav_pinned', 'false');
+    clearInactivityTimer();
+    clearMouseLeaveTimer();
+  }, [clearInactivityTimer, clearMouseLeaveTimer]);
 
   const togglePin = useCallback(() => {
     setIsPinned(!isPinned);

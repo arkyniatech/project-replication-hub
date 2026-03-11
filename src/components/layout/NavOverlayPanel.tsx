@@ -12,8 +12,10 @@ import {
   Car,
   Users2,
   ChevronDown,
-  Package,
-  ShoppingCart
+  ShoppingCart,
+  PanelLeftClose,
+  ArrowUpCircle,
+  ArrowDownCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -28,6 +30,7 @@ interface NavOverlayPanelProps {
   isPinned: boolean;
   onMouseLeave: () => void;
   onTogglePin: () => void;
+  onCollapse: () => void;
   className?: string;
 }
 
@@ -37,14 +40,14 @@ const principalItems = [
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Contratos", url: "/contratos", icon: FileText },
   { title: "Logística", url: "/logistica", icon: Truck },
-  { title: "Financeiro a Receber", url: "/contas-receber", icon: CreditCard }
+  { title: "Financeiro a Receber", url: "/contas-receber", icon: ArrowUpCircle }
 ];
 
 // OPERAÇÃO
 const operacaoItems = [
   { title: "Equipamentos", url: "/equipamentos", icon: Wrench },
   { title: "Manutenção", url: "/manutencao", icon: Settings },
-  { title: "Financeiro a Pagar", url: "/pagar", icon: CreditCard }
+  { title: "Financeiro a Pagar", url: "/pagar", icon: ArrowDownCircle }
 ];
 
 // GESTÃO
@@ -61,6 +64,7 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
   isPinned,
   onMouseLeave,
   onTogglePin,
+  onCollapse,
   className
 }, ref) => {
   const location = useLocation();
@@ -69,6 +73,14 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
+    if (path === "/contas-receber") {
+      return location.pathname.startsWith('/contas-receber') ||
+             location.pathname.startsWith('/inadimplencia') ||
+             location.pathname.startsWith('/gestao');
+    }
+    if (path === "/pagar") return location.pathname.startsWith('/pagar');
+    if (path === "/logistica") return location.pathname.startsWith('/logistica');
+    if (path === "/manutencao") return location.pathname.startsWith('/manutencao');
     return location.pathname.startsWith(path);
   };
 
@@ -98,7 +110,7 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
 
       return (
         <Collapsible key={item.title} defaultOpen={isOpen} className="group/collapsible">
-          <div className="px-3 py-1">
+          <div className="px-3">
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
@@ -116,9 +128,7 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
               <div className="ml-9 mt-1 space-y-1 pl-1 border-l border-border/50">
                 {item.items.map((subitem: any) => {
                   if (subitem.claim && !rbac.can(subitem.claim)) return null;
-
                   if (subitem.requiresPermission && subitem.roles) {
-                    // ... legacy check logic kept as is for safety
                     const hasSubitemAccess = subitem.roles.some((role: string) => {
                       switch (role) {
                         case "admin": return can('configuracoes', 'gerirConfiguracoes');
@@ -128,7 +138,6 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
                     });
                     if (!hasSubitemAccess) return null;
                   }
-
                   return (
                     <NavLink
                       key={subitem.title}
@@ -150,16 +159,16 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
     }
 
     return (
-      <div key={item.title} className="px-3 py-0.5">
+      <div key={item.title} className="px-3 mb-0.5">
         <NavLink
           to={item.url}
           className={cn(
-            "flex items-center px-3 py-2.5 rounded-md transition-all duration-200 text-sm group",
+            "flex items-center px-3 h-10 rounded-md transition-all duration-200 text-sm group",
             getNavClass(item.url)
           )}
         >
           <item.icon className={cn(
-            "mr-3 h-4 w-4 shrink-0 transition-colors",
+            "mr-3 h-5 w-5 shrink-0 transition-colors",
             isActive(item.url) ? "text-primary" : "text-muted-foreground group-hover:text-primary"
           )} />
           <span>{item.title}</span>
@@ -176,7 +185,7 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
             {sectionName}
           </span>
         </div>
-        <div className="space-y-0.5">
+        <div>
           {items.map((item) => {
             if (item.title === "Logística" && !hasLogisticaAccess) return null;
             if (item.title === "Equipamentos" && !hasEquipamentosAccess) return null;
@@ -199,7 +208,7 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
     <aside
       ref={ref}
       className={cn(
-        "fixed left-16 top-0 bottom-0 bg-background/95 backdrop-blur-xl", // Changed top-16 to top-0 to align with NavRail
+        "fixed left-16 top-0 bottom-0 bg-background/95 backdrop-blur-xl",
         "border-r border-border shadow-2xl z-50 flex flex-col",
         "transition-all ease-cubic-bezier(0.4, 0, 0.2, 1) duration-300",
         isExpanded ? "translate-x-0 opacity-100 shadow-[10px_0_30px_-10px_rgba(0,0,0,0.1)]" : "-translate-x-4 opacity-0 pointer-events-none",
@@ -208,15 +217,11 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
       onMouseLeave={onMouseLeave}
       style={{ width: '280px' }}
     >
-      {/* Header - Height 64px to match TopBar/NavRail header */}
+      {/* Header */}
       <div className="h-16 px-6 flex items-center justify-between border-b border-border/40 shrink-0 bg-background/50">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <img
-              src={locacaoLogo}
-              alt="LocaAção"
-              className="w-5 h-5 object-contain"
-            />
+            <img src={locacaoLogo} alt="LocaAção" className="w-5 h-5 object-contain" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold tracking-tight text-foreground">{APP_CONFIG.system.name}</span>
@@ -232,11 +237,17 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
         {renderMenuSection(gestaoItems, "Gestão")}
       </div>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-border/40 bg-muted/5 mt-auto">
-        <span className="text-[10px] text-muted-foreground pl-2">
-          Menu fixado
-        </span>
+      {/* Footer - Collapse button */}
+      <div className="p-3 border-t border-border/40 bg-muted/5">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onCollapse}
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+          <span className="text-xs">Minimizar menu</span>
+        </Button>
       </div>
     </aside>
   );
