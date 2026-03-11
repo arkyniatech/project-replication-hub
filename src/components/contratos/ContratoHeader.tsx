@@ -24,6 +24,7 @@ export function ContratoHeader({
   saldoAtraso,
   onChipFinanceiro,
   onContratoPDF,
+  onVerContrato,
   onEntregaPDF,
   onAssinar,
   onWhatsApp
