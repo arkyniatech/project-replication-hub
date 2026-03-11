@@ -613,7 +613,8 @@ export default function ContratoDetalhes() {
           saldoAberto={saldoAberto}
           saldoAtraso={saldoAtraso}
           onChipFinanceiro={() => toast({ title: "Abrindo financeiro..." })}
-          onContratoPDF={() => toast({ title: "Baixando contrato PDF..." })}
+          onContratoPDF={handleBaixarContratoPDF}
+          onVerContrato={() => setShowContratoPreview(true)}
           onEntregaPDF={() => toast({ title: "Baixando entrega PDF..." })}
           onAssinar={handleAssinarDigitalmente}
           onWhatsApp={handleEnviarWhatsApp}
