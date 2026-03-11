@@ -27,7 +27,8 @@ import EmitirFaturaModal from "@/components/modals/EmitirFaturaModal";
 import { parseISO, differenceInCalendarDays, startOfDay, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
-import { gerarContratoPDFBase64 } from "@/utils/contrato-pdf";
+import { gerarContratoPDFBase64, downloadContratoPDF } from "@/utils/contrato-pdf";
+import { ContratoResumoPreview } from "@/components/contratos/ContratoResumoPreview";
 
 export default function ContratoDetalhes() {
   const { id } = useParams();
