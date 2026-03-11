@@ -581,11 +581,19 @@ export default function Contratos() {
                             </Button>
                             <IfPerm perm="contratos:renew">
                               <Button
+                                variant="outline"
                                 size="sm"
-                                onClick={() => handleRenovarClick(contrato)}
+                                onClick={() => handleRenovarClick(contrato, 'manter')}
                               >
                                 <RotateCcw className="h-4 w-4 mr-2" />
-                                Renovar
+                                Renovar Rápido
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleRenovarClick(contrato, 'editar')}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Editar e Renovar
                               </Button>
                             </IfPerm>
                           </div>
