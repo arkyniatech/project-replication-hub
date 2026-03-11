@@ -720,7 +720,7 @@ export default function NovoContratoV2() {
         numero: numeroContrato.toString(),
         loja_id: contrato.lojaId,
         cliente_id: contrato.clienteId,
-        obra_id: contrato.obra?.id || null,
+        obra_id: contrato.obra?.id && contrato.obra.id !== 'temp-cliente-endereco' ? contrato.obra.id : null,
         data_inicio: contrato.entrega.data,
         data_prevista_fim: dataFimCalculada,
         data_fim: null,
