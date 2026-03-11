@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ClienteForm from "@/components/forms/ClienteForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -328,11 +328,11 @@ export default function NovoContratoV2() {
     setEquipamentosFiltrados(filtrados);
   }, [searchEquipamento, equipamentosSupabase, loadingEquipamentos, lojaAtual]);
 
-  // Calcular total e aplicar política
-  useEffect(() => {
+  // Calcular total e aplicar política (derivado, sem loop)
+  const valorTotalCalculado = useMemo(() => {
     if (!contrato.cliente || contrato.itens.length === 0) {
       setPoliticaAplicada(null);
-      return;
+      return 0;
     }
     const total = contrato.itens.reduce((sum, item) => sum + item.subtotal, 0);
     const taxaDeslocamento = contrato.taxaDeslocamento?.aplicar ? (contrato.taxaDeslocamento.valor || 0) : 0;
@@ -348,7 +348,6 @@ export default function NovoContratoV2() {
           },
           lojaId: contrato.lojaId,
           periodoDias: 28,
-          // Período padrão; ajustar conforme necessário
           itens: contrato.itens.map(item => ({
             modeloId: item.equipamento?.id || item.equipamentoId,
             grupoId: item.equipamento?.grupoId || '',
@@ -358,26 +357,17 @@ export default function NovoContratoV2() {
           dataEventoISO: new Date().toISOString().split('T')[0]
         });
         setPoliticaAplicada(resultado);
-        setContrato(prev => ({
-          ...prev,
-          valorTotal: resultado.totalComDesconto + taxaDeslocamento
-        }));
+        return resultado.totalComDesconto + taxaDeslocamento;
       } catch (error) {
         console.error('Erro ao aplicar política:', error);
         setPoliticaAplicada(null);
-        setContrato(prev => ({
-          ...prev,
-          valorTotal: total + taxaDeslocamento
-        }));
+        return total + taxaDeslocamento;
       }
     } else {
       setPoliticaAplicada(null);
-      setContrato(prev => ({
-        ...prev,
-        valorTotal: total + taxaDeslocamento
-      }));
+      return total + taxaDeslocamento;
     }
-  }, [contrato.itens, contrato.cliente, contrato.taxaDeslocamento]);
+  }, [contrato.itens, contrato.cliente, contrato.taxaDeslocamento, contrato.lojaId]);
   const handleExit = () => {
     if (hasChanges) {
       if (confirm('Há alterações não salvas. Deseja sair mesmo assim?')) {
@@ -719,7 +709,7 @@ export default function NovoContratoV2() {
         clienteId: contrato.clienteId,
         obraId: contrato.obra?.id,
         qtdItens: contrato.itens.length,
-        valorTotal: contrato.valorTotal
+        valorTotal: valorTotalCalculado
       }));
 
       // Gerar número do contrato
@@ -739,9 +729,9 @@ export default function NovoContratoV2() {
         data_inicio: contrato.entrega.data,
         data_prevista_fim: dataFimCalculada,
         data_fim: null,
-        valor_total: contrato.valorTotal,
+        valor_total: valorTotalCalculado,
         valor_pago: 0,
-        valor_pendente: contrato.valorTotal,
+        valor_pendente: valorTotalCalculado,
         status: 'AGUARDANDO_ENTREGA',
         forma_pagamento: contrato.pagamento.forma,
         logistica: contrato.entrega,
@@ -862,7 +852,7 @@ export default function NovoContratoV2() {
         status: contratoData.status as any,
         rascunho: false,
         timeline: [],
-        valorTotal: contrato.valorTotal,
+        valorTotal: valorTotalCalculado,
         dataInicio: contrato.entrega.data,
         dataFim: dataFimCalculada,
         formaPagamento: contrato.pagamento.forma as any,
@@ -1260,7 +1250,7 @@ export default function NovoContratoV2() {
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total do Contrato:</span>
                   <span className="text-primary">
-                    R$ {contrato.valorTotal.toLocaleString('pt-BR', {
+                    R$ {valorTotalCalculado.toLocaleString('pt-BR', {
                   minimumFractionDigits: 2
                 })}
                   </span>
@@ -1854,7 +1844,7 @@ export default function NovoContratoV2() {
                 )}
                 <div className="flex justify-between font-bold text-blue-900 border-t-2 border-blue-300 pt-2 mt-1">
                   <span>Total Geral:</span>
-                  <span>R$ {contrato.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span>R$ {valorTotalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="mt-2 pt-2 border-t">
                   <div className="text-xs text-muted-foreground">
@@ -1878,7 +1868,7 @@ export default function NovoContratoV2() {
                 )}
                 <div className="flex justify-between font-bold text-blue-900 border-t-2 border-blue-300 pt-2 mt-1">
                   <span>Total Geral:</span>
-                  <span>R$ {contrato.valorTotal.toLocaleString('pt-BR', {
+                  <span>R$ {valorTotalCalculado.toLocaleString('pt-BR', {
                   minimumFractionDigits: 2
                 })}</span>
                 </div>
@@ -2140,7 +2130,7 @@ export default function NovoContratoV2() {
                   })}</span>
                   </div>}
                 <div className="text-2xl font-bold text-primary">
-                  R$ {contrato.valorTotal.toLocaleString('pt-BR', {
+                   R$ {valorTotalCalculado.toLocaleString('pt-BR', {
                   minimumFractionDigits: 2
                 })}
                 </div>
@@ -2223,8 +2213,8 @@ export default function NovoContratoV2() {
             </Button>
             
             <div className="text-sm text-muted-foreground">
-              {contrato.valorTotal > 0 && <span className="font-semibold">
-                  Total: R$ {contrato.valorTotal.toLocaleString('pt-BR', {
+               {valorTotalCalculado > 0 && <span className="font-semibold">
+                   Total: R$ {valorTotalCalculado.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2
               })}
                 </span>}
