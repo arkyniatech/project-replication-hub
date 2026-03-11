@@ -1,19 +1,23 @@
 
 
-# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
+## Plano: Visualizar Aditivo + Limpar opções do "Novo Aditivo"
 
-## Problema
-Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
+### Problema
+1. Não existe botão "Ver" para visualizar detalhes de um aditivo — só editar/deletar
+2. O "Novo Aditivo" oferece "Renovação" como tipo, mas renovação tem fluxo próprio — isso confunde
 
-## Solução
-Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
+### Alterações
 
-## Alterações
+**`src/components/contratos/AditivosTab.tsx`**
+- Adicionar state `aditivoVisualizando` e botão "Ver" (ícone Eye) nas ações de cada aditivo
+- Renderizar novo componente `VisualizarAditivoModal`
 
-**`src/components/layout/NavRail.tsx`**:
-- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
-- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
-- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
+**`src/components/contratos/VisualizarAditivoModal.tsx`** (novo)
+- Dialog read-only mostrando todos os campos do aditivo: número, tipo, descrição, justificativa, valor, vinculação, data de criação, criado por, status
+- Layout limpo com ícones e badges coloridos por tipo
+- Botão "Editar" no footer (se tiver permissão) que abre o modal de edição
 
-Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
+**`src/components/contratos/NovoAditivoModal.tsx`**
+- Remover "RENOVACAO" da lista de tipos disponíveis no RadioGroup (renovação tem fluxo próprio)
+- Manter apenas: DESCONTO, TAXA, AJUSTE, OUTRO
 
