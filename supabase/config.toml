@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.whatsapp-instance]
 verify_jwt = false
+
+[functions.zapsign-enviar]
+verify_jwt = false
