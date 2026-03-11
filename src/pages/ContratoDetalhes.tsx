@@ -403,9 +403,10 @@ export default function ContratoDetalhes() {
     }
 
     const clienteContatos = (contratoSupabase.clientes?.contatos as any[]) || [];
-    const contatoWhatsApp = clienteContatos.find(
-      (c: any) => c.tipo === 'whatsapp' || c.tipo === 'celular'
-    );
+    const contatoWhatsApp = clienteContatos.find((c: any) => {
+      const tipo = (c.tipo || '').toLowerCase();
+      return tipo === 'whatsapp' || tipo === 'celular' || tipo === 'telefone';
+    });
 
     if (!contatoWhatsApp?.valor) {
       toast({
