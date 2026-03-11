@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSupabaseLogisticaMetricas, useLogisticaKPIs } from "@/hooks/useSupabaseLogisticaMetricas";
+import { useSupabaseLogisticaMotoristas } from "@/hooks/useSupabaseLogisticaMotoristas";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { 
   BarChart, 
