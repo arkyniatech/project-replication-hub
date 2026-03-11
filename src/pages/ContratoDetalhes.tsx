@@ -32,7 +32,9 @@ import { gerarContratoPDFBase64 } from "@/utils/contrato-pdf";
 export default function ContratoDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const initialTab = searchParams.get('tab') || 'geral';
   
   const { useContrato, updateContrato, cancelContrato, confirmarRetirada } = useSupabaseContratos();
   const { data: contratoSupabase, isLoading: loading } = useContrato(id || '');
