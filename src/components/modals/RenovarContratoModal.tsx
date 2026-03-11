@@ -464,7 +464,7 @@ export default function RenovarContratoModal({
         // Calcular próximo sequencial
         const totalRenovacoes = renovacoesExistentes?.length || 0;
         const proximoSequencial = totalRenovacoes + 1;
-        const numeroRenovacao = `${contrato.numero}-${proximoSequencial.toString().padStart(2, '0')}`;
+        const numeroRenovacao = `${contrato.numero}.${proximoSequencial}`;
 
         console.log('[RenovarContrato] Criando aditivo de renovação com número:', numeroRenovacao);
         
