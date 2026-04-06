@@ -450,7 +450,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
             data: new Date().toISOString(),
             tipo: 'DEVOLUCAO',
             descricao: `Devolvido do contrato ${contrato.numero}`,
-            usuario: 'Usuário', // TODO: pegar do auth
+            usuario: await getCurrentUserName(),
             detalhes: { contratoId, observacoes, dataDevolucao, horaDevolucao }
           };
 
