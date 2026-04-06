@@ -65,15 +65,7 @@ export function useSupabaseLogisticaTarefas(filters: TarefasFilters) {
         query = query.in("tipo", filters.tipo as any);
       }
       if (filters.motoristaId) {
-        // Buscar itinerários do motorista
-        const { data: itinerarios } = await supabase
-          .from("logistica_itinerarios")
-          .select("id")
-          .eq("motorista_id", filters.motoristaId);
-        
-        if (itinerarios && itinerarios.length > 0) {
-          query = query.in("itinerario_id", itinerarios.map(i => i.id));
-        }
+        query = query.eq("motorista_id", filters.motoristaId);
       }
 
       const { data, error } = await query.order("previsto_iso", { ascending: true });
