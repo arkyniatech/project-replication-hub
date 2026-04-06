@@ -788,6 +788,15 @@ export function ItinerarioDiario() {
         tarefas={tarefasFiltradas}
         onAplicarSugestoes={handleAplicarSugestoes}
       />
+
+      <AtribuirTarefaModal
+        open={atribuirModalOpen}
+        onOpenChange={setAtribuirModalOpen}
+        tarefas={tarefasParaAtribuir}
+        motoristas={motoristas}
+        veiculos={veiculos}
+        onConfirm={handleConfirmarAtribuicao}
+      />
     </div>
   );
 }
