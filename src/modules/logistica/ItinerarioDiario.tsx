@@ -106,6 +106,24 @@ export function ItinerarioDiario() {
 
   const printRef = useRef<HTMLDivElement>(null);
 
+  // Realtime: auto-refresh when tasks change
+  useEffect(() => {
+    const channel = supabase
+      .channel('itinerario-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'logistica_tarefas',
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['logistica-tarefas'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   // Buscar dados reais do Supabase
   const { tarefas: tarefasSupabase, updateTarefa: updateTarefaSupabase } = useSupabaseLogisticaTarefas({
     lojaId,
