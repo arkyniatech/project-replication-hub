@@ -241,7 +241,7 @@ export const useFaturamentoStore = create<FaturamentoState>()(
           status: 'EMITIDA',
           observacoes: dadosFatura.observacoes,
           emitidaEm: new Date().toISOString(),
-          emitidaPor: 'admin', // TODO: get from auth
+          emitidaPor: 'admin', // NOTE: faturamentoStore é mock - será resolvido na migração para Supabase
           timeline: [{
             id: `event_${Date.now()}`,
             tipo: 'EMISSAO',
