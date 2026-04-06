@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Calendar, 
   Printer, 
@@ -22,13 +23,18 @@ import {
   XCircle,
   Calendar as CalendarIcon,
   MessageCircle,
-  Settings
+  Settings,
+  User,
+  UserPlus,
+  ChevronDown,
+  AlertCircle
 } from 'lucide-react';
 import { useItinerarioStore } from './store/itinerarioStore';
 import { TarefaLogistica as TarefaLogisticaLocal, StatusTarefa, TipoTarefa, MotivoTipo } from './types';
 import { MotivoModal } from './components/MotivoModal';
 import { QuadroMotorista } from './components/QuadroMotorista';
 import { SugerirHorariosModal } from './components/SugerirHorariosModal';
+import { AtribuirTarefaModal } from '@/components/logistica/AtribuirTarefaModal';
 import { useReactToPrint } from 'react-to-print';
 import { generatePDF } from '@/utils/print';
 import { generateItineraryCSV } from '@/utils/csv';
