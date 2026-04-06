@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import { getCurrentUserName } from '@/hooks/useCurrentUserName';
 
 type Contrato = Database['public']['Tables']['contratos']['Row'];
 type ContratoInsert = Database['public']['Tables']['contratos']['Insert'];
@@ -257,7 +258,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
         id: `evt-${Date.now()}`,
         ts: new Date().toISOString(),
         tipo: 'CONTRATO_CANCELADO',
-        usuarioNome: 'Usuário', // TODO: pegar do auth
+        usuarioNome: await getCurrentUserName(),
         resumo: `Contrato cancelado: ${motivo}`,
         meta: { motivo }
       };
@@ -334,7 +335,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
         id: `evt-${Date.now()}`,
         ts: new Date().toISOString(),
         tipo: 'RETIRADA_CONFIRMADA',
-        usuarioNome: 'Usuário', // TODO: pegar do auth
+        usuarioNome: await getCurrentUserName(),
         resumo: 'Cliente retirou os equipamentos',
         meta: { dataRetirada: new Date().toISOString() }
       };
@@ -449,7 +450,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
             data: new Date().toISOString(),
             tipo: 'DEVOLUCAO',
             descricao: `Devolvido do contrato ${contrato.numero}`,
-            usuario: 'Usuário', // TODO: pegar do auth
+            usuario: await getCurrentUserName(),
             detalhes: { contratoId, observacoes, dataDevolucao, horaDevolucao }
           };
 
@@ -500,7 +501,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
         id: `evt-${Date.now()}`,
         ts: new Date().toISOString(),
         tipo: todosItensDevolvidos ? 'DEVOLUCAO_TOTAL_CONFIRMADA' : 'DEVOLUCAO_PARCIAL',
-        usuarioNome: 'Usuário', // TODO: pegar do auth
+        usuarioNome: await getCurrentUserName(),
         resumo: todosItensDevolvidos 
           ? `Devolução total confirmada → STATUS: Encerrado` 
           : `Devolução parcial: ${itensDevolucao.length} itens`,

@@ -14,7 +14,7 @@ import {
   ArrowRight,
   RotateCcw
 } from "lucide-react";
-import { tituloStorage } from "@/lib/storage";
+import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useMemo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,7 @@ export default function Dashboard() {
   const { contratos, isLoading: loadingContratos, confirmarRetirada } = useSupabaseContratos(lojaAtual?.id);
   const { equipamentos, isLoading: loadingEquipamentos } = useSupabaseEquipamentos(lojaAtual?.id);
   const { caixaAtivo, loadingAtivo } = useSupabaseCaixa(lojaAtual?.id);
+  const { titulos: titulosSupabase } = useSupabaseTitulos(lojaAtual?.id);
   
   const [renovarModalOpen, setRenovarModalOpen] = useState(false);
   const [receberModalOpen, setReceberModalOpen] = useState(false);
@@ -56,7 +57,7 @@ export default function Dashboard() {
 
   // Dados para as caixas de ação
   const actionData = useMemo(() => {
-    const titulos = tituloStorage.getAll(); // TODO: Migrar para Supabase quando a tabela for criada
+    const titulos = titulosSupabase;
     const hoje = new Date();
     const proximosDias = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
@@ -95,7 +96,7 @@ export default function Dashboard() {
         c.created_at && new Date(c.created_at).toDateString() === hoje.toDateString()
       ).length
     };
-  }, [contratos, equipamentos]);
+  }, [contratos, equipamentos, titulosSupabase]);
 
   const recentContratos = useMemo(() => {
     if (!contratos) return [];
@@ -409,7 +410,7 @@ export default function Dashboard() {
                 className="w-full"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const titulosAbertos = tituloStorage.getAll().filter(t => t.saldo > 0);
+                   const titulosAbertos = titulosSupabase.filter(t => t.saldo > 0);
                   if (titulosAbertos.length > 0) {
                     setTituloSelecionado(titulosAbertos[0]);
                     setReceberModalOpen(true);
@@ -525,7 +526,7 @@ export default function Dashboard() {
         open={caixaDrawerOpen}
         onOpenChange={setCaixaDrawerOpen}
         onReceberClick={() => {
-          const titulosAbertos = tituloStorage.getAll().filter(t => t.saldo > 0);
+          const titulosAbertos = titulosSupabase.filter(t => t.saldo > 0);
           if (titulosAbertos.length > 0) {
             setTituloSelecionado(titulosAbertos[0]);
             setReceberModalOpen(true);

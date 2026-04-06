@@ -1,4 +1,5 @@
 import { AdminUserCreate } from '@/components/admin/AdminUserCreate';
+import { SystemLogsList } from '@/components/admin/SystemLogsList';
 import { guardRoute } from '@/hooks/useRbac';
 
 function UserManagement() {
@@ -21,10 +22,7 @@ function UserManagement() {
                     <p className="text-sm text-muted-foreground mb-4">
                         Visualização de logs de criação de usuário e acessos.
                     </p>
-                    <div className="text-sm bg-background p-4 rounded border h-[300px] overflow-y-auto">
-                        <p className="text-muted-foreground italic">Carregando logs...</p>
-                        {/* TODO: Implement Log List Component connected to system_logs table */}
-                    </div>
+                    <SystemLogsList />
                 </div>
             </div>
         </div>
