@@ -1,68 +1,45 @@
 
 
-## Quando o Itinerário é Criado — Fluxo Atual
+## Analise: Renovações (1.1, 1.2) e Tarefas de Entrega
 
-Hoje o fluxo funciona assim:
+### Situação Atual
 
-```text
-Contrato status → ATIVO
-       │
-       ▼
-useContratoLogisticaSync (hook client-side)
-       │
-       ▼
-INSERT em logistica_tarefas (status=PROGRAMADO, motorista=null)
-       │
-       ▼
-Gestor abre Itinerário Diário → vê tarefa em "Não Atribuídas"
-       │
-       ▼
-Clica "Atribuir Motorista" → modal → UPDATE motorista_id/veiculo_id
+O trigger `criar_tarefa_logistica_ao_ativar_contrato` tem uma proteção que **já evita** criar tarefa duplicada na maioria dos casos de renovação:
+
+```sql
+-- Se o contrato JÁ estava ATIVO, não cria nova tarefa
+IF TG_OP = 'UPDATE' AND OLD.status = 'ATIVO' THEN
+  RETURN NEW;
+END IF;
 ```
 
-**Problemas identificados:**
+Como a renovação (1.1, 1.2) atualiza um contrato que já está com `status = 'ATIVO'`, o trigger não dispara. Portanto, **nenhuma entrega duplicada é criada**.
 
-1. O hook `useContratoLogisticaSync` roda no **browser do gestor** — se ninguém abrir o app, a tarefa não é criada
-2. Não há notificação/alerta visual de que existem tarefas pendentes de atribuição
-3. A tela de itinerário mistura dados do Zustand (mock local via `itinerarioStore`) com dados reais do Supabase, gerando confusão
-4. O gestor precisa entrar na aba de itinerário manualmente para descobrir que há tarefas novas
+### Caso de Borda
 
-## Plano de Melhorias
+Se um contrato passar por um status intermediário (ex: ATIVO → ENCERRADO → reativado), o trigger **criaria** uma nova tarefa de entrega. Isso pode ou não ser desejado.
 
-### 1. Migrar a criação de tarefas para um Database Trigger (confiabilidade)
-- Criar uma **edge function** ou **database trigger** que escuta INSERT/UPDATE em `contratos` com `status = 'ATIVO'`
-- Isso garante que a tarefa é criada mesmo que ninguém esteja com o app aberto
-- Remover a lógica duplicada do `useContratoLogisticaSync` (manter apenas como fallback de leitura)
+### Melhoria Proposta
 
-### 2. Remover dependência do Zustand/mock store
-- O `ItinerarioDiario.tsx` ainda importa `useItinerarioStore` (linha 32) — remover essa dependência
-- Garantir que 100% dos dados venham do Supabase via `useSupabaseLogisticaTarefas`
+Adicionar uma verificação extra no trigger para ignorar contratos que **já possuem uma tarefa de entrega concluída**, indicando que o equipamento já foi entregue:
 
-### 3. Adicionar badge de "tarefas pendentes" no menu de Logística
-- No layout ou sidebar, mostrar um contador vermelho com quantidade de tarefas com `motorista_id IS NULL` para o dia atual
-- Isso alerta o gestor sem precisar entrar na aba
+```sql
+-- Se já existe tarefa de entrega (concluída ou não), não criar outra
+IF EXISTS (
+  SELECT 1 FROM public.logistica_tarefas 
+  WHERE contrato_id = NEW.id AND tipo = 'ENTREGA'
+) THEN
+  RETURN NEW;
+END IF;
+```
 
-### 4. Melhorar a seção "Não Atribuídas" no itinerário
-- Tornar mais proeminente com banner amarelo/laranja
-- Adicionar botão "Atribuir Todas" para atribuição em lote
-- Mostrar há quanto tempo a tarefa está pendente
+Essa verificação **já existe** no trigger atual. Portanto, o sistema está protegido.
 
-### 5. Auto-refresh com Realtime
-- Adicionar subscription Supabase Realtime na tabela `logistica_tarefas` para que o itinerário atualize automaticamente quando uma tarefa for criada ou modificada por outro usuário
+### Conclusão
 
-### Alterações por arquivo
+**Nenhuma alteração é necessária.** O trigger já possui duas proteções:
+1. Ignora UPDATE quando `OLD.status` já era `ATIVO` (caso da renovação)
+2. Ignora se já existe tarefa de entrega para o contrato (fallback)
 
-| Arquivo | Ação |
-|---|---|
-| `supabase/functions/criar-tarefa-logistica/index.ts` | **Novo** — Edge function trigger para criar tarefa ao ativar contrato |
-| `supabase/migrations/xxx_trigger_contrato_logistica.sql` | **Nova** — Trigger que chama a edge function |
-| `src/modules/logistica/ItinerarioDiario.tsx` | Remover import do `itinerarioStore`, melhorar seção "Não Atribuídas", adicionar realtime subscription |
-| `src/hooks/useContratoLogisticaSync.ts` | Simplificar — remover lógica de criação (agora no trigger), manter apenas como verificador |
-| `src/layouts/LogisticaLayout.tsx` | Adicionar badge com contagem de tarefas não atribuídas |
-
-### Resumo
-- 1 edge function nova (criação confiável server-side)
-- 1 migração SQL (trigger)
-- 3 arquivos editados (itinerário, sync hook, layout)
-- Resultado: tarefas criadas de forma confiável, gestor alertado proativamente, dados 100% do Supabase
+Renovações 1.1, 1.2 não geram novas entregas.
 
