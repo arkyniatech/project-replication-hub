@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +29,6 @@ import {
   ChevronDown,
   AlertCircle
 } from 'lucide-react';
-import { useItinerarioStore } from './store/itinerarioStore';
 import { TarefaLogistica as TarefaLogisticaLocal, StatusTarefa, TipoTarefa, MotivoTipo } from './types';
 import { MotivoModal } from './components/MotivoModal';
 import { QuadroMotorista } from './components/QuadroMotorista';
@@ -44,6 +43,8 @@ import { useSupabaseLogisticaTarefas } from '@/hooks/useSupabaseLogisticaTarefas
 import { useSupabaseLogisticaMotoristas } from '@/hooks/useSupabaseLogisticaMotoristas';
 import { useSupabaseLogisticaVeiculos } from '@/hooks/useSupabaseLogisticaVeiculos';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Formatar endereço JSON para string legível
 const formatEndereco = (endereco: any): string => {
@@ -89,6 +90,7 @@ export function ItinerarioDiario() {
   const { session } = useMultiunidade();
   const lojaId = session.lojaAtivaId || '';
   const { config } = useSupabaseLogisticaConfig(lojaId);
+  const queryClient = useQueryClient();
   
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedMotorista, setSelectedMotorista] = useState('all');
@@ -103,6 +105,24 @@ export function ItinerarioDiario() {
   const [tarefasParaAtribuir, setTarefasParaAtribuir] = useState<Array<{ id: string; cliente_nome: string; tipo: string }>>([]);
 
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Realtime: auto-refresh when tasks change
+  useEffect(() => {
+    const channel = supabase
+      .channel('itinerario-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'logistica_tarefas',
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['logistica-tarefas'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Buscar dados reais do Supabase
   const { tarefas: tarefasSupabase, updateTarefa: updateTarefaSupabase } = useSupabaseLogisticaTarefas({
