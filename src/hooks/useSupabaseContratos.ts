@@ -335,7 +335,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
         id: `evt-${Date.now()}`,
         ts: new Date().toISOString(),
         tipo: 'RETIRADA_CONFIRMADA',
-        usuarioNome: 'Usuário', // TODO: pegar do auth
+        usuarioNome: await getCurrentUserName(),
         resumo: 'Cliente retirou os equipamentos',
         meta: { dataRetirada: new Date().toISOString() }
       };
