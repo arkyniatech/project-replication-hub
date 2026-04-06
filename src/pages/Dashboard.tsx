@@ -526,7 +526,7 @@ export default function Dashboard() {
         open={caixaDrawerOpen}
         onOpenChange={setCaixaDrawerOpen}
         onReceberClick={() => {
-          const titulosAbertos = tituloStorage.getAll().filter(t => t.saldo > 0);
+          const titulosAbertos = titulosSupabase.filter(t => t.saldo > 0);
           if (titulosAbertos.length > 0) {
             setTituloSelecionado(titulosAbertos[0]);
             setReceberModalOpen(true);
