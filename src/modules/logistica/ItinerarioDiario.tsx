@@ -134,23 +134,75 @@ export function ItinerarioDiario() {
     },
     endereco: formatEndereco(t.endereco),
     janela: {
-      inicio: format(new Date(t.previsto_iso), 'HH:mm'),
-      fim: format(new Date(new Date(t.previsto_iso).getTime() + t.duracao_min * 60000), 'HH:mm')
+      inicio: t.previsto_iso ? format(new Date(t.previsto_iso), 'HH:mm') : '08:00',
+      fim: t.previsto_iso ? format(new Date(new Date(t.previsto_iso).getTime() + (t.duracao_min || 60) * 60000), 'HH:mm') : '09:00'
     },
     duracao: t.duracao_min,
     contratoNumero: t.contrato_id || '-',
     telefone: t.cliente_telefone,
     observacoes: t.observacoes,
-    motivo: t.motivo_falha,
-    itinerarioId: t.itinerario_id || ''
+    motivo: (t as any).motivo_falha,
+    motorista_id: t.motorista_id,
+    veiculo_id: t.veiculo_id,
   }));
 
   // Aplicar filtros de tipo e status
   const tarefasFiltradas = todasTarefas.filter(tarefa => {
     if (filtroTipo !== 'TODOS' && tarefa.tipo !== filtroTipo) return false;
     if (filtroStatus !== 'TODOS' && tarefa.status !== filtroStatus) return false;
+    if (selectedMotorista !== 'all' && tarefa.motorista_id !== selectedMotorista) return false;
+    if (selectedVeiculo !== 'all' && tarefa.veiculo_id !== selectedVeiculo) return false;
     return true;
   });
+
+  // Agrupar tarefas por motorista
+  const tarefasAgrupadas = useMemo(() => {
+    const naoAtribuidas = tarefasFiltradas.filter(t => !t.motorista_id);
+    const porMotorista = new Map<string, typeof tarefasFiltradas>();
+    
+    tarefasFiltradas.filter(t => t.motorista_id).forEach(t => {
+      const key = t.motorista_id!;
+      if (!porMotorista.has(key)) porMotorista.set(key, []);
+      porMotorista.get(key)!.push(t);
+    });
+
+    return { naoAtribuidas, porMotorista };
+  }, [tarefasFiltradas]);
+
+  // Handler para abrir modal de atribuição
+  const handleAbrirAtribuir = (tarefaIds?: string[]) => {
+    const ids = tarefaIds || tarefasAgrupadas.naoAtribuidas.map(t => t.id);
+    const resumos = todasTarefas
+      .filter(t => ids.includes(t.id))
+      .map(t => ({ id: t.id, cliente_nome: t.cliente.nome || '', tipo: t.tipo }));
+    setTarefasParaAtribuir(resumos);
+    setAtribuirModalOpen(true);
+  };
+
+  const handleConfirmarAtribuicao = (motoristaId: string, veiculoId: string | null) => {
+    tarefasParaAtribuir.forEach(t => {
+      updateTarefaSupabase({ 
+        id: t.id, 
+        updates: { 
+          motorista_id: motoristaId, 
+          ...(veiculoId ? { veiculo_id: veiculoId } : {})
+        } as any 
+      });
+    });
+    toast({
+      title: 'Tarefas atribuídas',
+      description: `${tarefasParaAtribuir.length} tarefa(s) atribuída(s) ao motorista.`,
+    });
+    setAtribuirModalOpen(false);
+    setTarefasParaAtribuir([]);
+  };
+
+  const getNomeMotorista = (id: string) => motoristas.find(m => m.id === id)?.nome || 'Motorista';
+  const getInfoVeiculo = (id: string | null | undefined) => {
+    if (!id) return null;
+    const v = veiculos.find(v => v.id === id);
+    return v ? `${v.placa} - ${v.modelo}` : null;
+  };
 
   // Função auxiliar para mapear status
   function mapSupabaseStatusToLocal(status: string): StatusTarefa {
