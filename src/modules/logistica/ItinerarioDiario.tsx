@@ -562,173 +562,82 @@ export function ItinerarioDiario() {
         </CardContent>
       </Card>
 
-      {/* Grid de horários - only render slots with tasks */}
-      <div className="grid gap-4">
-        {timeSlots.map((slot) => {
-          const tarefasDoSlot = getTarefasPorHorario(slot);
-          
-          // Skip empty slots
-          if (tarefasDoSlot.length === 0) return null;
-          
-          return (
-            <div key={slot} className="grid grid-cols-12 gap-4 items-start">
-              {/* Coluna do horário */}
-              <div className="col-span-1">
-                <div className="sticky top-4">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    {slot}
-                  </div>
-                </div>
+      {/* Seção: Não Atribuídas */}
+      {tarefasAgrupadas.naoAtribuidas.length > 0 && (
+        <Card className="border-dashed border-amber-300 bg-amber-50/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+                <CardTitle className="text-base">Não Atribuídas</CardTitle>
+                <Badge variant="secondary">{tarefasAgrupadas.naoAtribuidas.length}</Badge>
               </div>
-
-              {/* Coluna das tarefas */}
-              <div className="col-span-11">
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                  {tarefasDoSlot.map((tarefa) => (
-                    <Card 
-                      key={tarefa.id} 
-                      className={`border-l-4 ${getStatusColor(tarefa.status)} ${getPrioridadeColor(tarefa.prioridade)}`}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full ${getTipoColor(tarefa.tipo)}`} />
-                            <Badge variant="outline">{tarefa.tipo}</Badge>
-                            {tarefa.prioridade !== 'NORMAL' && (
-                              <Badge variant="destructive" className="text-xs">
-                                {tarefa.prioridade}
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="text-xs font-mono text-muted-foreground">
-                            {tarefa.contratoNumero}
-                          </span>
-                        </div>
-                        <CardTitle className="text-sm">{tarefa.cliente.nome}</CardTitle>
-                      </CardHeader>
-                      
-                      <CardContent className="pt-0 space-y-3">
-                        <div className="space-y-1">
-                          <div className="flex items-start gap-2 text-xs">
-                            <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
-                            <span className="text-muted-foreground break-all">
-                              {tarefa.endereco}
-                            </span>
-                          </div>
-                          
-                          {tarefa.telefone && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <Phone className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">{tarefa.telefone}</span>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center gap-2 text-xs">
-                            <Clock className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-muted-foreground">
-                              {tarefa.janela.inicio} - {tarefa.janela.fim}
-                              {tarefa.duracao && ` (${Math.ceil(tarefa.duracao / 60)}h)`}
-                            </span>
-                          </div>
-                        </div>
-
-                        {tarefa.observacoes && (
-                          <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-                            {tarefa.observacoes}
-                          </p>
-                        )}
-
-                        {tarefa.motivo && (
-                          <p className="text-xs text-destructive p-2 bg-destructive/10 rounded">
-                            <strong>Motivo:</strong> {tarefa.motivo}
-                          </p>
-                        )}
-
-                        {/* Ações */}
-                        {can('logistica:view') && (
-                          <div className="flex gap-1 flex-wrap">
-                            {tarefa.status === 'PENDENTE' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleStatusChange(tarefa.id, 'EM_ROTA')}
-                                className="h-7 text-xs"
-                              >
-                                <PlayCircle className="h-3 w-3 mr-1" />
-                                Iniciar
-                              </Button>
-                            )}
-                            
-                            {tarefa.status === 'EM_ROTA' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleStatusChange(tarefa.id, 'CONCLUIDA')}
-                                className="h-7 text-xs"
-                              >
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Concluir
-                              </Button>
-                            )}
-                            
-                            {['PENDENTE', 'EM_ROTA'].includes(tarefa.status) && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleNaoSaida(tarefa)}
-                                  className="h-7 text-xs"
-                                >
-                                  <XCircle className="h-3 w-3 mr-1" />
-                                  Não saiu
-                                </Button>
-                                
-                                {tarefa.status === 'EM_ROTA' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleNaoEntrega(tarefa)}
-                                    className="h-7 text-xs"
-                                  >
-                                    <XCircle className="h-3 w-3 mr-1" />
-                                    Não entregue
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                            
-                            {tarefa.telefone && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => enviarWhatsApp(tarefa)}
-                                className="h-7 text-xs"
-                              >
-                                <MessageCircle className="h-3 w-3 mr-1" />
-                                WhatsApp
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
+              <Button
+                size="sm"
+                onClick={() => handleAbrirAtribuir()}
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                Atribuir Todas
+              </Button>
             </div>
-          );
-        })}
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {tarefasAgrupadas.naoAtribuidas.map((tarefa) => renderTarefaCard(tarefa, true))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Mensagem quando não há tarefas */}
-        {tarefasFiltradas.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              Nenhuma tarefa agendada para este dia
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Seções por Motorista */}
+      {Array.from(tarefasAgrupadas.porMotorista.entries()).map(([motoristaId, tarefasMotorista]) => {
+        const veiId = tarefasMotorista[0]?.veiculo_id;
+        const veiculoInfo = getInfoVeiculo(veiId);
+        
+        return (
+          <Collapsible key={motoristaId} defaultOpen>
+            <Card>
+              <CardHeader className="pb-3">
+                <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">{getNomeMotorista(motoristaId)}</CardTitle>
+                      {veiculoInfo && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Truck className="h-3 w-3" /> {veiculoInfo}
+                        </p>
+                      )}
+                    </div>
+                    <Badge variant="secondary">{tarefasMotorista.length} tarefa{tarefasMotorista.length > 1 ? 's' : ''}</Badge>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+              </CardHeader>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {tarefasMotorista
+                      .sort((a, b) => a.janela.inicio.localeCompare(b.janela.inicio))
+                      .map((tarefa) => renderTarefaCard(tarefa, false))}
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        );
+      })}
+
+      {/* Mensagem quando não há tarefas */}
+      {tarefasFiltradas.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Nenhuma tarefa agendada para este dia
+          </CardContent>
+        </Card>
+      )}
 
       {/* Área oculta para impressão */}
       <div className="hidden">
