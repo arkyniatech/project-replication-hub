@@ -39,6 +39,7 @@ export default function Dashboard() {
   const { contratos, isLoading: loadingContratos, confirmarRetirada } = useSupabaseContratos(lojaAtual?.id);
   const { equipamentos, isLoading: loadingEquipamentos } = useSupabaseEquipamentos(lojaAtual?.id);
   const { caixaAtivo, loadingAtivo } = useSupabaseCaixa(lojaAtual?.id);
+  const { titulos: titulosSupabase } = useSupabaseTitulos(lojaAtual?.id);
   
   const [renovarModalOpen, setRenovarModalOpen] = useState(false);
   const [receberModalOpen, setReceberModalOpen] = useState(false);
