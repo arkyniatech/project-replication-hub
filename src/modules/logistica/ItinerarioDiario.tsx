@@ -43,6 +43,8 @@ import { useSupabaseLogisticaTarefas } from '@/hooks/useSupabaseLogisticaTarefas
 import { useSupabaseLogisticaMotoristas } from '@/hooks/useSupabaseLogisticaMotoristas';
 import { useSupabaseLogisticaVeiculos } from '@/hooks/useSupabaseLogisticaVeiculos';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Formatar endereço JSON para string legível
 const formatEndereco = (endereco: any): string => {
