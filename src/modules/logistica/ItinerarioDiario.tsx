@@ -90,6 +90,7 @@ export function ItinerarioDiario() {
   const { session } = useMultiunidade();
   const lojaId = session.lojaAtivaId || '';
   const { config } = useSupabaseLogisticaConfig(lojaId);
+  const queryClient = useQueryClient();
   
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedMotorista, setSelectedMotorista] = useState('all');
