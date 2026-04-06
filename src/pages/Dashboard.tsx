@@ -14,7 +14,7 @@ import {
   ArrowRight,
   RotateCcw
 } from "lucide-react";
-import { tituloStorage } from "@/lib/storage";
+import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useMemo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
