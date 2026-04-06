@@ -174,14 +174,14 @@ export function useContratoLogisticaSync() {
       // Auto-atribuir motorista se houver apenas 1 ativo na loja
       let autoMotoristaId: string | null = null;
       try {
-        const { data: motoristasAtivos } = await supabase
-          .from('logistica_motoristas' as any)
+        const { data: motoristasAtivos } = await (supabase as any)
+          .from('logistica_motoristas')
           .select('id')
           .eq('loja_id', contrato.loja_id)
           .eq('ativo', true);
         
         if (motoristasAtivos && motoristasAtivos.length === 1) {
-          autoMotoristaId = motoristasAtivos[0].id;
+          autoMotoristaId = (motoristasAtivos[0] as any).id;
         }
       } catch (e) {
         // Ignora erro — motorista ficará null
