@@ -1,19 +1,75 @@
 
 
-# Fix: Alinhar ícones do NavRail com itens do NavOverlayPanel
+## Plano: Implementar Itinerários Reais no Supabase
 
-## Problema
-Os ícones do NavRail estão desalinhados (acima) em relação aos itens correspondentes no painel overlay. Isso acontece porque o overlay tem headers de seção ("PRINCIPAL", "OPERAÇÃO", "GESTÃO") que ocupam ~20px cada, empurrando os itens para baixo, enquanto o NavRail usa apenas separadores finos de 1px.
+### Situação Atual
 
-## Solução
-Substituir os separadores do NavRail por espaçadores invisíveis que tenham a mesma altura dos headers de seção do overlay (~20px). Isso inclui o primeiro header "PRINCIPAL" que precisa de um espaçador antes dos primeiros ícones.
+- Quando um contrato é ativado, o `useContratoLogisticaSync` cria automaticamente uma **tarefa** na tabela `logistica_tarefas` com status `PROGRAMADO`
+- A tarefa é criada **sem motorista e sem veículo** (`motorista_id` e `veiculo_id` ficam `null`)
+- Não existe tabela `logistica_itinerarios` no banco — o conceito de "itinerário" (agrupar tarefas por motorista+veículo+dia) só existe como mock local no Zustand
+- O itinerário diário mostra todas as tarefas do dia sem agrupamento por motorista
 
-## Alterações
+### O que vai mudar
 
-**`src/components/layout/NavRail.tsx`**:
-- Antes dos ícones de "Principal", adicionar um espaçador com a mesma altura do header de seção do overlay (~20px: py-1 + text height)
-- Substituir os `<div className="mx-4 h-px bg-border/50 my-2" />` separadores por espaçadores de ~20px (matching the overlay section headers)
-- Os itens do NavRail: cada um tem `mb-1` + `h-12` = 52px total. Os do overlay: `space-y-0.5` + `py-1` wrapper + `py-2.5` link ≈ ~42px. Ajustar a altura dos ícones do NavRail de `h-12` para `h-10` e o `mb-1` para `mb-0.5` para melhor correspondência com o overlay.
+O gestor de logística poderá atribuir motorista e veículo às tarefas pendentes diretamente na tela de itinerário. As tarefas serão agrupadas visualmente por motorista, formando o "itinerário do dia" sem necessidade de uma tabela extra.
 
-Resultado: cada ícone do NavRail ficará na mesma posição vertical que seu item correspondente no overlay.
+### Abordagem: Sem tabela nova
+
+A tabela `logistica_tarefas` já possui `motorista_id` e `veiculo_id`. Basta:
+1. Permitir atribuição via UI
+2. Agrupar tarefas por motorista na visualização
+
+Isso evita complexidade de sincronização entre duas tabelas.
+
+### Alterações
+
+**1. Migração SQL** — Nenhuma necessária (colunas `motorista_id` e `veiculo_id` já existem)
+
+**2. `src/components/logistica/AtribuirTarefaModal.tsx`** (novo)
+- Modal para atribuir motorista + veículo a uma ou mais tarefas selecionadas
+- Select de motoristas (do hook existente) e veículos (do hook existente)
+- Botão "Atribuir" que faz update em `logistica_tarefas` via Supabase
+
+**3. `src/modules/logistica/ItinerarioDiario.tsx`** (refatorar)
+- Adicionar botão "Atribuir motorista" nas tarefas que não têm `motorista_id`
+- Agrupar tarefas por `motorista_id` no grid (seções colapsáveis por motorista)
+- Tarefas sem motorista aparecem em seção "Não atribuídas" no topo
+- Buscar nome do motorista/veículo via join ou lookup local
+
+**4. `src/hooks/useSupabaseLogisticaTarefas.ts`** (ajustar)
+- Adicionar filtro por `motorista_id` direto (coluna já existe na tabela, não precisa mais fazer sub-query em `logistica_itinerarios`)
+- Simplificar a query removendo o workaround de buscar itinerários
+
+**5. `src/hooks/useContratoLogisticaSync.ts`** (melhorar)
+- Quando só existe 1 motorista ativo na loja, atribuir automaticamente
+- Quando há múltiplos, manter `null` para atribuição manual
+
+### Fluxo Final
+
+```text
+Contrato Ativado
+      │
+      ▼
+Tarefa criada (PROGRAMADO, motorista=null)
+      │
+      ▼
+Gestor abre Itinerário Diário
+      │
+      ├─ Seção "Não Atribuídas" → botão "Atribuir"
+      │         │
+      │         ▼
+      │   Modal: escolher motorista + veículo
+      │         │
+      │         ▼
+      │   UPDATE motorista_id, veiculo_id
+      │
+      ▼
+Tarefas agrupadas por motorista (itinerário visual)
+```
+
+### Resumo
+- 1 componente novo (modal de atribuição)
+- 2 arquivos editados (itinerário + hook de tarefas)
+- 1 melhoria no sync (auto-atribuição quando há 1 motorista)
+- Zero migrações SQL
 
