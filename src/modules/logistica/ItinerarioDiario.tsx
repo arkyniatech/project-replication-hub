@@ -29,7 +29,6 @@ import {
   ChevronDown,
   AlertCircle
 } from 'lucide-react';
-import { useItinerarioStore } from './store/itinerarioStore';
 import { TarefaLogistica as TarefaLogisticaLocal, StatusTarefa, TipoTarefa, MotivoTipo } from './types';
 import { MotivoModal } from './components/MotivoModal';
 import { QuadroMotorista } from './components/QuadroMotorista';
