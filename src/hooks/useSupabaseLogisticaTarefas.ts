@@ -27,6 +27,8 @@ export interface LogisticaTarefa {
   motivo_falha?: string;
   motivo_falha_tipo?: string;
   observacoes?: string;
+  motorista_id?: string;
+  veiculo_id?: string;
   created_at: string;
   updated_at: string;
 }
