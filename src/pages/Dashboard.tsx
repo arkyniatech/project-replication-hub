@@ -96,7 +96,7 @@ export default function Dashboard() {
         c.created_at && new Date(c.created_at).toDateString() === hoje.toDateString()
       ).length
     };
-  }, [contratos, equipamentos]);
+  }, [contratos, equipamentos, titulosSupabase]);
 
   const recentContratos = useMemo(() => {
     if (!contratos) return [];
