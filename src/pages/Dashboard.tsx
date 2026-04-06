@@ -57,7 +57,7 @@ export default function Dashboard() {
 
   // Dados para as caixas de ação
   const actionData = useMemo(() => {
-    const titulos = tituloStorage.getAll(); // TODO: Migrar para Supabase quando a tabela for criada
+    const titulos = titulosSupabase;
     const hoje = new Date();
     const proximosDias = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
