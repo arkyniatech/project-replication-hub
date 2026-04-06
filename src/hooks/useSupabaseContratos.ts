@@ -501,7 +501,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
         id: `evt-${Date.now()}`,
         ts: new Date().toISOString(),
         tipo: todosItensDevolvidos ? 'DEVOLUCAO_TOTAL_CONFIRMADA' : 'DEVOLUCAO_PARCIAL',
-        usuarioNome: 'Usuário', // TODO: pegar do auth
+        usuarioNome: await getCurrentUserName(),
         resumo: todosItensDevolvidos 
           ? `Devolução total confirmada → STATUS: Encerrado` 
           : `Devolução parcial: ${itensDevolucao.length} itens`,
