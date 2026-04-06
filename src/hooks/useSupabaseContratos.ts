@@ -258,7 +258,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
         id: `evt-${Date.now()}`,
         ts: new Date().toISOString(),
         tipo: 'CONTRATO_CANCELADO',
-        usuarioNome: 'Usuário', // TODO: pegar do auth
+        usuarioNome: await getCurrentUserName(),
         resumo: `Contrato cancelado: ${motivo}`,
         meta: { motivo }
       };
