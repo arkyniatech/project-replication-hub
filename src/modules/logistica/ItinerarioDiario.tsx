@@ -99,6 +99,8 @@ export function ItinerarioDiario() {
   const [motivoTipo, setMotivoTipo] = useState<MotivoTipo>('NAO_SAIDA');
   const [tarefaSelecionada, setTarefaSelecionada] = useState<TarefaLogisticaLocal | null>(null);
   const [sugerirHorariosOpen, setSugerirHorariosOpen] = useState(false);
+  const [atribuirModalOpen, setAtribuirModalOpen] = useState(false);
+  const [tarefasParaAtribuir, setTarefasParaAtribuir] = useState<Array<{ id: string; cliente_nome: string; tipo: string }>>([]);
 
   const printRef = useRef<HTMLDivElement>(null);
 
