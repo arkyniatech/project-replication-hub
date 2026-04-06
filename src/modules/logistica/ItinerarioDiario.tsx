@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Calendar, 
   Printer, 
@@ -22,13 +23,18 @@ import {
   XCircle,
   Calendar as CalendarIcon,
   MessageCircle,
-  Settings
+  Settings,
+  User,
+  UserPlus,
+  ChevronDown,
+  AlertCircle
 } from 'lucide-react';
 import { useItinerarioStore } from './store/itinerarioStore';
 import { TarefaLogistica as TarefaLogisticaLocal, StatusTarefa, TipoTarefa, MotivoTipo } from './types';
 import { MotivoModal } from './components/MotivoModal';
 import { QuadroMotorista } from './components/QuadroMotorista';
 import { SugerirHorariosModal } from './components/SugerirHorariosModal';
+import { AtribuirTarefaModal } from '@/components/logistica/AtribuirTarefaModal';
 import { useReactToPrint } from 'react-to-print';
 import { generatePDF } from '@/utils/print';
 import { generateItineraryCSV } from '@/utils/csv';
@@ -93,6 +99,8 @@ export function ItinerarioDiario() {
   const [motivoTipo, setMotivoTipo] = useState<MotivoTipo>('NAO_SAIDA');
   const [tarefaSelecionada, setTarefaSelecionada] = useState<TarefaLogisticaLocal | null>(null);
   const [sugerirHorariosOpen, setSugerirHorariosOpen] = useState(false);
+  const [atribuirModalOpen, setAtribuirModalOpen] = useState(false);
+  const [tarefasParaAtribuir, setTarefasParaAtribuir] = useState<Array<{ id: string; cliente_nome: string; tipo: string }>>([]);
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -126,23 +134,75 @@ export function ItinerarioDiario() {
     },
     endereco: formatEndereco(t.endereco),
     janela: {
-      inicio: format(new Date(t.previsto_iso), 'HH:mm'),
-      fim: format(new Date(new Date(t.previsto_iso).getTime() + t.duracao_min * 60000), 'HH:mm')
+      inicio: t.previsto_iso ? format(new Date(t.previsto_iso), 'HH:mm') : '08:00',
+      fim: t.previsto_iso ? format(new Date(new Date(t.previsto_iso).getTime() + (t.duracao_min || 60) * 60000), 'HH:mm') : '09:00'
     },
     duracao: t.duracao_min,
     contratoNumero: t.contrato_id || '-',
     telefone: t.cliente_telefone,
     observacoes: t.observacoes,
-    motivo: t.motivo_falha,
-    itinerarioId: t.itinerario_id || ''
+    motivo: (t as any).motivo_falha,
+    motorista_id: t.motorista_id,
+    veiculo_id: t.veiculo_id,
   }));
 
   // Aplicar filtros de tipo e status
   const tarefasFiltradas = todasTarefas.filter(tarefa => {
     if (filtroTipo !== 'TODOS' && tarefa.tipo !== filtroTipo) return false;
     if (filtroStatus !== 'TODOS' && tarefa.status !== filtroStatus) return false;
+    if (selectedMotorista !== 'all' && tarefa.motorista_id !== selectedMotorista) return false;
+    if (selectedVeiculo !== 'all' && tarefa.veiculo_id !== selectedVeiculo) return false;
     return true;
   });
+
+  // Agrupar tarefas por motorista
+  const tarefasAgrupadas = useMemo(() => {
+    const naoAtribuidas = tarefasFiltradas.filter(t => !t.motorista_id);
+    const porMotorista = new Map<string, typeof tarefasFiltradas>();
+    
+    tarefasFiltradas.filter(t => t.motorista_id).forEach(t => {
+      const key = t.motorista_id!;
+      if (!porMotorista.has(key)) porMotorista.set(key, []);
+      porMotorista.get(key)!.push(t);
+    });
+
+    return { naoAtribuidas, porMotorista };
+  }, [tarefasFiltradas]);
+
+  // Handler para abrir modal de atribuição
+  const handleAbrirAtribuir = (tarefaIds?: string[]) => {
+    const ids = tarefaIds || tarefasAgrupadas.naoAtribuidas.map(t => t.id);
+    const resumos = todasTarefas
+      .filter(t => ids.includes(t.id))
+      .map(t => ({ id: t.id, cliente_nome: t.cliente.nome || '', tipo: t.tipo }));
+    setTarefasParaAtribuir(resumos);
+    setAtribuirModalOpen(true);
+  };
+
+  const handleConfirmarAtribuicao = (motoristaId: string, veiculoId: string | null) => {
+    tarefasParaAtribuir.forEach(t => {
+      updateTarefaSupabase({ 
+        id: t.id, 
+        updates: { 
+          motorista_id: motoristaId, 
+          ...(veiculoId ? { veiculo_id: veiculoId } : {})
+        } as any 
+      });
+    });
+    toast({
+      title: 'Tarefas atribuídas',
+      description: `${tarefasParaAtribuir.length} tarefa(s) atribuída(s) ao motorista.`,
+    });
+    setAtribuirModalOpen(false);
+    setTarefasParaAtribuir([]);
+  };
+
+  const getNomeMotorista = (id: string) => motoristas.find(m => m.id === id)?.nome || 'Motorista';
+  const getInfoVeiculo = (id: string | null | undefined) => {
+    if (!id) return null;
+    const v = veiculos.find(v => v.id === id);
+    return v ? `${v.placa} - ${v.modelo}` : null;
+  };
 
   // Função auxiliar para mapear status
   function mapSupabaseStatusToLocal(status: string): StatusTarefa {
@@ -384,6 +444,107 @@ export function ItinerarioDiario() {
     }
   };
 
+  const renderTarefaCard = (tarefa: typeof todasTarefas[0], showAtribuir: boolean) => (
+    <Card 
+      key={tarefa.id} 
+      className={`border-l-4 ${getStatusColor(tarefa.status)} ${getPrioridadeColor(tarefa.prioridade)}`}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${getTipoColor(tarefa.tipo)}`} />
+            <Badge variant="outline">{tarefa.tipo}</Badge>
+            {tarefa.prioridade !== 'NORMAL' && (
+              <Badge variant="destructive" className="text-xs">
+                {tarefa.prioridade}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-mono text-muted-foreground">
+              {tarefa.janela.inicio}
+            </span>
+          </div>
+        </div>
+        <CardTitle className="text-sm">{tarefa.cliente.nome}</CardTitle>
+      </CardHeader>
+      
+      <CardContent className="pt-0 space-y-3">
+        <div className="space-y-1">
+          <div className="flex items-start gap-2 text-xs">
+            <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+            <span className="text-muted-foreground break-all">{tarefa.endereco}</span>
+          </div>
+          {tarefa.telefone && (
+            <div className="flex items-center gap-2 text-xs">
+              <Phone className="h-3 w-3 text-muted-foreground" />
+              <span className="text-muted-foreground">{tarefa.telefone}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-xs">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span className="text-muted-foreground">
+              {tarefa.janela.inicio} - {tarefa.janela.fim}
+              {tarefa.duracao && ` (${Math.ceil(tarefa.duracao / 60)}h)`}
+            </span>
+          </div>
+        </div>
+
+        {tarefa.observacoes && (
+          <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">{tarefa.observacoes}</p>
+        )}
+        {tarefa.motivo && (
+          <p className="text-xs text-destructive p-2 bg-destructive/10 rounded">
+            <strong>Motivo:</strong> {tarefa.motivo}
+          </p>
+        )}
+
+        {can('logistica:view') && (
+          <div className="flex gap-1 flex-wrap">
+            {showAtribuir && (
+              <Button size="sm" variant="outline" onClick={() => handleAbrirAtribuir([tarefa.id])} className="h-7 text-xs">
+                <UserPlus className="h-3 w-3 mr-1" />
+                Atribuir
+              </Button>
+            )}
+            {tarefa.status === 'PENDENTE' && (
+              <Button size="sm" variant="outline" onClick={() => handleStatusChange(tarefa.id, 'EM_ROTA')} className="h-7 text-xs">
+                <PlayCircle className="h-3 w-3 mr-1" />
+                Iniciar
+              </Button>
+            )}
+            {tarefa.status === 'EM_ROTA' && (
+              <Button size="sm" variant="outline" onClick={() => handleStatusChange(tarefa.id, 'CONCLUIDA')} className="h-7 text-xs">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Concluir
+              </Button>
+            )}
+            {['PENDENTE', 'EM_ROTA'].includes(tarefa.status) && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => handleNaoSaida(tarefa)} className="h-7 text-xs">
+                  <XCircle className="h-3 w-3 mr-1" />
+                  Não saiu
+                </Button>
+                {tarefa.status === 'EM_ROTA' && (
+                  <Button size="sm" variant="outline" onClick={() => handleNaoEntrega(tarefa)} className="h-7 text-xs">
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Não entregue
+                  </Button>
+                )}
+              </>
+            )}
+            {tarefa.telefone && (
+              <Button size="sm" variant="outline" onClick={() => enviarWhatsApp(tarefa)} className="h-7 text-xs">
+                <MessageCircle className="h-3 w-3 mr-1" />
+                WhatsApp
+              </Button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -502,173 +663,82 @@ export function ItinerarioDiario() {
         </CardContent>
       </Card>
 
-      {/* Grid de horários - only render slots with tasks */}
-      <div className="grid gap-4">
-        {timeSlots.map((slot) => {
-          const tarefasDoSlot = getTarefasPorHorario(slot);
-          
-          // Skip empty slots
-          if (tarefasDoSlot.length === 0) return null;
-          
-          return (
-            <div key={slot} className="grid grid-cols-12 gap-4 items-start">
-              {/* Coluna do horário */}
-              <div className="col-span-1">
-                <div className="sticky top-4">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    {slot}
-                  </div>
-                </div>
+      {/* Seção: Não Atribuídas */}
+      {tarefasAgrupadas.naoAtribuidas.length > 0 && (
+        <Card className="border-dashed border-amber-300 bg-amber-50/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+                <CardTitle className="text-base">Não Atribuídas</CardTitle>
+                <Badge variant="secondary">{tarefasAgrupadas.naoAtribuidas.length}</Badge>
               </div>
-
-              {/* Coluna das tarefas */}
-              <div className="col-span-11">
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                  {tarefasDoSlot.map((tarefa) => (
-                    <Card 
-                      key={tarefa.id} 
-                      className={`border-l-4 ${getStatusColor(tarefa.status)} ${getPrioridadeColor(tarefa.prioridade)}`}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full ${getTipoColor(tarefa.tipo)}`} />
-                            <Badge variant="outline">{tarefa.tipo}</Badge>
-                            {tarefa.prioridade !== 'NORMAL' && (
-                              <Badge variant="destructive" className="text-xs">
-                                {tarefa.prioridade}
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="text-xs font-mono text-muted-foreground">
-                            {tarefa.contratoNumero}
-                          </span>
-                        </div>
-                        <CardTitle className="text-sm">{tarefa.cliente.nome}</CardTitle>
-                      </CardHeader>
-                      
-                      <CardContent className="pt-0 space-y-3">
-                        <div className="space-y-1">
-                          <div className="flex items-start gap-2 text-xs">
-                            <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
-                            <span className="text-muted-foreground break-all">
-                              {tarefa.endereco}
-                            </span>
-                          </div>
-                          
-                          {tarefa.telefone && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <Phone className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-muted-foreground">{tarefa.telefone}</span>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center gap-2 text-xs">
-                            <Clock className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-muted-foreground">
-                              {tarefa.janela.inicio} - {tarefa.janela.fim}
-                              {tarefa.duracao && ` (${Math.ceil(tarefa.duracao / 60)}h)`}
-                            </span>
-                          </div>
-                        </div>
-
-                        {tarefa.observacoes && (
-                          <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-                            {tarefa.observacoes}
-                          </p>
-                        )}
-
-                        {tarefa.motivo && (
-                          <p className="text-xs text-destructive p-2 bg-destructive/10 rounded">
-                            <strong>Motivo:</strong> {tarefa.motivo}
-                          </p>
-                        )}
-
-                        {/* Ações */}
-                        {can('logistica:view') && (
-                          <div className="flex gap-1 flex-wrap">
-                            {tarefa.status === 'PENDENTE' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleStatusChange(tarefa.id, 'EM_ROTA')}
-                                className="h-7 text-xs"
-                              >
-                                <PlayCircle className="h-3 w-3 mr-1" />
-                                Iniciar
-                              </Button>
-                            )}
-                            
-                            {tarefa.status === 'EM_ROTA' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleStatusChange(tarefa.id, 'CONCLUIDA')}
-                                className="h-7 text-xs"
-                              >
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Concluir
-                              </Button>
-                            )}
-                            
-                            {['PENDENTE', 'EM_ROTA'].includes(tarefa.status) && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleNaoSaida(tarefa)}
-                                  className="h-7 text-xs"
-                                >
-                                  <XCircle className="h-3 w-3 mr-1" />
-                                  Não saiu
-                                </Button>
-                                
-                                {tarefa.status === 'EM_ROTA' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleNaoEntrega(tarefa)}
-                                    className="h-7 text-xs"
-                                  >
-                                    <XCircle className="h-3 w-3 mr-1" />
-                                    Não entregue
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                            
-                            {tarefa.telefone && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => enviarWhatsApp(tarefa)}
-                                className="h-7 text-xs"
-                              >
-                                <MessageCircle className="h-3 w-3 mr-1" />
-                                WhatsApp
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
+              <Button
+                size="sm"
+                onClick={() => handleAbrirAtribuir()}
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                Atribuir Todas
+              </Button>
             </div>
-          );
-        })}
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {tarefasAgrupadas.naoAtribuidas.map((tarefa) => renderTarefaCard(tarefa, true))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Mensagem quando não há tarefas */}
-        {tarefasFiltradas.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              Nenhuma tarefa agendada para este dia
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Seções por Motorista */}
+      {Array.from(tarefasAgrupadas.porMotorista.entries()).map(([motoristaId, tarefasMotorista]) => {
+        const veiId = tarefasMotorista[0]?.veiculo_id;
+        const veiculoInfo = getInfoVeiculo(veiId);
+        
+        return (
+          <Collapsible key={motoristaId} defaultOpen>
+            <Card>
+              <CardHeader className="pb-3">
+                <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">{getNomeMotorista(motoristaId)}</CardTitle>
+                      {veiculoInfo && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Truck className="h-3 w-3" /> {veiculoInfo}
+                        </p>
+                      )}
+                    </div>
+                    <Badge variant="secondary">{tarefasMotorista.length} tarefa{tarefasMotorista.length > 1 ? 's' : ''}</Badge>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+              </CardHeader>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {tarefasMotorista
+                      .sort((a, b) => a.janela.inicio.localeCompare(b.janela.inicio))
+                      .map((tarefa) => renderTarefaCard(tarefa, false))}
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        );
+      })}
+
+      {/* Mensagem quando não há tarefas */}
+      {tarefasFiltradas.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Nenhuma tarefa agendada para este dia
+          </CardContent>
+        </Card>
+      )}
 
       {/* Área oculta para impressão */}
       <div className="hidden">
@@ -717,6 +787,15 @@ export function ItinerarioDiario() {
         onOpenChange={setSugerirHorariosOpen}
         tarefas={tarefasFiltradas}
         onAplicarSugestoes={handleAplicarSugestoes}
+      />
+
+      <AtribuirTarefaModal
+        open={atribuirModalOpen}
+        onOpenChange={setAtribuirModalOpen}
+        tarefas={tarefasParaAtribuir}
+        motoristas={motoristas}
+        veiculos={veiculos}
+        onConfirm={handleConfirmarAtribuicao}
       />
     </div>
   );

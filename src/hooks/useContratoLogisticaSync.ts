@@ -171,6 +171,22 @@ export function useContratoLogisticaSync() {
       }
 
       // Preparar dados da tarefa
+      // Auto-atribuir motorista se houver apenas 1 ativo na loja
+      let autoMotoristaId: string | null = null;
+      try {
+        const { data: motoristasAtivos } = await (supabase as any)
+          .from('logistica_motoristas')
+          .select('id')
+          .eq('loja_id', contrato.loja_id)
+          .eq('ativo', true);
+        
+        if (motoristasAtivos && motoristasAtivos.length === 1) {
+          autoMotoristaId = (motoristasAtivos[0] as any).id;
+        }
+      } catch (e) {
+        // Ignora erro — motorista ficará null
+      }
+
       const tarefaData = {
         loja_id: contrato.loja_id,
         contrato_id: contrato.id,
@@ -179,7 +195,7 @@ export function useContratoLogisticaSync() {
         status: 'PROGRAMADO' as const,
         prioridade: 'MEDIA' as const,
         previsto_iso: previstoISO,
-        duracao_min: 60, // Duração padrão
+        duracao_min: 60,
         janela: janela,
         endereco: endereco,
         latitude: null,
@@ -187,6 +203,7 @@ export function useContratoLogisticaSync() {
         cliente_nome: clienteNome,
         cliente_telefone: logistica.telefone || null,
         observacoes: logistica.observacoes || null,
+        motorista_id: autoMotoristaId,
       };
 
       console.log('[ContratoLogisticaSync] Dados da tarefa:', tarefaData);
