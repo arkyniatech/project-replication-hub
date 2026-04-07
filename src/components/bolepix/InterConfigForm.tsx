@@ -284,7 +284,7 @@ export function InterConfigForm() {
                   />
                 </div>
                 {certFile && (
-                  <p className="text-xs text-green-600">✓ {certFile.name}</p>
+                  <p className="text-xs text-primary">✓ {certFile.name}</p>
                 )}
                 {!certFile && credential?.certificado_pem_encrypted && (
                   <p className="text-xs text-muted-foreground">✓ Certificado já configurado</p>
@@ -302,7 +302,7 @@ export function InterConfigForm() {
                   />
                 </div>
                 {keyFile && (
-                  <p className="text-xs text-green-600">✓ {keyFile.name}</p>
+                  <p className="text-xs text-primary">✓ {keyFile.name}</p>
                 )}
                 {!keyFile && credential?.chave_privada_pem_encrypted && (
                   <p className="text-xs text-muted-foreground">✓ Chave já configurada</p>
