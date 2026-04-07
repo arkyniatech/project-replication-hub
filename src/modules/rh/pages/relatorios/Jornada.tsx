@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Clock, AlertCircle, CheckCircle2, Download, Filter, Eye } from 'lucide-react';
 import { useRhStore } from '../../store/rhStore';
-import { buildJornadaKPIs, formatHours } from '../../utils/seedRhMissing8';
+import { buildJornadaKPIs, formatHours } from '../../utils/helpers';
 import { format, startOfMonth, endOfMonth, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';

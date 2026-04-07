@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Shield, AlertCircle, CheckCircle2, Calendar, Download, Filter, Plus } from 'lucide-react';
 import { useRhStore } from '../../store/rhStore';
-import { buildComplianceStats } from '../../utils/seedRhMissing8';
+import { buildComplianceStats } from '../../utils/helpers';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';

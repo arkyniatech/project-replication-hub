@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, Users, Percent, Download, Filter } from 'lucide-react';
 import { useRhStore } from '../../store/rhStore';
-import { buildRhFinance, currency } from '../../utils/seedRhMissing8';
+import { buildRhFinance, currency } from '../../utils/helpers';
 import { format, subMonths } from 'date-fns';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';

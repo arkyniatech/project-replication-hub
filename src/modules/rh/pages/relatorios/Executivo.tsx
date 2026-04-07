@@ -69,7 +69,7 @@ export default function RelatorioExecutivo() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">Absenteísmo</p>
                 <p className="text-2xl font-bold">{absenteismo}%</p>
-                <p className="text-xs text-muted-foreground">{ausencias.length} ausências</p>
+                <p className="text-xs text-muted-foreground">0 ausências</p>
               </div>
             </div>
           </CardContent>

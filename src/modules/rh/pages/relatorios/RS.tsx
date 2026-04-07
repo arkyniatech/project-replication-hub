@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, Users, Clock, Download, Filter } from 'lucide-react';
 import { useRhStore } from '../../store/rhStore';
 import { useRhModule } from '../../providers/RhModuleProvider';
-import { buildRsFunnel } from '../../utils/seedRhMissing8';
+import { buildRsFunnel } from '../../utils/helpers';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
