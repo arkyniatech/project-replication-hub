@@ -1,82 +1,109 @@
 
 
-## Analise e Melhorias - Gestao de Equipamentos (6 abas)
+## Analise do Fluxo de Conferencia — Problemas Encontrados
 
-### Problemas Identificados
-
----
-
-#### 1. Layout: Outlet duplicado dentro de TabsContent (BUG ESTRUTURAL)
-
-O `EquipamentosLayout.tsx` renderiza `<Outlet />` dentro de **cada** `TabsContent`. Porem, o React Router so renderiza **um** Outlet. O resultado: o conteudo so aparece quando o `TabsContent` ativo corresponde ao valor correto. Funciona, mas e fragil e gera 6 Outlets redundantes no DOM.
-
-**Correcao**: Renderizar `<Outlet />` uma unica vez, fora dos `TabsContent`. Remover todos os `TabsContent` e usar as tabs apenas como navegacao (que ja e o caso — `handleTabChange` faz `navigate()`).
+Apos analisar o codigo em detalhe, o fluxo de Conferencia **nao pode funcionar end-to-end** no estado atual. Existem problemas estruturais que impedem o teste.
 
 ---
 
-#### 2. Agenda: Linhas muito pequenas (32px) e grid comprimido
+### Problemas Criticos
 
-A agenda usa `style={{ height: '32px' }}` para cada linha e colunas de `w-8` (32px) para os dias. Isso torna a visualizacao ilegivel, especialmente com 30 colunas. O label da data (`dd/MM`) tambem e cortado em 32px.
+#### 1. Dados de equipamentos vem do store local (vazio)
 
-**Correcao**:
-- Aumentar altura das linhas para `h-10` (40px)
-- Aumentar largura das colunas de dias para `w-12` (48px) 
-- Garantir que o grid use `overflow-x-auto` com scroll horizontal suave
-- Adicionar header sticky para a coluna de equipamento
+`gerarItens()` em `conferenciaStore.ts` (linha 270) usa `useEquipamentosStore.getState()` para obter equipamentos, grupos e modelos. Esse store local (Zustand + localStorage) esta **vazio** porque os dados reais estao no Supabase. Resultado: a sessao e criada mas **sem nenhum item para contar**.
 
----
+#### 2. `canEdit()` usa localStorage mock (inseguro)
 
-#### 3. Tabela de Precos: Usando store local (Zustand) em vez de Supabase
+Linha 750-753: `canEdit()` verifica `localStorage.getItem('rh-dev-profile')` em vez de usar roles reais do Supabase. Funciona por acaso (default 'admin'), mas e inseguro e inconsistente com o resto do sistema.
 
-`TabelaPrecos.tsx` importa `useEquipamentosStore` para obter `grupos` e `modelos`. Esse store local (persist/localStorage) pode estar vazio ou desatualizado. As outras abas (Lista, Catalogo) ja usam `useSupabaseGrupos` e `useSupabaseModelos`.
+#### 3. Usuario hardcoded como "demo-user"
 
-**Correcao**: Substituir `useEquipamentosStore` por `useSupabaseGrupos` + `useSupabaseModelos` no `TabelaPrecos.tsx`. Adaptar os campos (`nome_comercial` vs `nomeComercial`, `grupo_id` vs `grupoId`, `tabela_por_loja` vs `tabelaPorLoja`).
+Linhas 72-76 em `ConferenciaEstoque.tsx` e linha 97-101 em `ContagemForm.tsx`: o usuario e sempre `{ id: "demo-user", nome: "Demo User", perfil: localStorage... }`. Nao usa o usuario autenticado real.
 
----
+#### 4. Toda a persistencia e local (localStorage)
 
-#### 4. Conferencia de Estoque: Mesma fonte de dados errada
-
-`ConferenciaEstoque.tsx` usa `useEquipamentosStore` para `grupos`, `modelos` e `lojas`. Dados podem estar vazios.
-
-**Correcao**: Migrar para hooks Supabase (`useSupabaseGrupos`, `useSupabaseModelos`). Para `lojas`, usar `useMultiunidade().lojas`.
+Sessoes, itens, divergencias, ajustes — tudo fica apenas no localStorage do browser. Nao ha tabelas no Supabase para conferencia. Dados nao sao compartilhados entre usuarios.
 
 ---
 
-#### 5. Catalogo: Contagem de equipamentos usando store local
+### Plano de Correcao
 
-`CatalogoGruposModelos.tsx` usa `useEquipamentosStore().equipamentos` para contar itens por grupo (`getEquipamentosCount`). Esse dado esta no store local e pode estar vazio.
+Para que o fluxo funcione de verdade, preciso migrar o modulo para Supabase:
 
-**Correcao**: Usar `useSupabaseEquipamentos` para obter a contagem real.
-
----
-
-#### 6. Headers duplicados entre Layout e paginas internas
-
-O `EquipamentosLayout` ja renderiza titulo "Gestao de Equipamentos". Mas cada pagina filha tambem renderiza seu proprio header (ex: "Equipamentos" na Lista, "Transferencias entre Lojas", "Agenda de Disponibilidade"). Isso cria redundancia visual.
-
-**Correcao**: Remover os headers e breadcrumbs das paginas filhas (Lista, Catalogo, Agenda, Transferencias, Precos, Conferencia) ja que o Layout cuida do contexto. Manter apenas o conteudo funcional.
-
----
-
-#### 7. Transferencias: Padding duplo do container
-
-`Transferencias.tsx` usa `className="container mx-auto p-6"` mas o layout pai ja aplica `container mx-auto p-4`. Resultado: padding dobrado.
-
-**Correcao**: Remover `container mx-auto p-6` do componente Transferencias, usar apenas `space-y-6`.
-
----
-
-### Plano de Implementacao
-
-| # | Tarefa | Arquivos |
+| # | Tarefa | Detalhes |
 |---|--------|----------|
-| 1 | Simplificar EquipamentosLayout — remover TabsContent duplicados, usar Outlet unico | `EquipamentosLayout.tsx` |
-| 2 | Melhorar Agenda — linhas maiores, colunas mais largas, scroll horizontal | `AgendaDisponibilidade.tsx` |
-| 3 | Migrar TabelaPrecos para Supabase hooks | `TabelaPrecos.tsx` |
-| 4 | Migrar ConferenciaEstoque para Supabase hooks | `ConferenciaEstoque.tsx` |
-| 5 | Corrigir contagem no Catalogo usando Supabase | `CatalogoGruposModelos.tsx` |
-| 6 | Remover headers/breadcrumbs redundantes das paginas filhas | Todas as 6 paginas |
-| 7 | Corrigir padding duplo em Transferencias | `Transferencias.tsx` |
+| 1 | **Criar tabelas no Supabase** | `sessoes_contagem`, `itens_contagem`, `divergencias_contagem`, `ajustes_contagem` com RLS adequado |
+| 2 | **Criar hooks Supabase** | `useSupabaseConferencia` com queries/mutations para substituir o store local |
+| 3 | **Gerar itens a partir do Supabase** | `gerarItens()` deve buscar de `equipamentos` no Supabase (ja existem dados reais la) |
+| 4 | **Usar usuario autenticado real** | Substituir "demo-user" por `supabase.auth.getUser()` |
+| 5 | **Usar roles reais** | `canEdit()` deve usar `has_role()` do Supabase em vez de localStorage |
+| 6 | **Adaptar componentes** | `ConferenciaEstoque.tsx`, `ContagemForm.tsx`, `SessoesList.tsx`, `ResolucaoDivergencias.tsx` para usar os novos hooks |
 
-### Sem alteracao de banco de dados necessaria
+### Tabelas Propostas
+
+```text
+sessoes_contagem
+├── id (uuid, PK)
+├── loja_id (uuid, FK lojas)
+├── display_no (text)
+├── status (text: ABERTA, EM_CONTAGEM, EM_REVISAO, AJUSTADA, FECHADA)
+├── filtros (jsonb)
+├── observacao (text)
+├── criada_por (uuid, FK auth.users)
+├── finalizada_em (timestamptz)
+├── created_at / updated_at
+└── log (jsonb)
+
+itens_contagem
+├── id (uuid, PK)
+├── sessao_id (uuid, FK sessoes_contagem)
+├── loja_id (uuid)
+├── tipo (text: SERIE, SALDO)
+├── codigo (text)
+├── descricao (text)
+├── grupo_nome (text)
+├── modelo_nome (text)
+├── qtd_contada (integer, nullable)
+├── observacao (text)
+└── created_at / updated_at
+
+divergencias_contagem
+├── id (uuid, PK)
+├── sessao_id (uuid, FK)
+├── item_id (uuid, FK itens_contagem)
+├── qtd_sistema (integer)
+├── qtd_contada (integer)
+├── delta (integer)
+├── perc (numeric)
+├── justificativa (text)
+├── acao (text)
+├── status (text)
+├── anexos (jsonb)
+├── exige_aprovacao (boolean)
+├── aprovacao (jsonb)
+└── created_at / updated_at
+
+ajustes_contagem
+├── id (uuid, PK)
+├── sessao_id (uuid, FK)
+├── item_id (uuid, FK)
+├── delta (integer)
+├── motivo (text)
+├── status (text: PROPOSTO, APROVADO, REJEITADO)
+├── criado_por (uuid)
+├── observacao (text)
+└── created_at / updated_at
+```
+
+### Sem mudanca de banco necessaria para o plano atual
+
+A migracao criara as 4 tabelas novas + policies RLS. Nenhuma tabela existente sera alterada.
+
+### Resultado Esperado
+
+Apos a migracao:
+- Criar sessao buscara equipamentos reais do Supabase
+- Contagem sera persistida no banco, compartilhada entre usuarios
+- Divergencias calculadas com dados reais do sistema
+- Permissoes baseadas em roles reais (has_role)
 
