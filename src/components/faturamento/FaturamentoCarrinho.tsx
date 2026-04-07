@@ -18,7 +18,8 @@ import {
   Download,
   MessageSquare,
   AlertTriangle,
-  DollarSign
+  DollarSign,
+  QrCode
 } from "lucide-react";
 import { useFaturamentoStore } from "@/stores/faturamentoStore";
 import { FaturamentoPreviewModal } from "./FaturamentoPreviewModal";
@@ -29,6 +30,8 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
+import { BackendInterAdapter } from "@/services/bolepix/BackendInterAdapter";
+import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
 
 export function FaturamentoCarrinho() {
   const { lojaAtual } = useMultiunidade();
@@ -43,6 +46,7 @@ export function FaturamentoCarrinho() {
   } = useFaturamentoStore();
   
   const { can } = usePermissions();
+  const { createCobranca } = useSupabaseCobrancasInter(lojaAtual?.id);
   
   const [vencimento, setVencimento] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
   const [formaPagamento, setFormaPagamento] = useState<'PIX' | 'BOLETO' | 'OUTRO'>('PIX');
@@ -53,6 +57,7 @@ export function FaturamentoCarrinho() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [isEmitindo, setIsEmitindo] = useState(false);
   const [isGerandoCobranca, setIsGerandoCobranca] = useState(false);
+  const [isEmitindoInter, setIsEmitindoInter] = useState(false);
   
   const itensSelecionados = lancamentosFaturaveis.filter(l => l.selecionado);
   const clientesSelecionados = [...new Set(itensSelecionados.map(l => l.clienteId))];
@@ -350,6 +355,42 @@ export function FaturamentoCarrinho() {
               {isGerandoCobranca ? "Gerando..." : "Gerar Cobrança"}
             </Button>
           )}
+
+          {/* Emitir BolePix Inter */}
+          {formaPagamento !== 'OUTRO' && (
+            <Button
+              variant="outline"
+              className="w-full border-primary text-primary hover:bg-primary/10"
+              onClick={async () => {
+                if (!clienteSelecionado || !lojaAtual) return;
+                setIsEmitindoInter(true);
+                try {
+                  const adapter = new BackendInterAdapter(lojaAtual.id);
+                  const result = await adapter.emitCharge({
+                    valor: totais.total,
+                    vencimento,
+                    sacado: {
+                      nome: clienteSelecionado.clienteNome,
+                      cpfCnpj: '',
+                      email: '',
+                    },
+                    pixHabilitado: formaPagamento === 'PIX',
+                    idempotencyKey: `FAT-${Date.now()}`,
+                  });
+                  toast.success("BolePix Inter emitido!", {
+                    description: `Código: ${result.codigoSolicitacao}`
+                  });
+                } catch (error: any) {
+                  toast.error("Erro ao emitir BolePix", { description: error.message });
+                } finally {
+                  setIsEmitindoInter(false);
+                }
+              }}
+              disabled={!podeEmitir || isEmitindoInter}
+            >
+              <QrCode className="mr-2 h-4 w-4" />
+              {isEmitindoInter ? "Emitindo Inter..." : "Emitir BolePix Inter"}
+            </Button>
 
           {/* Envios */}
           <div className="flex gap-2">
