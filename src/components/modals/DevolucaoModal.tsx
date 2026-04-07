@@ -273,6 +273,7 @@ export default function DevolucaoModal({
         if (tituloError) {
           console.error('[DevolucaoModal] Erro ao criar título:', tituloError);
         }
+      }
 
       // Publicar evento para manutenção (Amarela)
       window.dispatchEvent(new CustomEvent('contrato:devolucaoConfirmada', {
