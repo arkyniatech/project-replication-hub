@@ -24,31 +24,35 @@ export function IntegrationAlerts({
   const [countIssues, setCountIssues] = useState<Array<{ equipamentoId: string; sessao: any }>>([]);
 
   useEffect(() => {
-    const transfers: typeof transferIssues = [];
-    const counts: typeof countIssues = [];
+    async function checkAlerts() {
+      const transfers: typeof transferIssues = [];
+      const counts: typeof countIssues = [];
 
-    equipamentoIds.forEach(equipId => {
-      // Check transfers
-      const transferCheck = checkEquipmentInTransfer(equipId, lojaId);
-      if (transferCheck.isInTransfer && transferCheck.transferencia) {
-        transfers.push({
-          equipamentoId: equipId,
-          transferencia: transferCheck.transferencia
-        });
+      for (const equipId of equipamentoIds) {
+        // Check transfers
+        const transferCheck = checkEquipmentInTransfer(equipId, lojaId);
+        if (transferCheck.isInTransfer && transferCheck.transferencia) {
+          transfers.push({
+            equipamentoId: equipId,
+            transferencia: transferCheck.transferencia
+          });
+        }
+
+        // Check blind count (async)
+        const countCheck = await checkEquipmentInBlindCount(equipId, lojaId);
+        if (countCheck.isBlocked && countCheck.sessao) {
+          counts.push({
+            equipamentoId: equipId,
+            sessao: countCheck.sessao
+          });
+        }
       }
 
-      // Check blind count
-      const countCheck = checkEquipmentInBlindCount(equipId, lojaId);
-      if (countCheck.isBlocked && countCheck.sessao) {
-        counts.push({
-          equipamentoId: equipId,
-          sessao: countCheck.sessao
-        });
-      }
-    });
+      setTransferIssues(transfers);
+      setCountIssues(counts);
+    }
 
-    setTransferIssues(transfers);
-    setCountIssues(counts);
+    checkAlerts();
   }, [equipamentoIds, lojaId]);
 
   if (transferIssues.length === 0 && countIssues.length === 0) {
