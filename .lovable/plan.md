@@ -1,134 +1,109 @@
 
-## Análise dos Módulos: RH, Relatórios, Veículos e Compras
+
+## Analise Completa: RH, Relatorios, Veiculos, Compras
+
+### Diagnostico
+
+Todos os 4 modulos compartilham o mesmo problema fundamental: **dependem de dados mock hardcoded ou Zustand/localStorage** em vez do Supabase. Apenas `Pessoas.tsx` e `PessoaDetalhes.tsx` no modulo RH usam Supabase real.
 
 ---
 
-### RH & PESSOAS — Problemas Encontrados
+### RH & Pessoas — Problemas por Pagina
 
-#### 1. Maioria das páginas usa Zustand/localStorage em vez de Supabase
+| Pagina | Fonte de Dados | Problema |
+|--------|---------------|----------|
+| Dashboard.tsx | Hardcoded (247, 8.2%, etc) | KPIs ficticios, graficos estaticos |
+| Vagas.tsx | `mockVagas` hardcoded | Nenhum dado real |
+| Candidatos.tsx | `mockCandidatos` hardcoded | Nenhum dado real |
+| Admissoes.tsx | `mockAdmissoes` hardcoded | Nenhum dado real |
+| Ferias.tsx | `feriasMock` + `useRhStore` | Dados localStorage |
+| BancoHoras.tsx | `useRhStore` (bancoHorasMovs) | Dados localStorage |
+| Ponto.tsx | `mockPontoData` hardcoded | Nenhum dado real |
+| Holerites.tsx | `useRhStore` + mock inline | Dados localStorage |
+| Beneficios.tsx | `mockBeneficios` + `useRhStore` | Dados ficticios |
+| Aprovacoes.tsx | Mock inline + `useRhStore` | Dados ficticios |
+| Documentos.tsx | `mockTemplates` + `useRhStore` | Dados ficticios |
+| Offboarding.tsx | Mock inline hardcoded | Nenhum dado real |
+| SSMA.tsx | `useRhStore` | Dados localStorage |
+| Portal/*.tsx | `useRhStore` | Dados localStorage |
+| Relatorios/*.tsx | `useRhStore` + seed funcs | Dados localStorage |
 
-**Páginas que usam Supabase (OK):**
-- `Pessoas.tsx` — usa `useSupabasePessoas` ✅
-- `PessoaDetalhes.tsx` — usa `useSupabasePessoas` + `useSupabasePessoaMovimentos` ✅
+**Seed/Mock arquivos a remover**: `seedRhContent.ts` (521 linhas), `seedRhMissing8.ts` (391 linhas), e o seeding no `RhModuleProvider.tsx`.
 
-**Páginas que usam `useRhStore` (Zustand/localStorage — dados locais/mock):**
-- `Ferias.tsx` — dados mock hardcoded
-- `BancoHoras.tsx` — usa `useRhStore().bancoHorasMovs` + seed local
-- `Ausencias.tsx` — usa `useRhStore().ausencias`
-- `Holerites.tsx` — usa `useRhStore().pessoas`
-- `Beneficios.tsx` — usa `useRhStore().beneficios`
-- `portal/Holerites.tsx` — usa `useRhStore()`
-- `portal/Ferias.tsx` — usa `useRhStore().ferias`
-- Relatórios: `Executivo.tsx`, `Financeiro.tsx`, `Compliance.tsx` — todos usam `useRhStore`
+### Relatorios — Problemas
 
-**Páginas com dados 100% mock/hardcoded:**
-- `Dashboard.tsx` — KPIs hardcoded (Headcount: 247, Turnover: 8.2%, etc.)
-- `Ponto.tsx` — dados mock inline, sem store nem Supabase
+- `Relatorios.tsx` linhas 318-327: `estatisticas` usa `clienteStorage`, `equipamentoStorage`, `contratoStorage`, `faturaStorage` (localStorage deprecated). Deve usar queries Supabase.
+- A aba de Faturas ja funciona com Supabase (`useSupabaseFaturasRelatorio`).
+- `UtilizacaoTab` usa `relatorioUtilizacaoStore` (Zustand local).
 
-**Impacto**: Após login, todas essas páginas mostram dados fictícios ou vazios. Apenas Pessoas e PessoaDetalhes mostram dados reais.
+### Veiculos — 100% Local
 
-**Correção**: Migrar progressivamente para Supabase. Priorizar Dashboard (KPIs calculados) e páginas mais acessadas.
+- 12 paginas, todas usam `useVeiculosStore` (Zustand persist localStorage)
+- Nenhuma tabela no Supabase
+- ~24 arquivos dependentes (componentes, utils, reports)
 
-#### 2. Dashboard RH com KPIs estáticos
+### Compras — 100% Local
 
-`Dashboard.tsx` (linhas 17-23) tem valores fixos como `{ title: 'Headcount', value: '247' }`. Deveria calcular a partir da tabela `pessoas`.
-
-**Correção**: Usar `useSupabasePessoas` para calcular headcount, turnover, etc.
-
-#### 3. Tabelas de domínio do RH não existem no Supabase
-
-Não existem tabelas para: `ferias`, `banco_horas`, `ausencias`, `holerites`, `beneficios`, `ponto`. Apenas `pessoas` e `produtividade_manutencao` existem.
-
-**Correção (grande escopo)**: Criar tabelas no Supabase. Dado o volume, sugerir migração faseada.
-
----
-
-### RELATÓRIOS — Problemas Encontrados
-
-#### 4. Estatísticas usam localStorage (`clienteStorage`, `equipamentoStorage`, etc.)
-
-`Relatorios.tsx` (linhas 318-327) busca contagens de `clienteStorage.getAll()`, `equipamentoStorage.getAll()`, etc. Essas são storages locais que **não refletem dados do Supabase**.
-
-**Impacto**: Os cards de "Contratos Ativos", "Equipamentos Disponíveis", "Faturas Pendentes" e "Clientes Ativos" mostram 0 ou dados desatualizados.
-
-**Correção**: Substituir por queries Supabase (contratos, equipamentos, faturas, clientes — todas essas tabelas já existem no banco).
-
-#### 5. Aba de Utilização usa store Zustand
-
-`UtilizacaoTab` é alimentada por `useRelatorioUtilizacaoStore` (Zustand). Dados provavelmente mock/vazios.
-
-**Correção**: Calcular utilização a partir das tabelas `contrato_itens` e `equipamentos` no Supabase.
-
-#### 6. Aba de Faturas funciona com Supabase ✅
-
-`useSupabaseFaturasRelatorio` busca dados reais. PDF e CSV são gerados. **OK**.
+- 7 paginas, todas usam `useComprasStore` ou `useAlmoxStore` (Zustand persist)
+- Nenhuma tabela no Supabase
+- ~14 arquivos dependentes
 
 ---
 
-### VEÍCULOS — Problemas Encontrados
+### Plano de Implementacao
 
-#### 7. Módulo inteiro usa Zustand/localStorage (`useVeiculosStore`)
+**Foco: remover dados mock/ficticios e conectar ao Supabase onde possivel. Modulos sem tabelas (Veiculos/Compras) ficam com telas vazias funcionais (empty states) em vez de dados falsos.**
 
-**Todas** as 24 páginas/componentes do módulo de veículos usam `useVeiculosStore` (Zustand com `persist` = localStorage). Nenhuma tabela de veículos existe no Supabase.
+#### Etapa 1 — RH Dashboard: KPIs reais da tabela `pessoas`
 
-Páginas afetadas:
-- Cadastros: Veículos, Postos, Óleos, Oficinas, Serviços
-- Lançamentos: Abastecimentos, Trocas de Óleo, Manutenções
-- Relatórios: Eficiência, Custos, Disponibilidade, Manutenções
-- Configurações
+Reescrever `Dashboard.tsx` para usar `useSupabasePessoas()`:
+- Headcount = `pessoas.filter(p => p.situacao === 'ativo').length`
+- Distribuicao por cargo/loja (agrupamento real)
+- Remover arrays hardcoded `kpiData`, `headcountData`, `distribuicaoData`
+- KPIs que nao tem dados reais (turnover, HE, absenteismo) mostrar "—" ou "N/D"
 
-**Impacto**: Dados ficam apenas no navegador do usuário. Sem persistência real, sem compartilhamento entre usuários.
+#### Etapa 2 — RH: Remover todos os mocks inline
 
-**Correção (grande escopo)**: Criar tabelas no Supabase e migrar hooks. Módulo completo precisaria de ~5-8 tabelas.
+Para cada pagina com `mockVagas`, `mockCandidatos`, `mockAdmissoes`, `mockPontoData`, `mockBeneficios`, etc:
+- Remover arrays mock
+- Mostrar empty state: "Nenhum registro encontrado"
+- Manter formularios/modais funcionais (sem submit real, apenas UI)
+- Paginas que usam `useRhStore` para `pessoas` trocar por `useSupabasePessoas()`
 
----
+#### Etapa 3 — RhModuleProvider: Remover seeding
 
-### COMPRAS & ESTOQUE — Problemas Encontrados
+- Remover imports de `seedRhContent` e `seedRhMissing8`
+- Remover logica de seed no `useEffect`
+- Manter Provider apenas para scope/filters/devProfile
 
-#### 8. Módulo inteiro usa Zustand/localStorage
+#### Etapa 4 — Deletar arquivos de seed
 
-`useComprasStore` e `useAlmoxStore` são ambos Zustand com `persist`. Nenhuma tabela de compras/estoque existe no Supabase.
+- `src/modules/rh/utils/seedRhContent.ts`
+- `src/modules/rh/utils/seedRhMissing8.ts`
 
-Páginas afetadas:
-- PainelUnificado, Requisições, Cotações, PedidosCompra, Recebimento
-- EstoqueUnificado, CatálogoItens, Movimentos, Contagem
+#### Etapa 5 — Relatorios: Estatisticas do Supabase
 
-**Impacto**: Mesmo problema — dados locais, sem persistência real.
+Reescrever `estatisticas` em `Relatorios.tsx`:
+- Remover imports de `clienteStorage`, `equipamentoStorage`, `contratoStorage`, `faturaStorage`
+- Usar queries Supabase inline: `supabase.from('contratos').select('id, status')`, etc.
+- Buscar contagens reais de contratos, equipamentos, faturas, clientes
 
-#### 9. PainelUnificado com dados mock inline
+#### Etapa 6 — Veiculos e Compras: Limpar mock data
 
-`PainelUnificado.tsx` (linhas 14-27) tem `leadTimeData` e `estoqueData` hardcoded.
-
-**Correção**: Quando migrado para Supabase, calcular a partir dos dados reais.
-
----
-
-### Resumo — Mapa de Maturidade
-
-| Módulo | Supabase | Zustand/Local | Mock/Hardcoded |
-|--------|----------|--------------|----------------|
-| **RH - Pessoas** | ✅ Pessoas, PessoaDetalhes | | |
-| **RH - Outros** | | ❌ Férias, BH, Ausências, Holerites, Benefícios, Portal | ❌ Dashboard, Ponto |
-| **Relatórios** | ✅ Faturas | | ❌ Estatísticas (localStorage), Utilização |
-| **Veículos** | | ❌ Tudo (24 arquivos) | |
-| **Compras** | | ❌ Tudo (14 arquivos) | ❌ PainelUnificado |
+- Nos stores (`veiculosStore.ts`, `comprasStore.ts`, `almoxStore.ts`): remover qualquer seed/mock data pre-populado
+- Nas paginas: garantir empty states quando nao ha dados
+- **NAO** migrar para Supabase agora (escopo grande demais) — manter Zustand funcional mas sem dados ficticios
 
 ---
 
-### Plano de Melhorias (por prioridade)
+### Arquivos Modificados (estimativa)
 
-| # | Prioridade | Tarefa | Escopo |
-|---|-----------|--------|--------|
-| 1 | **ALTA** | Dashboard RH: calcular KPIs reais a partir de `pessoas` | 1 arquivo |
-| 2 | **ALTA** | Relatórios: substituir `clienteStorage`/etc por queries Supabase | 1 arquivo |
-| 3 | **MÉDIA** | RH Férias/BancoHoras: criar tabelas e migrar | Migration + 2 arquivos |
-| 4 | **MÉDIA** | Veículos: criar tabelas core (veiculos, abastecimentos, manutencoes) | Migration + hooks |
-| 5 | **MÉDIA** | Compras: criar tabelas core (requisicoes, cotacoes, pedidos_compra) | Migration + hooks |
-| 6 | **BAIXA** | Ponto: decidir se integra com sistema externo ou cria tabela | Avaliar |
-| 7 | **BAIXA** | Relatório de Utilização: migrar para Supabase | 1 hook + 1 componente |
+| Etapa | Arquivos |
+|-------|----------|
+| 1 | `Dashboard.tsx` |
+| 2 | `Vagas.tsx`, `Candidatos.tsx`, `Admissoes.tsx`, `Ferias.tsx`, `BancoHoras.tsx`, `Ponto.tsx`, `Holerites.tsx`, `Beneficios.tsx`, `Aprovacoes.tsx`, `Documentos.tsx`, `Offboarding.tsx`, `SSMA.tsx`, `Portal.tsx` e sub-paginas |
+| 3 | `RhModuleProvider.tsx` |
+| 4 | Deletar 2 arquivos |
+| 5 | `Relatorios.tsx` |
+| 6 | Verificar stores por seed data |
 
-### Recomendação
-
-Os itens **1 e 2** são correções rápidas (substituir dados mock/localStorage por queries Supabase em tabelas que já existem). Os itens **3-5** são migrações grandes que exigem criar múltiplas tabelas e reescrever hooks — sugiro fazê-los módulo por módulo.
-
-**Deseja que eu implemente os itens 1 e 2 agora (correções rápidas) e planeje a migração dos módulos maiores separadamente?**
