@@ -1,57 +1,73 @@
 
 
-## Diagnóstico: 2 problemas encontrados
+## Analise Completa - Modulos Principais
 
-### Problema 1: Erro ao gerar PIX/Boleto
-A Edge Function `inter-proxy` **nao tem nenhum log** — a chamada nunca chegou ao servidor. Possíveis causas:
-- Credenciais do Banco Inter (certificado, client_id, client_secret) **nao estao configuradas** nos secrets do Supabase — so existem secrets de UAZAPI, ZAPSIGN, e Supabase
-- Sem credenciais, a edge function retorna erro antes de chamar a API Inter
+### Resumo Executivo
 
-**Acao necessaria do usuario**: Configurar os secrets `INTER_CLIENT_ID`, `INTER_CLIENT_SECRET`, e o certificado PFX do Banco Inter no painel do Supabase (Settings > Edge Functions > Secrets). Sem isso, nenhuma emissao de boleto/PIX funcionara.
+Os modulos Dashboard, Clientes, Contratos e Logistica estao **estruturalmente OK**. Encontrei **3 problemas reais** que precisam de correcao imediata e **2 melhorias de dados** para o sistema funcionar corretamente com os dados atuais.
 
 ---
 
-### Problema 2: Faturamento nao mostra nada nos filtros
+### Problema 1: RLS bloqueando criacao de faturas (CRITICO)
 
-Encontrei **4 problemas combinados** que impedem o funcionamento:
+**Sintoma**: Erro `new row violates row-level security policy for table "faturas"` no console.
 
-1. **unidadeId padrao errado**: O store inicializa com `unidadeId: '1'` (hardcoded), mas a loja real e `cc51b7f2-79c5-4f46-adf5-86c891b1e01a`. Resultado: a query de contratos filtra pela loja `'1'` e nao encontra nada.
+**Causa**: A policy de INSERT na tabela `faturas` aceita roles `vendedor`, `gestor`, `financeiro`, `admin` — mas **nao inclui `master`**. Os dois usuarios do sistema (`contato@arkynia.com` e `admin@locacaoerp.com`) possuem role `master`, entao nao conseguem criar faturas.
 
-2. **Datas fora do periodo**: O contrato ativo tem `data_inicio: 2026-06-11` e `data_fim: 2026-07-09`. O filtro padrao usa o mes atual (Abril 2026). Como Junho-Julho nao intersecta com Abril, o contrato e filtrado fora.
+**Correcao**: Migration SQL para atualizar a policy:
+```sql
+DROP POLICY "Vendedor pode criar faturas" ON faturas;
+CREATE POLICY "Staff pode criar faturas" ON faturas FOR INSERT
+WITH CHECK (
+  (is_master(auth.uid()) OR has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'gestor') 
+   OR has_role(auth.uid(), 'financeiro') OR has_role(auth.uid(), 'admin'))
+  AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
+);
+```
 
-3. **Preco unitario zerado**: O `contrato_itens` do contrato ativo tem `preco_unitario = 0`. Mesmo corrigindo filtros, o valor calculado sera R$0.
+---
 
-4. **Loop infinito (Maximum update depth)**: O `FaturamentoGrid` tem um bug no `useEffect` que causa re-renders infinitos — provavelmente o `faturas` no array de dependencias muda de referencia a cada render.
+### Problema 2: Titulos com valor/saldo zerados
 
-### Plano de correcao
+Os 2 titulos do contrato ativo tem `valor = 0` e `saldo = 0`. Mesmo com o Faturamento e Contas a Receber funcionando, os KPIs mostrarao tudo zerado.
 
-**1. Corrigir unidadeId padrao no store** (`faturamentoStore.ts`)
-- Em vez de `'1'`, usar string vazia e deixar o `FaturamentoFilters` definir a loja real no primeiro render
+**Correcao**: Migration SQL:
+```sql
+UPDATE titulos SET valor = 100, saldo = 100 
+WHERE contrato_id = '53882f9f-3dd1-46ae-b75f-e48ee65cd81a';
+```
 
-**2. Corrigir loop infinito no FaturamentoGrid** (`FaturamentoGrid.tsx`)
-- Estabilizar dependencias do `useEffect` — usar `JSON.stringify(faturas)` ou memoizar a lista de `contratosFaturados`
+---
 
-**3. Sincronizar unidadeId real nos filtros** (`FaturamentoFilters.tsx`)
-- No mount, se `filtros.unidadeId` nao corresponde a nenhuma loja real, setar automaticamente para `lojaAtual.id`
+### Problema 3: NovoContratoV2.tsx e ContratoDetalhes.tsx com @ts-nocheck
 
-**4. Atualizar preco_unitario do contrato_itens** (migration SQL)
-- `UPDATE contrato_itens SET preco_unitario = 100 WHERE contrato_id = '53882f9f-...'`
+Esses dois arquivos criticos (2325 e 879 linhas) usam `@ts-nocheck`, o que significa que erros de tipo passam silenciosamente. Isso e um risco tecnico, mas **nao e urgente** — pode ser tratado em uma fase de refatoracao.
 
-**5. Ajustar datas do contrato para incluir Abril** (migration SQL)
-- `UPDATE contratos SET data_inicio = '2026-04-01', data_fim = '2026-04-30' WHERE id = '53882f9f-...'`
-- Ou: o usuario pode simplesmente ajustar os filtros para Junho-Julho
+---
 
-### Sobre o PIX/Boleto
-Nao ha correcao de codigo possivel sem as credenciais do Banco Inter. O usuario precisa:
-1. Ter conta PJ no Banco Inter
-2. Gerar certificado e credenciais de API no portal de desenvolvedores Inter
-3. Adicionar `INTER_CLIENT_ID`, `INTER_CLIENT_SECRET`, e `INTER_CERT_PFX_BASE64` nos secrets do Supabase
+### Status por Modulo
 
-### Arquivos a alterar
-| Arquivo | Alteracao |
+| Modulo | Status | Observacoes |
+|--------|--------|-------------|
+| **Dashboard** | OK | Cards de acao, KPIs, modais — tudo funcional. Dados reais do Supabase via hooks. |
+| **Clientes** | OK | CRUD completo, busca, Visao 360. Apenas 1 cliente cadastrado (dados de teste). |
+| **Contratos** | OK | Listagem, detalhes, renovacoes, aditivos. Contrato ativo com datas de Abril. |
+| **Logistica** | OK | Quadro Kanban, mobile driver, tarefas — estrutura completa. |
+| **Faturamento** | PARCIAL | Filtros corrigidos no ultimo ciclo, mas criacao de faturas bloqueada pela RLS (Problema 1). |
+| **Contas a Receber** | PARCIAL | Titulos com valor zerado (Problema 2). Apos correcao, KPIs e listagem funcionarao. |
+
+---
+
+### Plano de Correcao
+
+1. **Migration SQL**: Corrigir RLS da tabela `faturas` para incluir `is_master()`
+2. **Migration SQL**: Atualizar `valor` e `saldo` dos titulos existentes para R$100
+3. Nenhuma alteracao de codigo frontend necessaria
+
+### Arquivos Afetados
+
+| Recurso | Alteracao |
 |---------|-----------|
-| `src/stores/faturamentoStore.ts` | Corrigir `unidadeId` padrao |
-| `src/components/faturamento/FaturamentoGrid.tsx` | Corrigir loop infinito no useEffect |
-| `src/components/faturamento/FaturamentoFilters.tsx` | Auto-sincronizar loja real no mount |
-| Migration SQL | Atualizar `preco_unitario` e opcionalmente datas do contrato |
+| Policy `faturas` (INSERT) | Adicionar `is_master()` |
+| Tabela `titulos` (dados) | Atualizar valor/saldo para 100 |
 
