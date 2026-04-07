@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,17 +8,18 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   FileText, 
   Send, 
-  CreditCard, 
   CalendarIcon,
   Eye,
-  Download,
   MessageSquare,
   AlertTriangle,
   DollarSign,
-  QrCode
+  QrCode,
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { useFaturamentoStore } from "@/stores/faturamentoStore";
 import { FaturamentoPreviewModal } from "./FaturamentoPreviewModal";
@@ -32,6 +32,17 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { BackendInterAdapter } from "@/services/bolepix/BackendInterAdapter";
 import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
+import { supabase } from "@/integrations/supabase/client";
+import { generateNumber } from "@/lib/numeracao";
+
+interface TituloGerado {
+  id: string;
+  numero: string;
+  valor: number;
+  vencimento: string;
+  clienteNome: string;
+  clienteCpfCnpj: string;
+}
 
 export function FaturamentoCarrinho() {
   const { lojaAtual } = useMultiunidade();
@@ -39,10 +50,9 @@ export function FaturamentoCarrinho() {
     lancamentosFaturaveis, 
     kpis,
     config,
-    emitirFatura, 
-    gerarCobranca, 
-    enviarFatura,
-    addException
+    addException,
+    addTimelineEvent,
+    enviarFatura
   } = useFaturamentoStore();
   
   const { can } = usePermissions();
@@ -56,8 +66,12 @@ export function FaturamentoCarrinho() {
   const [showPreview, setShowPreview] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [isEmitindo, setIsEmitindo] = useState(false);
-  const [isGerandoCobranca, setIsGerandoCobranca] = useState(false);
-  const [isEmitindoInter, setIsEmitindoInter] = useState(false);
+  
+  // Post-emission state
+  const [showBolePixDialog, setShowBolePixDialog] = useState(false);
+  const [titulosGerados, setTitulosGerados] = useState<TituloGerado[]>([]);
+  const [isEmitindoBolePix, setIsEmitindoBolePix] = useState(false);
+  const [bolePixProgress, setBolePixProgress] = useState({ done: 0, total: 0 });
   
   const itensSelecionados = lancamentosFaturaveis.filter(l => l.selecionado);
   const clientesSelecionados = [...new Set(itensSelecionados.map(l => l.clienteId))];
@@ -65,7 +79,7 @@ export function FaturamentoCarrinho() {
   const totais = {
     base: itensSelecionados.reduce((sum, item) => sum + item.subtotal, 0),
     descontos: 0,
-    impostos: 0, // placeholder
+    impostos: 0,
     total: itensSelecionados.reduce((sum, item) => sum + item.subtotal, 0),
     itensSelecionados: itensSelecionados.length
   };
@@ -76,12 +90,11 @@ export function FaturamentoCarrinho() {
     : null;
 
   const handleEmitirFatura = async () => {
-    if (!clienteSelecionado) {
+    if (!clienteSelecionado || !lojaAtual) {
       toast.error("Selecione itens de apenas um cliente para faturamento");
       return;
     }
 
-    // Check inadimplência
     if (config.bloqueioInadimplencia && kpis.emAtraso > 0) {
       addException({
         tipo: 'INADIMPLENCIA_BLOQUEADA',
@@ -95,60 +108,157 @@ export function FaturamentoCarrinho() {
     setIsEmitindo(true);
     
     try {
-      const faturaId = emitirFatura({
-        unidadeId: lojaAtual?.id || 'loja1',
-        clienteId: clienteSelecionado.clienteId,
-        clienteNome: clienteSelecionado.clienteNome,
-        vencimento,
-        formaPagamento,
-        observacoes,
-        instrucoesCobranca
-      });
+      const user = (await supabase.auth.getUser()).data.user;
+      const faturaNumero = generateNumber('fatura', lojaAtual.id);
+      
+      // 1. Create fatura in Supabase
+      const { data: faturaData, error: faturaError } = await (supabase as any)
+        .from('faturas')
+        .insert({
+          numero: faturaNumero,
+          loja_id: lojaAtual.id,
+          cliente_id: clienteSelecionado.clienteId,
+          contrato_id: itensSelecionados[0]?.contratoId || null,
+          tipo: 'LOCACAO',
+          forma_preferida: formaPagamento,
+          vencimento: new Date(vencimento).toISOString(),
+          emissao: new Date().toISOString(),
+          total: totais.total,
+          observacoes: observacoes || null,
+          itens: itensSelecionados.map(item => ({
+            descricao: item.itemDescricao,
+            quantidade: item.quantidade,
+            precoUnitario: item.precoUnitario,
+            subtotal: item.subtotal,
+            contratoId: item.contratoId,
+            contratoNumero: item.contratoNumero,
+            periodo: item.periodo,
+          })),
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+
+      if (faturaError) throw faturaError;
+
+      // 2. Create titulo(s) in Supabase linked to fatura
+      const tituloNumero = generateNumber('titulo', lojaAtual.id);
+      const { data: tituloData, error: tituloError } = await (supabase as any)
+        .from('titulos')
+        .insert({
+          numero: tituloNumero,
+          loja_id: lojaAtual.id,
+          cliente_id: clienteSelecionado.clienteId,
+          contrato_id: itensSelecionados[0]?.contratoId || null,
+          fatura_id: faturaData.id,
+          categoria: 'LOCACAO',
+          emissao: new Date().toISOString().split('T')[0],
+          vencimento: vencimento,
+          valor: totais.total,
+          pago: 0,
+          saldo: totais.total,
+          forma: formaPagamento,
+          status: 'PENDENTE',
+          origem: 'FATURA',
+          observacoes: observacoes || `Fatura ${faturaNumero}`,
+          timeline: [{
+            tipo: 'EMISSAO',
+            descricao: `Título gerado via fatura ${faturaNumero}`,
+            usuario: user?.email || 'sistema',
+            timestamp: new Date().toISOString()
+          }]
+        })
+        .select('*, cliente:clientes(id, nome, razao_social, cpf, cnpj)')
+        .single();
+
+      if (tituloError) throw tituloError;
+
+      // Store generated titulos for BolePix dialog
+      const gerados: TituloGerado[] = [{
+        id: tituloData.id,
+        numero: tituloData.numero,
+        valor: tituloData.valor,
+        vencimento: tituloData.vencimento,
+        clienteNome: tituloData.cliente?.nome || tituloData.cliente?.razao_social || clienteSelecionado.clienteNome,
+        clienteCpfCnpj: tituloData.cliente?.cpf || tituloData.cliente?.cnpj || '',
+      }];
+
+      setTitulosGerados(gerados);
 
       toast.success("Fatura emitida com sucesso!", {
-        description: `Fatura gerada para ${clienteSelecionado.clienteNome}`,
-        action: {
-          label: "Ver Timeline",
-          onClick: () => setShowTimeline(true)
-        }
+        description: `Fatura ${faturaNumero} + Título ${tituloNumero} criados no Supabase`,
       });
 
-      // Auto-gerar cobrança se PIX/Boleto
+      // 3. If PIX/BOLETO, offer BolePix emission
       if (formaPagamento !== 'OUTRO') {
-        setTimeout(() => handleGerarCobranca(faturaId), 1000);
+        setShowBolePixDialog(true);
       }
 
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Erro ao emitir fatura:', error);
       toast.error("Erro ao emitir fatura", {
-        description: error instanceof Error ? error.message : "Erro desconhecido"
+        description: error.message || "Erro desconhecido"
       });
     } finally {
       setIsEmitindo(false);
     }
   };
 
-  const handleGerarCobranca = async (faturaId?: string) => {
-    if (!faturaId && !clienteSelecionado) return;
-    
-    setIsGerandoCobranca(true);
-    
-    try {
-      const result = await gerarCobranca(faturaId || 'temp');
-      
-      if (result.success) {
-        toast.success("Cobrança gerada com sucesso!", {
-          description: "PIX e boleto disponíveis para envio"
+  const handleEmitirBolePix = async () => {
+    if (!lojaAtual || titulosGerados.length === 0) return;
+
+    setIsEmitindoBolePix(true);
+    setBolePixProgress({ done: 0, total: titulosGerados.length });
+
+    const adapter = new BackendInterAdapter(lojaAtual.id);
+    let successCount = 0;
+
+    for (const titulo of titulosGerados) {
+      try {
+        const result = await adapter.emitCharge({
+          valor: titulo.valor,
+          vencimento: titulo.vencimento,
+          sacado: {
+            nome: titulo.clienteNome,
+            cpfCnpj: titulo.clienteCpfCnpj,
+            email: '',
+          },
+          pixHabilitado: formaPagamento === 'PIX',
+          idempotencyKey: `TIT-${titulo.id}-${Date.now()}`,
+          seuNumero: titulo.numero,
         });
-      } else {
-        toast.error("Erro ao gerar cobrança", {
-          description: result.error
+
+        // Save to cobrancas_inter
+        await createCobranca.mutateAsync({
+          titulo_id: titulo.id,
+          loja_id: lojaAtual.id,
+          status: result.status,
+          idempotency_key: `TIT-${titulo.id}-${Date.now()}`,
+          codigo_solicitacao: result.codigoSolicitacao,
+          history: [{
+            tsISO: new Date().toISOString(),
+            event: 'EMITIDO_VIA_FATURAMENTO',
+            payloadSummary: { valor: titulo.valor, vencimento: titulo.vencimento },
+          }],
         });
+
+        successCount++;
+        setBolePixProgress(prev => ({ ...prev, done: prev.done + 1 }));
+      } catch (error: any) {
+        console.error(`Erro ao emitir BolePix para título ${titulo.numero}:`, error);
+        toast.error(`Erro no título ${titulo.numero}`, { description: error.message });
       }
-    } catch (error) {
-      toast.error("Erro na comunicação com o banco");
-    } finally {
-      setIsGerandoCobranca(false);
     }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} BolePix emitido(s) com sucesso!`, {
+        description: "Cobranças vinculadas aos títulos da fatura"
+      });
+    }
+
+    setIsEmitindoBolePix(false);
+    setShowBolePixDialog(false);
+    setTitulosGerados([]);
   };
 
   const handleEnviarFatura = (canal: 'EMAIL' | 'WHATSAPP') => {
@@ -320,7 +430,7 @@ export function FaturamentoCarrinho() {
           </Card>
         </div>
 
-        {/* Actions */}
+        {/* Actions - Unified flow */}
         <div className="border-t p-4 space-y-3">
           {/* Preview */}
           <Button
@@ -333,64 +443,23 @@ export function FaturamentoCarrinho() {
             Preview da Fatura
           </Button>
 
-          {/* Emitir */}
+          {/* Single "Emitir Fatura" button - persists to Supabase + offers BolePix */}
           <Button
             className="w-full"
             onClick={handleEmitirFatura}
             disabled={!podeEmitir || isEmitindo || !can('financeiro', 'emitirFatura')}
           >
-            <FileText className="mr-2 h-4 w-4" />
-            {isEmitindo ? "Emitindo..." : "Emitir Fatura"}
+            {isEmitindo ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Emitindo...</>
+            ) : (
+              <><FileText className="mr-2 h-4 w-4" />Emitir Fatura</>
+            )}
           </Button>
 
-          {/* Cobrança */}
           {formaPagamento !== 'OUTRO' && (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => handleGerarCobranca()}
-              disabled={!podeEmitir || isGerandoCobranca || !can('financeiro', 'emitirFatura')}
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              {isGerandoCobranca ? "Gerando..." : "Gerar Cobrança"}
-            </Button>
-          )}
-
-          {/* Emitir BolePix Inter */}
-          {formaPagamento !== 'OUTRO' && (
-            <Button
-              variant="outline"
-              className="w-full border-primary text-primary hover:bg-primary/10"
-              onClick={async () => {
-                if (!clienteSelecionado || !lojaAtual) return;
-                setIsEmitindoInter(true);
-                try {
-                  const adapter = new BackendInterAdapter(lojaAtual.id);
-                  const result = await adapter.emitCharge({
-                    valor: totais.total,
-                    vencimento,
-                    sacado: {
-                      nome: clienteSelecionado.clienteNome,
-                      cpfCnpj: '',
-                      email: '',
-                    },
-                    pixHabilitado: formaPagamento === 'PIX',
-                    idempotencyKey: `FAT-${Date.now()}`,
-                  });
-                  toast.success("BolePix Inter emitido!", {
-                    description: `Código: ${result.codigoSolicitacao}`
-                  });
-                } catch (error: any) {
-                  toast.error("Erro ao emitir BolePix", { description: error.message });
-                } finally {
-                  setIsEmitindoInter(false);
-                }
-              }}
-              disabled={!podeEmitir || isEmitindoInter}
-            >
-              <QrCode className="mr-2 h-4 w-4" />
-              {isEmitindoInter ? "Emitindo Inter..." : "Emitir BolePix Inter"}
-            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Após emitir, você poderá gerar BolePix automaticamente
+            </p>
           )}
 
           {/* Envios */}
@@ -428,6 +497,65 @@ export function FaturamentoCarrinho() {
           </Button>
         </div>
       </div>
+
+      {/* Post-emission BolePix Dialog */}
+      <Dialog open={showBolePixDialog} onOpenChange={setShowBolePixDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              Fatura emitida com sucesso!
+            </DialogTitle>
+            <DialogDescription>
+              Deseja emitir BolePix (Banco Inter) para os títulos gerados?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            {titulosGerados.map(titulo => (
+              <div key={titulo.id} className="flex justify-between items-center p-3 border rounded-lg">
+                <div>
+                  <p className="font-medium text-sm">{titulo.numero}</p>
+                  <p className="text-xs text-muted-foreground">{titulo.clienteNome}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono font-medium">{formatCurrency(titulo.valor)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Venc: {format(new Date(titulo.vencimento), 'dd/MM/yyyy')}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {isEmitindoBolePix && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Emitindo {bolePixProgress.done}/{bolePixProgress.total}...
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowBolePixDialog(false);
+                setTitulosGerados([]);
+              }}
+              disabled={isEmitindoBolePix}
+            >
+              Pular
+            </Button>
+            <Button
+              onClick={handleEmitirBolePix}
+              disabled={isEmitindoBolePix}
+            >
+              <QrCode className="mr-2 h-4 w-4" />
+              {isEmitindoBolePix ? "Emitindo..." : "Emitir BolePix"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modals */}
       <FaturamentoPreviewModal
