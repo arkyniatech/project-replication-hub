@@ -149,7 +149,7 @@ export const useFaturamentoStore = create<FaturamentoState>()(
       emissaoAvulsaEvents: [],
       
       filtros: {
-        unidadeId: '1', // Garantir valor válido
+        unidadeId: '', // Será preenchido pelo FaturamentoFilters com a loja real
         dtIni: format(new Date(), 'yyyy-MM-01'),
         dtFim: format(new Date(), 'yyyy-MM-dd'),
       },

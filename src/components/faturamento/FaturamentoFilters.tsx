@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +32,16 @@ export function FaturamentoFilters() {
     ...filtros,
     unidadeId: unidadeIdValida
   });
+
+  // Auto-sincronizar loja real no mount se filtros.unidadeId está vazio ou inválido
+  useEffect(() => {
+    const lojaValida = lojasValidas.find(l => l.id === filtros.unidadeId);
+    if (!lojaValida && unidadeIdValida) {
+      const novosFiltros = { ...filtros, unidadeId: unidadeIdValida };
+      setLocalFiltros(novosFiltros);
+      setFiltros(novosFiltros);
+    }
+  }, [unidadeIdValida]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAplicar = () => {
     setFiltros(localFiltros);
