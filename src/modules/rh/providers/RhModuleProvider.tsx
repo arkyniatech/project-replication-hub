@@ -1,9 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { RhScopeContext, RhFilters } from '../types';
 import { useAcessosStore } from '../store/acessosStore';
-import { useRhStore } from '../store/rhStore';
-import { seedRhContent } from '../utils/seedRhContent';
-import { seedRhMissing8 } from '../utils/seedRhMissing8';
 
 interface RhModuleContextType {
   scope: RhScopeContext;
@@ -23,7 +20,6 @@ interface RhModuleProviderProps {
 
 export function RhModuleProvider({ children }: RhModuleProviderProps) {
   const { loadFromStorage: loadAcessos } = useAcessosStore();
-  const rhStore = useRhStore();
   
   const [scope, setScope] = useState<RhScopeContext>({
     unidadeAtiva: undefined,
@@ -38,23 +34,8 @@ export function RhModuleProvider({ children }: RhModuleProviderProps) {
   const [isLoading] = useState(false);
   const [devProfile, setDevProfile] = useState('admin');
 
-  // Carregar dados do localStorage na inicialização
   useEffect(() => {
-    // Load RH data
-    rhStore.loadFromStorage();
-    
-    // Load access data
     loadAcessos();
-    
-    // If no RH data, seed it with comprehensive content
-    if (rhStore.pessoas.length === 0) {
-      const seedData = seedRhContent();
-      const missingData = seedRhMissing8();
-      Object.entries({...seedData, ...missingData}).forEach(([key, value]) => {
-        (rhStore as any)[key] = value;
-      });
-      rhStore.saveToStorage();
-    }
   }, [loadAcessos]);
 
   const updateScope = (newScope: Partial<RhScopeContext>) => {
@@ -67,15 +48,7 @@ export function RhModuleProvider({ children }: RhModuleProviderProps) {
 
   return (
     <RhModuleContext.Provider
-      value={{
-        scope,
-        filters,
-        updateScope,
-        updateFilters,
-        isLoading,
-        devProfile,
-        setDevProfile
-      }}
+      value={{ scope, filters, updateScope, updateFilters, isLoading, devProfile, setDevProfile }}
     >
       {children}
     </RhModuleContext.Provider>

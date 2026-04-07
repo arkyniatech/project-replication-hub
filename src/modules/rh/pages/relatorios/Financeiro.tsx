@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { DollarSign, TrendingUp, Users, Percent, Download, Filter } from 'lucide-react';
 import { useRhStore } from '../../store/rhStore';
-import { buildRhFinance, currency } from '../../utils/seedRhMissing8';
+import { buildRhFinance, currency } from '../../utils/helpers';
 import { format, subMonths } from 'date-fns';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -242,7 +242,7 @@ export default function RelatorioFinanceiro() {
         <Card>
           <CardContent className="p-6 text-center">
             <Percent className="h-8 w-8 text-orange-500 mx-auto mb-2" />
-            <div className="text-2xl font-bold">{parseFloat(financeData.percentualBeneficios).toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{Number(financeData.percentualBeneficios).toFixed(1)}%</div>
             <div className="text-sm text-muted-foreground">% Benefícios</div>
           </CardContent>
         </Card>

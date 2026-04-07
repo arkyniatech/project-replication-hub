@@ -10,34 +10,58 @@ import {
   Plus,
   UserPlus,
   FileText,
-  CheckSquare
+  CheckSquare,
+  Loader2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-
-const kpiData = [
-  { title: 'Headcount', value: '247', trend: '+3', icon: Users, color: 'text-blue-600' },
-  { title: 'Turnover 12m', value: '8.2%', trend: '-0.5%', icon: TrendingUp, color: 'text-green-600' },
-  { title: 'HE Acumuladas', value: '142h', trend: '+18h', icon: Clock, color: 'text-orange-600' },
-  { title: 'Férias Vencidas', value: '12', trend: '-3', icon: Calendar, color: 'text-red-600' },
-  { title: 'Absenteísmo', value: '2.1%', trend: '+0.3%', icon: AlertTriangle, color: 'text-yellow-600' }
-];
-
-const headcountData = [
-  { month: 'Jan', value: 235 },
-  { month: 'Fev', value: 241 },
-  { month: 'Mar', value: 238 },
-  { month: 'Abr', value: 245 },
-  { month: 'Mai', value: 247 }
-];
-
-const distribuicaoData = [
-  { name: 'Administrativo', value: 45, color: '#3b82f6' },
-  { name: 'Comercial', value: 78, color: '#10b981' },
-  { name: 'Operacional', value: 98, color: '#f59e0b' },
-  { name: 'TI', value: 26, color: '#ef4444' }
-];
+import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
+import { useMemo } from 'react';
 
 export default function Dashboard() {
+  const { pessoas, isLoading } = useSupabasePessoas();
+
+  const stats = useMemo(() => {
+    const ativos = pessoas.filter(p => p.situacao === 'ativo');
+    const inativos = pessoas.filter(p => p.situacao === 'inativo');
+    const headcount = ativos.length;
+    const turnover = (ativos.length + inativos.length) > 0
+      ? ((inativos.length / (ativos.length + inativos.length)) * 100).toFixed(1)
+      : '0';
+
+    // Distribuição por cargo
+    const cargosMap: Record<string, number> = {};
+    ativos.forEach(p => {
+      const cargo = p.cargo || 'Sem cargo';
+      cargosMap[cargo] = (cargosMap[cargo] || 0) + 1;
+    });
+    const distribuicao = Object.entries(cargosMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([name, value], i) => ({
+        name,
+        value,
+        color: ['hsl(var(--primary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'][i] || '#94a3b8'
+      }));
+
+    return { headcount, turnover, distribuicao };
+  }, [pessoas]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const kpiData = [
+    { title: 'Headcount', value: String(stats.headcount), icon: Users, color: 'text-blue-600' },
+    { title: 'Turnover', value: `${stats.turnover}%`, icon: TrendingUp, color: 'text-green-600' },
+    { title: 'HE Acumuladas', value: 'N/D', icon: Clock, color: 'text-orange-600' },
+    { title: 'Férias Vencidas', value: 'N/D', icon: Calendar, color: 'text-red-600' },
+    { title: 'Absenteísmo', value: 'N/D', icon: AlertTriangle, color: 'text-yellow-600' }
+  ];
+
   return (
     <div className="space-y-6">
       {/* KPIs */}
@@ -48,12 +72,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between h-full">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">{kpi.title}</p>
-                  <div className="flex items-center gap-1">
-                    <p className="text-lg font-bold">{kpi.value}</p>
-                    <Badge variant="outline" className={`${kpi.color} text-xs px-1`}>
-                      {kpi.trend}
-                    </Badge>
-                  </div>
+                  <p className="text-lg font-bold">{kpi.value}</p>
                 </div>
                 <kpi.icon className={`h-6 w-6 ${kpi.color}`} />
               </div>
@@ -63,47 +82,59 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Evolução do Headcount */}
+        {/* Distribuição por Cargo */}
         <Card>
           <CardHeader>
-            <CardTitle>Evolução do Headcount</CardTitle>
+            <CardTitle>Distribuição por Cargo</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={150}>
-              <BarChart data={headcountData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#3b82f6" />
-              </BarChart>
-            </ResponsiveContainer>
+            {stats.distribuicao.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={stats.distribuicao}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {stats.distribuicao.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                Nenhum colaborador cadastrado
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Distribuição por Área */}
+        {/* Resumo */}
         <Card>
           <CardHeader>
-            <CardTitle>Distribuição por Área</CardTitle>
+            <CardTitle>Resumo</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={150}>
-              <PieChart>
-                <Pie
-                  data={distribuicaoData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={60}
-                  dataKey="value"
-                >
-                  {distribuicaoData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Colaboradores Ativos</span>
+                <Badge variant="default">{stats.headcount}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Inativos</span>
+                <Badge variant="secondary">{pessoas.filter(p => p.situacao === 'inativo').length}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Total Cadastrados</span>
+                <Badge variant="outline">{pessoas.length}</Badge>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
