@@ -899,6 +899,131 @@ export type Database = {
           },
         ]
       }
+      inter_credentials: {
+        Row: {
+          ambiente: string
+          ativo: boolean
+          certificado_pem_encrypted: string | null
+          chave_privada_pem_encrypted: string | null
+          client_id: string
+          client_secret_encrypted: string
+          created_at: string
+          created_by: string | null
+          escopos: string[]
+          id: string
+          loja_id: string
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          ambiente?: string
+          ativo?: boolean
+          certificado_pem_encrypted?: string | null
+          chave_privada_pem_encrypted?: string | null
+          client_id: string
+          client_secret_encrypted: string
+          created_at?: string
+          created_by?: string | null
+          escopos?: string[]
+          id?: string
+          loja_id: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          ambiente?: string
+          ativo?: boolean
+          certificado_pem_encrypted?: string | null
+          chave_privada_pem_encrypted?: string | null
+          client_id?: string
+          client_secret_encrypted?: string
+          created_at?: string
+          created_by?: string | null
+          escopos?: string[]
+          id?: string
+          loja_id?: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inter_credentials_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: true
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inter_webhook_events: {
+        Row: {
+          codigo_solicitacao: string
+          created_at: string
+          data_evento: string
+          erro: string | null
+          id: string
+          loja_id: string | null
+          nosso_numero: string | null
+          payload: Json | null
+          processado: boolean
+          status: string
+          tentativas: number
+          tipo: string
+          titulo_id: string | null
+          ultima_tentativa: string | null
+          valor: number | null
+        }
+        Insert: {
+          codigo_solicitacao: string
+          created_at?: string
+          data_evento?: string
+          erro?: string | null
+          id?: string
+          loja_id?: string | null
+          nosso_numero?: string | null
+          payload?: Json | null
+          processado?: boolean
+          status: string
+          tentativas?: number
+          tipo: string
+          titulo_id?: string | null
+          ultima_tentativa?: string | null
+          valor?: number | null
+        }
+        Update: {
+          codigo_solicitacao?: string
+          created_at?: string
+          data_evento?: string
+          erro?: string | null
+          id?: string
+          loja_id?: string | null
+          nosso_numero?: string | null
+          payload?: Json | null
+          processado?: boolean
+          status?: string
+          tentativas?: number
+          tipo?: string
+          titulo_id?: string | null
+          ultima_tentativa?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inter_webhook_events_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inter_webhook_events_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: false
+            referencedRelation: "titulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       logistica_tarefas: {
         Row: {
           cliente_id: string | null
