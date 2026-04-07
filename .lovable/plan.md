@@ -1,99 +1,34 @@
 
 
-## Revisão Completa do Site — Problemas Encontrados e Correções
+## Analise: Integração Contrato → Logistica (Tarefas Pendentes)
 
-### Build & TypeScript
-- **TypeScript compila sem erros** (0 erros)
-- **Dev server roda sem warnings** (apenas aviso de browserslist desatualizado)
+### O que ja funciona hoje
 
----
+O sistema **ja possui** exatamente o fluxo que voce descreveu:
 
-### Problemas Encontrados (por prioridade)
+1. **Trigger automatico no banco**: `criar_tarefa_logistica_ao_ativar_contrato` -- quando um contrato muda para status `ATIVO`, o trigger cria automaticamente uma tarefa de `ENTREGA` na tabela `logistica_tarefas` com status `PROGRAMADO`.
 
-#### 1. CRÍTICO — Páginas usando localStorage em vez de Supabase (dados vazios/inconsistentes)
+2. **Auto-atribuicao de motorista**: Se a loja tem apenas 1 motorista ativo, o trigger ja atribui automaticamente. Se tem mais de 1, a tarefa fica **sem motorista** (pendente de alocacao).
 
-| Arquivo | Problema |
-|---------|----------|
-| `ClienteVisao.tsx` | Usa `clienteStorage`, `contratoStorage`, `tituloStorage` — dados locais. Deveria usar hooks Supabase |
-| `Faturas.tsx` | Usa `faturaStorage` — e **nem está roteado** no App.tsx (página órfã) |
-| `Relatorios.tsx` | Usa `clienteStorage`, `equipamentoStorage`, `contratoStorage`, `faturaStorage` para abas que não usam hook Supabase |
-| `NovoContrato.tsx (V1)` | Usa storage local — porém é deprecated (V2 já existe) |
-| `NovoContratoV2.tsx` | Usa storage como fallback — aceitável mas gera duplicatas |
+3. **Visibilidade de tarefas nao atribuidas**: O layout da Logistica (`LogisticaLayout.tsx`) ja exibe um **badge com contagem** de tarefas sem motorista. O itinerario diario tem uma secao dedicada "Nao Atribuidas" com destaque amarelo.
 
-#### 2. ALTO — Componentes com TODOs funcionais ativos
+4. **Quadro Kanban**: O `QuadroLogistica.tsx` tem 6 colunas incluindo `AGENDAR` e `PROGRAMADO`, permitindo arrastar tarefas entre status.
 
-| Arquivo | TODO |
-|---------|------|
-| `PagarModal.tsx` | `comprovante_url: comprovante?.name` — upload fake, não persiste arquivo |
-| `FaturamentoCarrinho.tsx` | `unidadeId: 'loja1'` hardcoded |
-| `EmissaoAvulsaModal.tsx` | `generateNumber('fatura', '1')` — loja hardcoded |
-| `ContratoDetalhes.tsx` | `valorPago = 0` e `recebimentos: []` — financeiro não integrado |
-| `ContratoDetalhes.tsx` | `clienteBloqueado = false` — sempre false |
-| `OSDetalhe.tsx` | `// TODO: Generate PDF` — botão não funciona |
+5. **Realtime**: O hook `useContratoLogisticaSync` escuta mudancas via Supabase Realtime e invalida caches automaticamente.
 
-#### 3. MÉDIO — Componentes usando storage local para funcionalidades ativas
+6. **Protecoes contra duplicatas**: O trigger nao cria tarefa se o contrato ja era `ATIVO` (renovacao) ou se ja existe tarefa de entrega para aquele contrato.
 
-| Arquivo | Uso |
-|---------|-----|
-| `AbrirCaixaModal.tsx` | `caixaStorage` |
-| `CaixaDoDiaDrawer.tsx` | `caixaStorage` |
-| `LancarDespesaModal.tsx` | `caixaStorage` |
-| `DevolucaoModal.tsx` | `contratoStorage`, `tituloStorage`, `equipamentoStorage` |
-| `SubstituicaoModal.tsx` | `contratoStorage` |
-| `EstoqueEventHandler.tsx` | `equipamentoStorage` |
-| `GlobalSearch.tsx` | `clienteStorage`, `contratoStorage`, `tituloStorage`, `equipamentoStorage` |
-| `EnviarAvisoModal.tsx` | `clienteStorage`, `tituloStorage` |
-| `RegistrarContatoModal.tsx` | `clienteStorage`, `tituloStorage` |
-| `LayoutDocumentosForm.tsx` | `getAppConfig`, `setAppConfig` |
+### Conclusao
 
-#### 4. BAIXO — Páginas com `@ts-nocheck` (erros de tipo suprimidos)
+**Nenhuma alteracao necessaria.** O fluxo completo ja esta implementado:
 
-- `ContratoDetalhes.tsx`
-- `NovoContratoV2.tsx`
-- `AnalisePatrimonial.tsx`
-- `EquipamentosLista.tsx`
-- `Transferencias.tsx`
-- `AcessoTab.tsx` (RH)
-- `useSupabasePessoaMovimentos.ts` (RH)
+```text
+Contrato criado → Status muda p/ ATIVO → Trigger cria tarefa ENTREGA
+  → Tarefa aparece como "Nao Atribuida" na Logistica
+  → Gestor atribui motorista/veiculo
+  → Motorista executa entrega
+  → Entrega concluida → Trigger ativa contrato (se necessario)
+```
 
----
-
-### Plano de Correção (em ordem de impacto)
-
-#### Fase 1 — Corrigir funcionalidades quebradas (5 itens)
-
-1. **ClienteVisao.tsx → Supabase**: Substituir `clienteStorage/contratoStorage/tituloStorage` pelos hooks `useSupabaseClientes`, `useSupabaseContratos`, `useSupabaseTitulos`
-
-2. **ContratoDetalhes.tsx — Integrar recebimentos**: Buscar `recebimentos` do Supabase para calcular `valorPago` real em vez de `0`. Verificar `clienteBloqueado` via status do cliente
-
-3. **GlobalSearch.tsx → Supabase**: Migrar a busca global para usar dados reais do Supabase (clientes, contratos, equipamentos, títulos)
-
-4. **FaturamentoCarrinho.tsx — Usar loja ativa**: Substituir `'loja1'` hardcoded por `lojaAtual?.id` via `useMultiunidade`
-
-5. **Remover página órfã Faturas.tsx**: Não está no roteador e usa storage local. Pode ser deletada ou redirecionada para a aba de Faturas dentro de Relatórios
-
-#### Fase 2 — Corrigir modais com dados locais (4 itens)
-
-6. **DevolucaoModal.tsx → Supabase**: Ler/escrever contratos e equipamentos via hooks Supabase
-7. **SubstituicaoModal.tsx → Supabase**: Mesma migração
-8. **Caixa (AbrirCaixaModal/CaixaDoDiaDrawer/LancarDespesaModal)**: Verificar se `useSupabaseCaixa` cobre todos os cenários — se sim, migrar
-9. **Inadimplencia modais (EnviarAvisoModal/RegistrarContatoModal)**: Migrar para hooks Supabase
-
-#### Fase 3 — Qualidade de código (3 itens)
-
-10. **Remover `@ts-nocheck`** dos 7 arquivos e corrigir erros de tipo
-11. **Relatórios.tsx**: Migrar abas que usam storage local para Supabase
-12. **OSDetalhe.tsx**: Implementar geração de PDF ou remover botão
-
----
-
-### Resumo
-
-- **5 páginas com dados quebrados** (localStorage vazio em produção)
-- **6 TODOs funcionais** que afetam o comportamento do sistema
-- **16 componentes** usando storage deprecated
-- **7 arquivos** com `@ts-nocheck`
-- **1 página órfã** sem rota
-
-Recomendo começar pela **Fase 1** que resolve as funcionalidades visíveis que o usuário acessa diretamente. Quer que eu implemente?
+O unico ponto de atencao e que tarefas de **RETIRADA** (devolucao) ainda nao sao criadas automaticamente quando um contrato e encerrado -- isso foi listado como sugestao futura na varredura anterior.
 
