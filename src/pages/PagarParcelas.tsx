@@ -317,9 +317,9 @@ export default function PagarParcelas() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as unidades</SelectItem>
-                  <SelectItem value="Matriz">Matriz</SelectItem>
-                  <SelectItem value="Filial Norte">Filial Norte</SelectItem>
-                  <SelectItem value="Filial Sul">Filial Sul</SelectItem>
+                  {(lojas || []).map(loja => (
+                    <SelectItem key={loja.id} value={loja.id}>{loja.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -329,11 +329,9 @@ export default function PagarParcelas() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
-                  <SelectItem value="A5.01">A5.01 - Combustível</SelectItem>
-                  <SelectItem value="A5.02">A5.02 - Manutenção</SelectItem>
-                  <SelectItem value="A5.03">A5.03 - Peças e Materiais</SelectItem>
-                  <SelectItem value="A5.04">A5.04 - Serviços</SelectItem>
-                  <SelectItem value="A5.05">A5.05 - Logística</SelectItem>
+                  {(categorias || []).map(cat => (
+                    <SelectItem key={cat.id} value={cat.nome}>{cat.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
