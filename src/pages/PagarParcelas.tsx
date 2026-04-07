@@ -329,8 +329,8 @@ export default function PagarParcelas() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
-                  {(categorias || []).map(cat => (
-                    <SelectItem key={cat.id} value={cat.nome}>{cat.nome}</SelectItem>
+                  {(categorias || []).map((cat: any) => (
+                    <SelectItem key={cat.id} value={cat.nome || cat.descricao || cat.id}>{cat.nome || cat.descricao}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
