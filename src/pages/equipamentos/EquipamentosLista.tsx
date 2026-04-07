@@ -191,17 +191,11 @@ export default function EquipamentosLista() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Equipamentos</h1>
           <p className="text-muted-foreground">
-            Gerencie o catálogo global de equipamentos
-            {lojaAtual && ` - ${lojaAtual.nome}`}
+            {lojaAtual && `Loja: ${lojaAtual.nome}`}
           </p>
         </div>
         <div className="flex gap-2 mt-4 md:mt-0">
-          <Button variant="outline" onClick={() => navigate('/equipamentos/catalogo')}>
-            <Settings className="w-4 h-4 mr-2" />
-            Grupos & Modelos
-          </Button>
           <Button onClick={() => navigate('/equipamentos/novo')}>
             <Plus className="w-4 h-4 mr-2" />
             Novo Equipamento

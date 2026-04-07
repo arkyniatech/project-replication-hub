@@ -20,8 +20,9 @@ import {
   Package
 } from "lucide-react";
 import { useConferenciaStore, type FiltrosContagem, type UserRef } from "@/stores/conferenciaStore";
-import { useEquipamentosStore } from "@/stores/equipamentosStore";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
+import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
+import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
 import { useToast } from "@/hooks/use-toast";
 import { SessoesList } from "@/components/conferencia/SessoesList";
 import { ContagemForm } from "@/components/conferencia/ContagemForm";
@@ -34,7 +35,9 @@ export default function ConferenciaEstoque() {
   const { lojaAtual } = useMultiunidade();
   
   const { sessoes, criarSessao, canEdit, getItensPorSessao } = useConferenciaStore();
-  const { grupos, modelos, lojas } = useEquipamentosStore();
+  const { grupos } = useSupabaseGrupos();
+  const { modelos } = useSupabaseModelos();
+  const { lojas } = useMultiunidade();
   
   const [filtros, setFiltros] = useState<FiltrosContagem>({
     tipo: 'AMBOS',
@@ -121,22 +124,6 @@ export default function ConferenciaEstoque() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Conferência de Estoque</h1>
-          <p className="text-muted-foreground">
-            Contagem cega para auditoria de estoque
-            {lojaAtual && ` - ${lojaAtual.nome}`}
-          </p>
-        </div>
-        <div className="flex gap-2 mt-4 md:mt-0">
-          <Button variant="outline" onClick={() => navigate('/equipamentos')}>
-            <Package className="w-4 h-4 mr-2" />
-            Voltar aos Equipamentos
-          </Button>
-        </div>
-      </div>
 
       <Tabs defaultValue="sessoes" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">

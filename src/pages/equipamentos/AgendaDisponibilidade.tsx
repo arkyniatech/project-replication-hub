@@ -197,43 +197,8 @@ export default function AgendaDisponibilidade() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumbs */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink 
-              onClick={handleBack}
-              className="cursor-pointer hover:text-primary"
-            >
-              Equipamentos
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Agenda de Disponibilidade</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className="h-8 w-8 p-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Agenda de Disponibilidade (30 dias)</h1>
-            <p className="text-sm text-muted-foreground">
-              Visualize a ocupação de equipamentos nos próximos 30 dias
-            </p>
-          </div>
-        </div>
-
+      {/* Actions */}
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
           {(can('equipamentos', 'ver') || can('contratos', 'ver')) && (
             <>
@@ -332,11 +297,11 @@ export default function AgendaDisponibilidade() {
             <div className="min-w-max">
               {/* Header */}
               <div className="flex border-b bg-muted/50 sticky top-0 z-10">
-                <div className="w-80 p-3 font-medium border-r">Equipamento/Modelo</div>
+                <div className="w-80 min-w-[320px] p-3 font-medium border-r sticky left-0 bg-muted/50 z-20">Equipamento/Modelo</div>
                 {colunasDias.map((dia) => (
                   <div 
                     key={dia.data} 
-                    className={`w-8 p-1 text-center font-medium border-r text-xs ${
+                    className={`w-12 min-w-[48px] p-1 text-center font-medium border-r text-xs ${
                       dia.isToday ? 'bg-primary/10 text-primary' : ''
                     } ${dia.isWeekend ? 'bg-muted/30' : ''}`}
                   >
@@ -358,8 +323,8 @@ export default function AgendaDisponibilidade() {
               ) : (
                 <TooltipProvider>
                   {linhas.map((linha) => (
-                    <div key={linha.id} className="flex border-b hover:bg-muted/30" style={{ height: '32px' }}>
-                      <div className="w-80 p-2 border-r flex items-center">
+                    <div key={linha.id} className="flex border-b hover:bg-muted/30 h-10">
+                      <div className="w-80 min-w-[320px] p-2 border-r flex items-center sticky left-0 bg-background z-10">
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-sm truncate">{linha.display}</div>
                           <div className="text-xs text-muted-foreground truncate">
@@ -387,7 +352,7 @@ export default function AgendaDisponibilidade() {
                           <Tooltip key={dia.data}>
                             <TooltipTrigger asChild>
                               <div 
-                                className={`w-8 h-full border-r border-b cursor-pointer ${getStatusColor(status)} ${
+                                className={`w-12 min-w-[48px] h-full border-r border-b cursor-pointer ${getStatusColor(status)} ${
                                   dia.isWeekend ? 'opacity-75' : ''
                                 } ${isOcupado ? 'cursor-pointer' : ''}`}
                                 onClick={() => diaData && handleCelulaClick(linha, diaData)}

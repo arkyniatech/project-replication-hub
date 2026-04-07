@@ -294,20 +294,15 @@ export default function Transferencias() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Transferências entre Lojas</h1>
-          <p className="text-muted-foreground">
-            Gerencie transferências de equipamentos entre as lojas
-          </p>
-        </div>
-        
         {can('equipamentos:edit') && (
-          <Button onClick={() => setShowNovaModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Transferência (T)
-          </Button>
+          <div className="ml-auto">
+            <Button onClick={() => setShowNovaModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Transferência (T)
+            </Button>
+          </div>
         )}
       </div>
 
