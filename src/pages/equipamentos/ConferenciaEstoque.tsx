@@ -234,7 +234,7 @@ export default function ConferenciaEstoque() {
                     disabled={!canEdit()}
                   >
                     {modelos.map(modelo => (
-                      <option key={modelo.id} value={modelo.id}>{modelo.nomeComercial}</option>
+                      <option key={modelo.id} value={modelo.id}>{modelo.nome_comercial}</option>
                     ))}
                   </select>
                 </div>
