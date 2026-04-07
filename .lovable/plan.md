@@ -1,59 +1,103 @@
 
 
-## Criar Tarefa de RETIRADA Automatica ao Encerrar Contrato
+## Plano: Corrigir Visibilidade Master + Integração Banco Inter Multi-Tenant
 
-### Contexto
+### Parte 1 — Bug de Visibilidade do Master
 
-Hoje, quando um contrato e encerrado (devolucao total via `DevolucaoModal`), o status muda para `ENCERRADO` no banco. Porem, nenhuma tarefa de logistica e criada para a retirada dos equipamentos. O motorista precisa ser alocado para ir buscar os equipamentos no cliente.
+**Problema**: Em `useMultiunidade.ts`, a função `getLojasPermitidas()` (linha 125) retorna apenas as lojas da tabela `user_lojas_permitidas` se houver registros. Se o Master tiver 1 registro nessa tabela, ele so ve 1 loja — mesmo sendo Master.
 
-### O que sera feito
-
-**1. Migration SQL — Novo trigger `criar_tarefa_retirada_ao_encerrar_contrato`**
-
-Trigger no banco que dispara quando `contratos.status` muda para `ENCERRADO`:
-- Cria uma tarefa do tipo `RETIRADA` na `logistica_tarefas` com status `AGENDAR` (pendente de alocacao)
-- Preenche cliente, endereco (da obra ou do contrato), telefone
-- **Nao atribui motorista automaticamente** — fica pendente para alocacao manual
-- Protecao contra duplicatas: nao cria se ja existe RETIRADA para o contrato
-- Prioridade `ALTA` (retirada precisa acontecer rapido)
-
-```sql
-CREATE OR REPLACE FUNCTION public.criar_tarefa_retirada_ao_encerrar_contrato()
-RETURNS trigger AS $$
--- Similar ao trigger de ENTREGA, mas:
--- tipo = 'RETIRADA', status = 'AGENDAR', motorista_id = NULL
--- Apenas dispara quando status muda para 'ENCERRADO'
-$$;
-
-CREATE TRIGGER trg_retirada_ao_encerrar
-  AFTER UPDATE ON contratos
-  FOR EACH ROW
-  WHEN (NEW.status = 'ENCERRADO' AND OLD.status <> 'ENCERRADO')
-  EXECUTE FUNCTION criar_tarefa_retirada_ao_encerrar_contrato();
-```
-
-**2. Nenhuma alteracao no frontend necessaria**
-
-O fluxo ja existente cobre tudo:
-- A tarefa aparece automaticamente na secao "Nao Atribuidas" do itinerario (badge amarelo)
-- O gestor usa o modal `AtribuirTarefaModal` para alocar motorista e veiculo
-- Apenas motoristas **ativos** (`ativo = true`) aparecem no select — isso ja e filtrado pelo hook `useSupabaseLogisticaMotoristas` (linha `eq("ativo", true)`)
-- O Kanban (`QuadroLogistica`) exibe a coluna `AGENDAR` onde a tarefa vai aparecer
-
-### Fluxo completo apos implementacao
+**Correção**: Verificar `canViewAllLojas()` antes de filtrar. Se for master/admin, retornar todas as lojas independente de `user_lojas_permitidas`.
 
 ```text
-Devolucao total confirmada
-  → Contrato muda p/ ENCERRADO
-  → Trigger cria tarefa RETIRADA (status AGENDAR, sem motorista)
-  → Tarefa aparece em "Nao Atribuidas" na Logistica
-  → Gestor atribui motorista ativo + veiculo
-  → Motorista executa retirada
-  → Equipamentos voltam p/ area Amarela (manutencao)
+getLojasPermitidas():
+  SE master/admin → retorna TODAS as lojas
+  SE tem registros em user_lojas_permitidas → retorna apenas essas
+  SE não tem registros → retorna todas (fallback atual)
 ```
 
-### Escopo
+1 arquivo alterado: `src/hooks/useMultiunidade.ts`
 
-- 1 migration SQL (trigger + function)
-- 0 alteracoes no frontend
+---
+
+### Parte 2 — Integração Banco Inter (PIX + Boleto) Multi-Tenant
+
+**Conceito**: Cada empresa/loja tem suas proprias credenciais do Inter. As credenciais ficam no Supabase (criptografadas). Uma Edge Function faz o proxy seguro para a API do Inter.
+
+#### O que o Banco Inter exige para integração:
+
+1. **Client ID** e **Client Secret** (obtidos no Internet Banking do Inter, area de APIs)
+2. **Certificado digital** (.crt) e **Chave privada** (.key) — gerados no portal Inter para autenticação mTLS
+3. **Escopo**: `boleto-cobranca.write`, `boleto-cobranca.read`, `pix.write`, `pix.read`
+4. **OAuth2**: Token obtido via `POST https://cdpj.partners.bancointer.com.br/oauth/v2/token`
+
+#### Arquitetura proposta:
+
+```text
+Frontend (Config)          Supabase DB              Edge Function           Banco Inter
+┌──────────────┐    ┌─────────────────────┐    ┌──────────────────┐    ┌──────────────┐
+│ Admin salva  │───>│ inter_credentials   │    │ inter-proxy      │    │ API Inter    │
+│ credenciais  │    │ (por loja_id)       │<───│                  │───>│ OAuth + mTLS │
+│ por loja     │    │ client_id           │    │ 1. Busca creds   │    │              │
+│              │    │ client_secret (enc) │    │ 2. Gera token    │    │ /boletos     │
+│ Emitir boleto│───>│ certificado (enc)   │    │ 3. Proxy request │<───│ /pix         │
+│              │    │ chave_privada (enc) │    │ 4. Retorna resp  │    │ /webhooks    │
+└──────────────┘    └─────────────────────┘    └──────────────────┘    └──────────────┘
+```
+
+#### Implementação (5 itens):
+
+**1. Tabela `inter_credentials`** (migration)
+- `id`, `loja_id` (FK lojas), `client_id`, `client_secret_encrypted`, `certificado_encrypted`, `chave_privada_encrypted`, `ambiente` (sandbox/producao), `escopos`, `webhook_url`, `ativo`, `created_by`, timestamps
+- RLS: apenas master/admin da loja pode ler/escrever
+- Criptografia via `pgcrypto` usando secret do Vault
+
+**2. Edge Function `inter-proxy`**
+- Recebe ações: `emitir-boleto`, `consultar-boleto`, `cancelar-boleto`, `gerar-pix`, `consultar-pix`
+- Busca credenciais da loja do usuário autenticado
+- Faz OAuth2 token exchange com o Inter
+- Proxy da requisição com mTLS (certificado da loja)
+- Retorna resposta ao frontend
+
+**3. Edge Function `inter-webhook`** (verify_jwt = false)
+- Recebe callbacks do Inter (pagamento confirmado, boleto vencido, etc.)
+- Identifica a loja pelo `codigoSolicitacao` ou metadata
+- Atualiza status do título no Supabase
+- Registra evento na tabela `webhook_events`
+
+**4. Frontend — InterConfigForm por loja**
+- Formulario salva credenciais na tabela `inter_credentials` (não mais no zustand/localStorage)
+- Upload de certificado .crt e .key (enviados para Edge Function que criptografa e salva)
+- Seletor de loja no topo (cada loja tem suas credenciais)
+- Botão "Testar Conexão" chama a Edge Function para validar as credenciais
+
+**5. BackendInterAdapter → Edge Function**
+- Substituir o stub atual para chamar a Edge Function `inter-proxy`
+- Passar `loja_id` em cada request
+- Remover mock adapter do fluxo de produção
+
+#### Segurança
+- Credenciais **nunca** trafegam em texto puro no frontend — são criptografadas na Edge Function antes de salvar
+- Certificados mTLS armazenados criptografados no banco
+- RLS garante que cada admin so ve as credenciais das suas lojas
+- Tokens OAuth2 com cache curto (5min) na Edge Function
+
+#### Passo a passo para o admin configurar:
+1. Acessar o Internet Banking do Inter → API → Criar aplicação
+2. Gerar certificado e chave privada
+3. Copiar Client ID e Client Secret
+4. No sistema: Configurações → Integrações → Banco Inter → Selecionar loja → Colar credenciais + upload certificado
+5. Testar conexão → Pronto
+
+---
+
+### Resumo
+
+| Item | Tipo | Escopo |
+|------|------|--------|
+| Fix visibilidade Master | Bug fix | 1 arquivo frontend |
+| Tabela `inter_credentials` | Migration | 1 migration SQL |
+| Edge Function `inter-proxy` | Backend | 1 edge function |
+| Edge Function `inter-webhook` | Backend | 1 edge function |
+| InterConfigForm multi-loja | Frontend | 2 componentes |
+| BackendInterAdapter real | Frontend | 1 service |
 
