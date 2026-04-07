@@ -141,7 +141,7 @@ export default function ProdutividadePage() {
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button 
@@ -189,10 +189,8 @@ export default function ProdutividadePage() {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+              <SelectContent>
                   <SelectItem value="todos">Todas as lojas</SelectItem>
-                  <SelectItem value="Loja Centro">Loja Centro</SelectItem>
-                  <SelectItem value="Loja Norte">Loja Norte</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -203,11 +201,8 @@ export default function ProdutividadePage() {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+              <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="mec-1">Mecânico 1</SelectItem>
-                  <SelectItem value="mec-2">Mecânico 2</SelectItem>
-                  <SelectItem value="aux-1">Auxiliar 1</SelectItem>
                 </SelectContent>
               </Select>
             </div>
