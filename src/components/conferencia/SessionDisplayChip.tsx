@@ -10,7 +10,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { ContagemSessao } from "@/stores/conferenciaStore";
+import type { ContagemSessao } from "@/hooks/useSupabaseConferencia";
 
 interface SessionDisplayChipProps {
   sessao: ContagemSessao;
@@ -44,14 +44,9 @@ export function SessionDisplayChip({
       )}
       <div><strong>Criada por:</strong> {sessao.criadaPor.nome}</div>
       <div>
-        <strong>Criada em:</strong> {' '}
+        <strong>Criada em:</strong>{' '}
         {format(new Date(sessao.criadaEm), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
       </div>
-      {isLegacy && (
-        <div className="text-amber-400">
-          ⚠️ Sessão criada antes da numeração amigável
-        </div>
-      )}
     </div>
   );
 

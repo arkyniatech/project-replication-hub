@@ -3,23 +3,14 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   ClipboardCheck, 
-  Plus, 
-  Printer, 
-  Save, 
-  CheckCircle, 
-  Search,
-  Calendar,
-  User,
-  Building2,
-  Package
+  Plus,
+  Loader2
 } from "lucide-react";
-import { useConferenciaStore, type FiltrosContagem, type UserRef } from "@/stores/conferenciaStore";
+import { useSupabaseConferencia, type FiltrosContagem } from "@/hooks/useSupabaseConferencia";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
@@ -32,12 +23,11 @@ export default function ConferenciaEstoque() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { lojaAtual } = useMultiunidade();
+  const { lojaAtual, lojas } = useMultiunidade();
   
-  const { sessoes, criarSessao, canEdit, getItensPorSessao } = useConferenciaStore();
+  const { sessoes, criarSessao, canEdit, loadingSessoes } = useSupabaseConferencia();
   const { grupos } = useSupabaseGrupos();
   const { modelos } = useSupabaseModelos();
-  const { lojas } = useMultiunidade();
   
   const [filtros, setFiltros] = useState<FiltrosContagem>({
     tipo: 'AMBOS',
@@ -50,65 +40,23 @@ export default function ConferenciaEstoque() {
   const sessaoId = searchParams.get('sessao');
   const sessaoAtiva = sessaoId ? sessoes.find(s => s.id === sessaoId) : null;
 
-  const handleCriarSessao = () => {
+  const handleCriarSessao = async () => {
     if (!lojaSelecionada) {
-      toast({
-        title: "Erro",
-        description: "Selecione uma loja para criar a sessão",
-        variant: "destructive"
-      });
+      toast({ title: "Erro", description: "Selecione uma loja para criar a sessão", variant: "destructive" });
       return;
     }
-
     if (!canEdit()) {
-      toast({
-        title: "Sem permissão",
-        description: "Apenas Gestores e Administradores podem criar sessões",
-        variant: "destructive"
-      });
+      toast({ title: "Sem permissão", description: "Apenas Gestores e Administradores podem criar sessões", variant: "destructive" });
       return;
     }
 
-    const usuario: UserRef = {
-      id: "demo-user",
-      nome: "Demo User",
-      perfil: localStorage.getItem('rh-dev-profile') || 'admin'
-    };
-
-    const novoId = criarSessao(filtros, lojaSelecionada, usuario, observacao);
-    
-    toast({
-      title: "Sessão criada",
-      description: "Sessão de contagem criada com sucesso"
-    });
-
-    // Redirecionar para a sessão
-    navigate(`/equipamentos/conferencia?sessao=${novoId}`);
-  };
-
-  const handleImprimirLista = (sessaoId: string) => {
-    const sessao = sessoes.find(s => s.id === sessaoId);
-    const loja = lojas.find(l => l.id === sessao?.lojaId);
-    
-    if (!sessao || !loja) {
-      toast({
-        title: "Erro",
-        description: "Sessão ou loja não encontrada", 
-        variant: "destructive"
-      });
-      return;
+    try {
+      const result = await criarSessao.mutateAsync({ filtros, lojaId: lojaSelecionada, observacao });
+      toast({ title: "Sessão criada", description: "Sessão de contagem criada com sucesso" });
+      navigate(`/equipamentos/conferencia?sessao=${result.id}`);
+    } catch (error: any) {
+      toast({ title: "Erro ao criar sessão", description: error.message, variant: "destructive" });
     }
-
-    const itens = getItensPorSessao(sessao.id);
-    
-    import("@/utils/conferencia-print").then(({ printContagemCega }) => {
-      const printData = {
-        sessao,
-        itens,
-        lojaNome: loja.nome
-      };
-      printContagemCega(printData);
-    });
   };
 
   // Se há uma sessão ativa, mostrar a tela de contagem
@@ -116,15 +64,21 @@ export default function ConferenciaEstoque() {
     if (sessaoAtiva.status === 'ABERTA' || sessaoAtiva.status === 'EM_CONTAGEM') {
       return <ContagemForm sessao={sessaoAtiva} />;
     }
-    
     if (sessaoAtiva.status === 'EM_REVISAO' || sessaoAtiva.status === 'AJUSTADA') {
       return <ResolucaoDivergencias sessao={sessaoAtiva} />;
     }
   }
 
+  if (loadingSessoes) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-
       <Tabs defaultValue="sessoes" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="sessoes">Sessões de Contagem</TabsTrigger>
@@ -169,13 +123,9 @@ export default function ConferenciaEstoque() {
                       id="tipo-serie"
                       checked={filtros.tipo === 'SERIE' || filtros.tipo === 'AMBOS'}
                       onCheckedChange={(checked) => {
-                        if (checked && filtros.tipo === 'SALDO') {
-                          setFiltros({...filtros, tipo: 'AMBOS'});
-                        } else if (!checked && filtros.tipo === 'AMBOS') {
-                          setFiltros({...filtros, tipo: 'SALDO'});
-                        } else if (checked) {
-                          setFiltros({...filtros, tipo: 'SERIE'});
-                        }
+                        if (checked && filtros.tipo === 'SALDO') setFiltros({...filtros, tipo: 'AMBOS'});
+                        else if (!checked && filtros.tipo === 'AMBOS') setFiltros({...filtros, tipo: 'SALDO'});
+                        else if (checked) setFiltros({...filtros, tipo: 'SERIE'});
                       }}
                       disabled={!canEdit()}
                     />
@@ -186,13 +136,9 @@ export default function ConferenciaEstoque() {
                       id="tipo-saldo"
                       checked={filtros.tipo === 'SALDO' || filtros.tipo === 'AMBOS'}
                       onCheckedChange={(checked) => {
-                        if (checked && filtros.tipo === 'SERIE') {
-                          setFiltros({...filtros, tipo: 'AMBOS'});
-                        } else if (!checked && filtros.tipo === 'AMBOS') {
-                          setFiltros({...filtros, tipo: 'SERIE'});
-                        } else if (checked) {
-                          setFiltros({...filtros, tipo: 'SALDO'});
-                        }
+                        if (checked && filtros.tipo === 'SERIE') setFiltros({...filtros, tipo: 'AMBOS'});
+                        else if (!checked && filtros.tipo === 'AMBOS') setFiltros({...filtros, tipo: 'SERIE'});
+                        else if (checked) setFiltros({...filtros, tipo: 'SALDO'});
                       }}
                       disabled={!canEdit()}
                     />
@@ -251,17 +197,8 @@ export default function ConferenciaEstoque() {
                         checked={filtros.incluirStatus?.includes(status)}
                         onCheckedChange={(checked) => {
                           const currentStatus = filtros.incluirStatus || [];
-                          if (checked) {
-                            setFiltros({
-                              ...filtros, 
-                              incluirStatus: [...currentStatus, status]
-                            });
-                          } else {
-                            setFiltros({
-                              ...filtros,
-                              incluirStatus: currentStatus.filter(s => s !== status)
-                            });
-                          }
+                          if (checked) setFiltros({ ...filtros, incluirStatus: [...currentStatus, status] });
+                          else setFiltros({ ...filtros, incluirStatus: currentStatus.filter(s => s !== status) });
                         }}
                         disabled={!canEdit()}
                       />
@@ -287,8 +224,12 @@ export default function ConferenciaEstoque() {
               {/* Ações */}
               <div className="flex justify-end gap-2">
                 {canEdit() ? (
-                  <Button onClick={handleCriarSessao}>
-                    <Plus className="w-4 h-4 mr-2" />
+                  <Button onClick={handleCriarSessao} disabled={criarSessao.isPending}>
+                    {criarSessao.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
                     Gerar Sessão
                   </Button>
                 ) : (
