@@ -21,7 +21,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -47,7 +46,6 @@ Deno.serve(async (req) => {
 
     const userId = claimsData.claims.sub;
 
-    // Parse request body
     const body = await req.json();
     const { action, loja_id, payload } = body;
 
@@ -58,13 +56,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Use service role to read encrypted credentials
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify user has access to this loja
+    // Verify access
     const { data: access } = await supabaseAdmin
       .from("user_lojas_permitidas")
       .select("loja_id")
@@ -72,7 +69,6 @@ Deno.serve(async (req) => {
       .eq("loja_id", loja_id)
       .maybeSingle();
 
-    // Also check if user is master
     const { data: isMaster } = await supabaseAdmin.rpc("is_master", { _user_id: userId });
 
     if (!access && !isMaster) {
@@ -80,6 +76,15 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Sem acesso a esta loja" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // save-credentials doesn't need existing creds
+    if (action === "save-credentials") {
+      const result = await saveCredentials(supabaseAdmin, loja_id, userId, payload);
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Get credentials for this loja
@@ -97,14 +102,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Handle actions
     let result;
     switch (action) {
       case "test-connection":
         result = await testConnection(creds);
-        break;
-      case "save-credentials":
-        result = await saveCredentials(supabaseAdmin, loja_id, userId, payload);
         break;
       case "emitir-boleto":
         result = await emitirBoleto(creds, payload);
@@ -115,11 +116,17 @@ Deno.serve(async (req) => {
       case "cancelar-boleto":
         result = await cancelarBoleto(creds, payload.codigoSolicitacao, payload.motivo);
         break;
-      case "consultar-pix":
-        result = await consultarPix(creds, payload);
-        break;
       case "get-pdf":
         result = await getPdf(creds, payload.codigoSolicitacao);
+        break;
+      case "criar-pix":
+        result = await criarPixCobranca(creds, payload);
+        break;
+      case "consultar-pix-cobranca":
+        result = await consultarPixCobranca(creds, payload.txid);
+        break;
+      case "consultar-pix":
+        result = await consultarPix(creds, payload);
         break;
       default:
         return new Response(
@@ -149,7 +156,7 @@ async function getOAuthToken(creds: any): Promise<string> {
 
   const params = new URLSearchParams({
     client_id: creds.client_id,
-    client_secret: creds.client_secret_encrypted, // Will be decrypted in future
+    client_secret: creds.client_secret_encrypted,
     grant_type: "client_credentials",
     scope: (creds.escopos || []).join(" "),
   });
@@ -184,7 +191,7 @@ async function saveCredentials(supabaseAdmin: any, lojaId: string, userId: strin
   const upsertData: any = {
     loja_id: lojaId,
     client_id,
-    client_secret_encrypted: client_secret, // TODO: encrypt with pgcrypto
+    client_secret_encrypted: client_secret,
     ambiente: ambiente || "sandbox",
     webhook_url: webhook_url || null,
     ativo: true,
@@ -192,10 +199,10 @@ async function saveCredentials(supabaseAdmin: any, lojaId: string, userId: strin
   };
 
   if (certificado_pem) {
-    upsertData.certificado_pem_encrypted = certificado_pem; // TODO: encrypt
+    upsertData.certificado_pem_encrypted = certificado_pem;
   }
   if (chave_privada_pem) {
-    upsertData.chave_privada_pem_encrypted = chave_privada_pem; // TODO: encrypt
+    upsertData.chave_privada_pem_encrypted = chave_privada_pem;
   }
 
   const { data, error } = await supabaseAdmin
@@ -205,7 +212,7 @@ async function saveCredentials(supabaseAdmin: any, lojaId: string, userId: strin
     .single();
 
   if (error) throw new Error(`Erro ao salvar credenciais: ${error.message}`);
-  
+
   return {
     success: true,
     message: "Credenciais salvas com sucesso",
@@ -298,6 +305,91 @@ async function consultarPix(creds: any, payload: any) {
   return await response.json();
 }
 
+async function criarPixCobranca(creds: any, payload: any) {
+  const token = await getOAuthToken(creds);
+  const ambiente = creds.ambiente as "sandbox" | "producao";
+  const baseUrl = INTER_API[ambiente];
+
+  // Generate txid if not provided (alphanumeric, 26-35 chars)
+  const txid = payload.txid || generateTxId();
+
+  const cobPayload: any = {
+    calendario: {
+      expiracao: payload.expiracao || 3600, // 1 hour default
+    },
+    valor: {
+      original: payload.valor, // e.g. "100.00"
+    },
+    chave: payload.chave, // PIX key of the receiver (loja)
+  };
+
+  if (payload.devedor) {
+    cobPayload.devedor = payload.devedor; // { cpf/cnpj, nome }
+  }
+
+  if (payload.solicitacaoPagador) {
+    cobPayload.solicitacaoPagador = payload.solicitacaoPagador;
+  }
+
+  if (payload.infoAdicionais) {
+    cobPayload.infoAdicionais = payload.infoAdicionais;
+  }
+
+  const response = await fetch(`${baseUrl}/pix/v2/cob/${txid}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(cobPayload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Erro ao criar cobrança PIX: ${response.status} - ${errorText}`);
+  }
+
+  const cobData = await response.json();
+
+  // Try to get QR Code for the location
+  let qrCode = null;
+  if (cobData.loc?.id) {
+    try {
+      const qrResponse = await fetch(`${baseUrl}/pix/v2/loc/${cobData.loc.id}/qrcode`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (qrResponse.ok) {
+        qrCode = await qrResponse.json();
+      }
+    } catch (e) {
+      console.error("Error fetching QR code:", e);
+    }
+  }
+
+  return {
+    ...cobData,
+    txid,
+    qrCode, // { qrcode (base64 image), imagemQrcode }
+  };
+}
+
+async function consultarPixCobranca(creds: any, txid: string) {
+  const token = await getOAuthToken(creds);
+  const ambiente = creds.ambiente as "sandbox" | "producao";
+  const baseUrl = INTER_API[ambiente];
+
+  const response = await fetch(`${baseUrl}/pix/v2/cob/${txid}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Erro ao consultar cobrança PIX: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
 async function getPdf(creds: any, codigoSolicitacao: string) {
   const token = await getOAuthToken(creds);
   const ambiente = creds.ambiente as "sandbox" | "producao";
@@ -316,4 +408,13 @@ async function getPdf(creds: any, codigoSolicitacao: string) {
   const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
   return { pdf_base64: base64, content_type: "application/pdf" };
+}
+
+function generateTxId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+  for (let i = 0; i < 32; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
