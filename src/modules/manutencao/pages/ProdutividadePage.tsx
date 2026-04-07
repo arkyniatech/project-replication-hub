@@ -60,14 +60,6 @@ export default function ProdutividadePage() {
     return Array.from(ids);
   }, [produtividade]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
   const prodToday = produtividadeHoje;
   const prodWeek = produtividadeSemana;
   const prodMonth = produtividadeMes;
