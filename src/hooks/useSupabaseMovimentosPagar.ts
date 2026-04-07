@@ -42,7 +42,7 @@ export const useSupabaseMovimentosPagar = (parcelaId?: string) => {
       if (error) throw error;
       return data as MovimentoPagar[];
     },
-    enabled: !!parcelaId,
+    enabled: true,
   });
 
   const registrarPagamento = useMutation({

@@ -27,6 +27,7 @@ import { useNavigate } from "react-router-dom";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useSupabaseProdutividadeManutencao } from "@/hooks/useSupabaseProdutividadeManutencao";
+import { useMultiunidade } from "@/hooks/useMultiunidade";
 
 export default function ProdutividadePage() {
   const navigate = useNavigate();
@@ -36,6 +37,8 @@ export default function ProdutividadePage() {
   });
   const [lojaSelecionada, setLojaSelecionada] = useState<string>("todos");
   const [mecanicoSelecionado, setMecanicoSelecionado] = useState<string>("todos");
+
+  const { lojas } = useMultiunidade();
 
   const { 
     produtividade, 
@@ -47,6 +50,15 @@ export default function ProdutividadePage() {
     periodo.from.toISOString().split('T')[0],
     periodo.to.toISOString().split('T')[0]
   );
+
+  // Extrair mecânicos únicos dos dados de produtividade
+  const mecanicosUnicos = useMemo(() => {
+    const ids = new Set<string>();
+    produtividade.forEach(p => {
+      if (p.mecanico_id) ids.add(p.mecanico_id);
+    });
+    return Array.from(ids);
+  }, [produtividade]);
 
   if (isLoading) {
     return (
@@ -191,6 +203,9 @@ export default function ProdutividadePage() {
                 </SelectTrigger>
               <SelectContent>
                   <SelectItem value="todos">Todas as lojas</SelectItem>
+                  {lojas.map(loja => (
+                    <SelectItem key={loja.id} value={loja.id}>{loja.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -203,6 +218,9 @@ export default function ProdutividadePage() {
                 </SelectTrigger>
               <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
+                  {mecanicosUnicos.map(id => (
+                    <SelectItem key={id} value={id}>{id.substring(0, 8)}...</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
