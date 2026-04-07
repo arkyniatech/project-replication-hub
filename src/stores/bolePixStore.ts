@@ -68,9 +68,9 @@ export const useBolePixStore = create<BolePixState>()(
         config: { ...state.config, ...newConfig }
       })),
       
-      toggleBackend: (useBackend) => set((state) => ({
+      toggleBackend: (useBackend) => set(() => ({
         useBackend,
-        gateway: useBackend ? new BackendInterAdapter() : new MockInterAdapter()
+        gateway: useBackend ? new BackendInterAdapter('') : new MockInterAdapter()
       })),
       
       // Webhook actions
