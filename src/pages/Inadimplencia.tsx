@@ -821,6 +821,7 @@ export default function Inadimplencia() {
           onSuccess={onBolePixSuccess}
         />
       )}
+    </div>
     </TooltipProvider>
   );
 }
