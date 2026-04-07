@@ -85,9 +85,12 @@ export default function PagarDashboard() {
   const inicioMes = startOfMonth(hoje);
   const fimMes = endOfMonth(hoje);
 
+  // Connect period selector to query range
+  const periodDays = selectedPeriod === '7d' ? 7 : selectedPeriod === '90d' ? 90 : 30;
+
   const { parcelas: parcelasData, isLoading: loadingParcelas } = useSupabaseParcelasPagar({
     lojaId: lojaAtual?.id,
-    dataInicio: format(subDays(hoje, 30), 'yyyy-MM-dd'),
+    dataInicio: format(subDays(hoje, periodDays), 'yyyy-MM-dd'),
     dataFim: format(fimMes, 'yyyy-MM-dd')
   });
 
