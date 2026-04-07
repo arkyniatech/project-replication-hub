@@ -14,7 +14,8 @@ import {
   Search,
   Edit
 } from "lucide-react";
-import { useEquipamentosStore } from "@/stores/equipamentosStore";
+import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
+import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { PERIODOS, formatMoney } from "@/lib/equipamentos-utils";
@@ -34,7 +35,8 @@ export default function TabelaPrecos() {
   const navigate = useNavigate();
   const { lojaAtual, lojas } = useMultiunidade();
   
-  const { grupos, modelos } = useEquipamentosStore();
+  const { grupos } = useSupabaseGrupos();
+  const { modelos } = useSupabaseModelos();
   
   const [lojaSelecionada, setLojaSelecionada] = useState(lojaAtual?.id || "");
   const [searchTerm, setSearchTerm] = useState("");
@@ -69,11 +71,11 @@ export default function TabelaPrecos() {
 
     // Filtrar modelos por busca
     const modelosFiltrados = modelos.filter(modelo => {
-      const grupo = grupos.find(g => g.id === modelo.grupoId);
+      const grupo = grupos.find(g => g.id === modelo.grupo_id);
       const nomeGrupo = grupo?.nome || "";
       
       return (
-        modelo.nomeComercial.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        modelo.nome_comercial.toLowerCase().includes(searchTerm.toLowerCase()) ||
         nomeGrupo.toLowerCase().includes(searchTerm.toLowerCase())
       );
     });
@@ -82,7 +84,7 @@ export default function TabelaPrecos() {
     const gruposMap = new Map();
     
     modelosFiltrados.forEach(modelo => {
-      const grupo = grupos.find(g => g.id === modelo.grupoId);
+      const grupo = grupos.find(g => g.id === modelo.grupo_id);
       if (!grupo) return;
 
       if (!gruposMap.has(grupo.id)) {
@@ -130,9 +132,9 @@ export default function TabelaPrecos() {
 
         // Dados da tabela do grupo
         const tableData = grupo.modelos.map(modelo => {
-          const precos = modelo.tabelaPorLoja?.[lojaSelecionada] || {};
+          const precos = (modelo.tabela_por_loja as Record<string, any>)?.[lojaSelecionada] || {};
           return [
-            modelo.nomeComercial,
+            modelo.nome_comercial,
             precos.DIARIA ? formatMoney(precos.DIARIA) : "—",
             precos.SEMANA ? formatMoney(precos.SEMANA) : "—",
             precos.QUINZENA ? formatMoney(precos.QUINZENA) : "—",
@@ -185,19 +187,7 @@ export default function TabelaPrecos() {
   if (dadosTabela.length === 0) {
     return (
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Tabela de Preços</h1>
-            <p className="text-muted-foreground">
-              Consulta rápida da tabela de preços por loja
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => navigate('/equipamentos')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para Equipamentos
-          </Button>
-        </div>
+      {/* Controls */}
 
         {/* Controls */}
         <Card>
@@ -256,20 +246,7 @@ export default function TabelaPrecos() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Tabela de Preços</h1>
-          <p className="text-muted-foreground">
-            Consulta rápida da tabela de preços por loja
-            {lojaNome && ` - ${lojaNome}`}
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => navigate('/equipamentos')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar para Equipamentos
-        </Button>
-      </div>
+      {/* Controls */}
 
       {/* Controls */}
       <Card>
@@ -361,12 +338,12 @@ export default function TabelaPrecos() {
                     
                     {/* Linhas dos Modelos */}
                     {grupo.modelos.map((modelo) => {
-                      const precos = modelo.tabelaPorLoja?.[lojaSelecionada] || {};
+                      const precos = (modelo.tabela_por_loja as Record<string, any>)?.[lojaSelecionada] || {};
                       
                       return (
                         <TableRow key={modelo.id} className="text-sm">
                           <TableCell className="pl-8">
-                            {modelo.nomeComercial}
+                            {modelo.nome_comercial}
                           </TableCell>
                           <TableCell className="text-right">
                             {precos.DIARIA ? formatMoney(precos.DIARIA) : (

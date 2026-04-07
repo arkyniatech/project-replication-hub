@@ -23,10 +23,10 @@ import {
   Eye,
   ArrowLeft
 } from "lucide-react";
-import { useEquipamentosStore } from "@/stores/equipamentosStore";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
+import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
 import { GrupoForm } from "@/components/equipamentos/GrupoForm";
 import { ModeloForm } from "@/components/equipamentos/ModeloForm";
 import { HistoricoPrecos } from "@/components/equipamentos/HistoricoPrecos";
@@ -47,9 +47,9 @@ export default function CatalogoGruposModelos() {
   const [editingModelo, setEditingModelo] = useState<string | null>(null);
   const [historicoModeloId, setHistoricoModeloId] = useState<string>("");
 
-  const { equipamentos } = useEquipamentosStore();
   const { grupos, isLoading: isLoadingGrupos } = useSupabaseGrupos();
   const { modelos, isLoading: isLoadingModelos } = useSupabaseModelos();
+  const { equipamentos } = useSupabaseEquipamentos();
 
   // Navigation
   const handleBack = () => {
@@ -84,7 +84,7 @@ export default function CatalogoGruposModelos() {
 
   // Helpers
   const getEquipamentosCount = (grupoId: string) => {
-    return equipamentos.filter(e => e.grupoId === grupoId).length;
+    return equipamentos.filter(e => e.grupo_id === grupoId).length;
   };
 
   const getGrupoName = (grupoId: string) => {
@@ -100,43 +100,8 @@ export default function CatalogoGruposModelos() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumbs */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink 
-              onClick={handleBack}
-              className="cursor-pointer hover:text-primary"
-            >
-              Equipamentos
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Grupos & Modelos</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className="h-8 w-8 p-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Grupos & Modelos</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie grupos, modelos e tabelas de preços dos equipamentos
-            </p>
-          </div>
-        </div>
-        
+      {/* Actions */}
+      <div className="flex items-center justify-end">
         <div className="flex gap-3">
           <Button
             variant="outline"

@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Package, 
   FolderTree, 
@@ -103,31 +103,9 @@ export default function EquipamentosLayout() {
             <span className="hidden sm:inline">Conferência</span>
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="lista" className="space-y-4">
-          <Outlet />
-        </TabsContent>
-        
-        <TabsContent value="catalogo" className="space-y-4">
-          <Outlet />
-        </TabsContent>
-        
-        <TabsContent value="agenda" className="space-y-4">
-          <Outlet />
-        </TabsContent>
-        
-        <TabsContent value="transferencias" className="space-y-4">
-          <Outlet />
-        </TabsContent>
-        
-        <TabsContent value="tabela-precos" className="space-y-4">
-          <Outlet />
-        </TabsContent>
-        
-        <TabsContent value="conferencia" className="space-y-4">
-          <Outlet />
-        </TabsContent>
       </Tabs>
+
+      <Outlet />
     </div>
   );
 }
