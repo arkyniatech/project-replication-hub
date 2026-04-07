@@ -1,178 +1,99 @@
 
 
-## Varredura Completa — LocaHub ERP
+## Revisão Completa do Site — Problemas Encontrados e Correções
 
-### Arquitetura: O Problema Central
-
-O sistema tem **duas camadas de dados concorrentes**:
-
-1. **Supabase (real)** — 33 tabelas no banco, com hooks `useSupabase*` (44 hooks)
-2. **Zustand/localStorage (mock)** — 16 stores locais + `localStorage` via `storage-deprecated.ts`
-
-Muitas telas ainda usam dados mock enquanto outras já migraram para Supabase. Isso causa inconsistências graves.
+### Build & TypeScript
+- **TypeScript compila sem erros** (0 erros)
+- **Dev server roda sem warnings** (apenas aviso de browserslist desatualizado)
 
 ---
 
-### Diagnóstico por Módulo
+### Problemas Encontrados (por prioridade)
 
-#### DASHBOARD (/)
-| Item | Status | Problema |
-|------|--------|----------|
-| KPIs de contratos/equipamentos | OK | Usa `useSupabaseContratos` e `useSupabaseEquipamentos` |
-| Títulos a receber | MOCK | Usa `tituloStorage.getAll()` (localStorage) em vez de `useSupabaseTitulos` |
-| Caixa do dia | OK | Usa `useSupabaseCaixa` |
+#### 1. CRÍTICO — Páginas usando localStorage em vez de Supabase (dados vazios/inconsistentes)
 
-#### CLIENTES (/clientes)
-| Item | Status | Problema |
-|------|--------|----------|
-| Listagem | A verificar | Pode estar em Supabase (tabela `clientes` existe) |
+| Arquivo | Problema |
+|---------|----------|
+| `ClienteVisao.tsx` | Usa `clienteStorage`, `contratoStorage`, `tituloStorage` — dados locais. Deveria usar hooks Supabase |
+| `Faturas.tsx` | Usa `faturaStorage` — e **nem está roteado** no App.tsx (página órfã) |
+| `Relatorios.tsx` | Usa `clienteStorage`, `equipamentoStorage`, `contratoStorage`, `faturaStorage` para abas que não usam hook Supabase |
+| `NovoContrato.tsx (V1)` | Usa storage local — porém é deprecated (V2 já existe) |
+| `NovoContratoV2.tsx` | Usa storage como fallback — aceitável mas gera duplicatas |
 
-#### EQUIPAMENTOS (/equipamentos/*)
-| Item | Status | Problema |
-|------|--------|----------|
-| Lista/Detalhes | OK | Supabase |
-| Catálogo de modelos | OK | Supabase (`modelos_equipamentos`, `grupos_equipamentos`) |
-| Tabela de preços | OK | Supabase (`historico_precos`) |
-| Agenda disponibilidade | MOCK | Store `agendaDisponibilidadeStore` (Zustand) |
-| Conferência de estoque | MOCK | Store `conferenciaStore` (Zustand) |
-| Transferências | PARCIAL | Hook Supabase existe, mas store Zustand também |
-| Análise patrimonial | A verificar | |
+#### 2. ALTO — Componentes com TODOs funcionais ativos
 
-#### CONTRATOS (/contratos/*)
-| Item | Status | Problema |
-|------|--------|----------|
-| Listagem | OK | Supabase |
-| Novo contrato (V2) | OK | Supabase |
-| Detalhes/Timeline | PARCIAL | Timeline usa `timelineStore` (Zustand) |
-| Aditivos | OK | Supabase |
-| Cancelamento/Devolução | PARCIAL | TODOs no código — `usuarioNome: 'Usuário' // TODO: pegar do auth` |
+| Arquivo | TODO |
+|---------|------|
+| `PagarModal.tsx` | `comprovante_url: comprovante?.name` — upload fake, não persiste arquivo |
+| `FaturamentoCarrinho.tsx` | `unidadeId: 'loja1'` hardcoded |
+| `EmissaoAvulsaModal.tsx` | `generateNumber('fatura', '1')` — loja hardcoded |
+| `ContratoDetalhes.tsx` | `valorPago = 0` e `recebimentos: []` — financeiro não integrado |
+| `ContratoDetalhes.tsx` | `clienteBloqueado = false` — sempre false |
+| `OSDetalhe.tsx` | `// TODO: Generate PDF` — botão não funciona |
 
-#### FINANCEIRO — Contas a Receber
-| Item | Status | Problema |
-|------|--------|----------|
-| Contas a receber | PARCIAL | Tabela `titulos` existe, mas Dashboard ainda usa localStorage |
-| Faturamento | MOCK | Store `faturamentoStore` (Zustand), `emitidaPor: 'admin' // TODO` |
-| Inadimplência | PARCIAL | Aging usa dados reais, mas cálculos podem ter gaps |
-| Gestão CR | A verificar | |
+#### 3. MÉDIO — Componentes usando storage local para funcionalidades ativas
 
-#### FINANCEIRO — Contas a Pagar
-| Item | Status | Problema |
-|------|--------|----------|
-| Dashboard | OK | Supabase (`titulos_pagar`, `parcelas_pagar`) |
-| Parcelas | OK | Supabase |
-| Fornecedores | OK | Supabase |
-| DRE | MOCK | Store `financeiroStore` (Zustand) |
+| Arquivo | Uso |
+|---------|-----|
+| `AbrirCaixaModal.tsx` | `caixaStorage` |
+| `CaixaDoDiaDrawer.tsx` | `caixaStorage` |
+| `LancarDespesaModal.tsx` | `caixaStorage` |
+| `DevolucaoModal.tsx` | `contratoStorage`, `tituloStorage`, `equipamentoStorage` |
+| `SubstituicaoModal.tsx` | `contratoStorage` |
+| `EstoqueEventHandler.tsx` | `equipamentoStorage` |
+| `GlobalSearch.tsx` | `clienteStorage`, `contratoStorage`, `tituloStorage`, `equipamentoStorage` |
+| `EnviarAvisoModal.tsx` | `clienteStorage`, `tituloStorage` |
+| `RegistrarContatoModal.tsx` | `clienteStorage`, `tituloStorage` |
+| `LayoutDocumentosForm.tsx` | `getAppConfig`, `setAppConfig` |
 
-#### LOGÍSTICA (/logistica/*)
-| Item | Status | Problema |
-|------|--------|----------|
-| Itinerário diário | OK | Recém-migrado para Supabase + Realtime |
-| Quadro de motoristas | A verificar | |
-| Produtividade | A verificar | |
-| Configurações | A verificar | |
-| Mobile motorista | A verificar | |
+#### 4. BAIXO — Páginas com `@ts-nocheck` (erros de tipo suprimidos)
 
-#### MANUTENÇÃO (/manutencao/*)
-| Item | Status | Problema |
-|------|--------|----------|
-| Painel mecânico | OK | Supabase (`ordens_servico`) |
-| OS Detalhes | PARCIAL | `// TODO: Generate PDF` |
-| Solicitações | A verificar | |
-| Pedido de peças | A verificar | |
-
-#### VEÍCULOS (/veiculos/*)
-| Item | Status | Problema |
-|------|--------|----------|
-| Todos os sub-módulos | MOCK | Store `veiculosStore` (Zustand) com seed local. Sem tabelas no Supabase |
-
-#### RH (/rh/*)
-| Item | Status | Problema |
-|------|--------|----------|
-| Todos os 20+ sub-módulos | MOCK | Store `rhStore` (Zustand) com `seedRhContent()`. Tabela `pessoas` existe mas RH usa store local |
-| Portal do colaborador | MOCK | Usa IDs hardcoded (`'pessoa-1'`) |
-| Usuários/Perfis | PARCIAL | CRUD real via Supabase Auth, mas listagem pode ter gaps |
-
-#### COMPRAS & ESTOQUE (/compras/*)
-| Item | Status | Problema |
-|------|--------|----------|
-| Todos os sub-módulos | A verificar | Sem tabelas dedicadas no banco. Provavelmente mock |
-
-#### CONFIGURAÇÕES
-| Item | Status | Problema |
-|------|--------|----------|
-| Layout documentos | MOCK | Usa dados mockData inline |
-| Config segurança | A verificar | |
-
-#### ADMIN
-| Item | Status | Problema |
-|------|--------|----------|
-| Gestão de usuários | OK | Supabase Auth + `user_roles` |
-| Logs | PENDENTE | `{/* TODO: Implement Log List Component */}` |
-| Seed page | OK | Funcional |
+- `ContratoDetalhes.tsx`
+- `NovoContratoV2.tsx`
+- `AnalisePatrimonial.tsx`
+- `EquipamentosLista.tsx`
+- `Transferencias.tsx`
+- `AcessoTab.tsx` (RH)
+- `useSupabasePessoaMovimentos.ts` (RH)
 
 ---
 
-### TODOs Explícitos no Código (13 arquivos)
+### Plano de Correção (em ordem de impacto)
 
-1. **`useSupabaseContratos.ts`** — 4x `usuarioNome: 'Usuário' // TODO: pegar do auth`
-2. **`faturamentoStore.ts`** — `emitidaPor: 'admin' // TODO: get from auth`
-3. **`PagarModal.tsx`** — `comprovante_url: comprovante?.name // TODO: Upload real`
-4. **`BackendInterAdapter.ts`** — 6x `// TODO: Implementar quando backend estiver pronto` (BolePix inteiro)
-5. **`OSDetalhe.tsx`** — `// TODO: Generate PDF`
-6. **`disponibilidadeStore.ts`** — `grupoNome: 'Grupo Mock'`
-7. **`UserManagement.tsx`** — `{/* TODO: Implement Log List Component */}`
-8. **`centro-custo-utils.ts`** — Dados mock hardcoded
+#### Fase 1 — Corrigir funcionalidades quebradas (5 itens)
 
----
+1. **ClienteVisao.tsx → Supabase**: Substituir `clienteStorage/contratoStorage/tituloStorage` pelos hooks `useSupabaseClientes`, `useSupabaseContratos`, `useSupabaseTitulos`
 
-### Stores Zustand que Precisam ser Migradas para Supabase
+2. **ContratoDetalhes.tsx — Integrar recebimentos**: Buscar `recebimentos` do Supabase para calcular `valorPago` real em vez de `0`. Verificar `clienteBloqueado` via status do cliente
 
-| Store | Módulo | Prioridade |
-|-------|--------|------------|
-| `veiculosStore` | Veículos | Alta (sem tabelas no DB) |
-| `faturamentoStore` | Financeiro | Alta |
-| `financeiroStore` | DRE | Alta |
-| `conferenciaStore` | Equipamentos | Média |
-| `agendaDisponibilidadeStore` | Equipamentos | Média |
-| `disponibilidadeStore` | Equipamentos | Média |
-| `contratosStore` | Contratos (legacy) | Média |
-| `equipamentosStore` | Equipamentos (legacy) | Média |
-| `bolePixStore` | BolePix | Baixa (depende de backend Inter) |
-| `transferenciasStore` | Equipamentos | Baixa (hook Supabase já existe) |
-| `timelineStore` | Contratos | Baixa |
-| `rhStore` (no módulo RH) | RH | Alta (20+ telas dependem) |
-| `itinerarioStore` (logística) | Logística | Baixa (já migrado parcialmente) |
+3. **GlobalSearch.tsx → Supabase**: Migrar a busca global para usar dados reais do Supabase (clientes, contratos, equipamentos, títulos)
+
+4. **FaturamentoCarrinho.tsx — Usar loja ativa**: Substituir `'loja1'` hardcoded por `lojaAtual?.id` via `useMultiunidade`
+
+5. **Remover página órfã Faturas.tsx**: Não está no roteador e usa storage local. Pode ser deletada ou redirecionada para a aba de Faturas dentro de Relatórios
+
+#### Fase 2 — Corrigir modais com dados locais (4 itens)
+
+6. **DevolucaoModal.tsx → Supabase**: Ler/escrever contratos e equipamentos via hooks Supabase
+7. **SubstituicaoModal.tsx → Supabase**: Mesma migração
+8. **Caixa (AbrirCaixaModal/CaixaDoDiaDrawer/LancarDespesaModal)**: Verificar se `useSupabaseCaixa` cobre todos os cenários — se sim, migrar
+9. **Inadimplencia modais (EnviarAvisoModal/RegistrarContatoModal)**: Migrar para hooks Supabase
+
+#### Fase 3 — Qualidade de código (3 itens)
+
+10. **Remover `@ts-nocheck`** dos 7 arquivos e corrigir erros de tipo
+11. **Relatórios.tsx**: Migrar abas que usam storage local para Supabase
+12. **OSDetalhe.tsx**: Implementar geração de PDF ou remover botão
 
 ---
 
-### Tabelas Supabase sem Uso Aparente
+### Resumo
 
-- `config_avisos_header` — causa 404
-- `avisos_sistema` — causa 404
-- `checklist_templates` — sem referência clara no frontend
-- `horimetro_leituras` — sem referência clara no frontend
-- `whatsapp_instances` / `whatsapp_verifications` — funcionalidade WhatsApp não implementada
+- **5 páginas com dados quebrados** (localStorage vazio em produção)
+- **6 TODOs funcionais** que afetam o comportamento do sistema
+- **16 componentes** usando storage deprecated
+- **7 arquivos** com `@ts-nocheck`
+- **1 página órfã** sem rota
 
----
-
-### Resumo Executivo
-
-| Categoria | Quantidade |
-|-----------|-----------|
-| Módulos 100% Supabase | 4 (Dashboard parcial, Contratos, Equipamentos parcial, Contas a Pagar) |
-| Módulos 100% Mock | 3 (Veículos, RH, Compras) |
-| Módulos Parciais | 4 (Financeiro CR, Logística, Manutenção, Equipamentos sub-telas) |
-| TODOs explícitos | 13+ itens em 13 arquivos |
-| Stores Zustand a migrar | 13 stores |
-
-### Recomendação de Prioridade
-
-1. **Migrar Dashboard** — remover `tituloStorage` do Dashboard (já existe hook Supabase)
-2. **Resolver TODOs de auth** — substituir `'Usuário'` por nome real do usuário logado (5 locais)
-3. **Módulo Veículos** — criar tabelas no Supabase e migrar (módulo inteiro é mock)
-4. **Módulo RH** — migrar `rhStore` para Supabase (20+ telas afetadas)
-5. **Faturamento/DRE** — migrar stores financeiros
-6. **BolePix** — implementar backend real quando API Inter estiver disponível
-
-Por onde quer começar?
+Recomendo começar pela **Fase 1** que resolve as funcionalidades visíveis que o usuário acessa diretamente. Quer que eu implemente?
 
