@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar, Download, RefreshCw, FileText } from 'lucide-react';
+import { Calendar, Download, RefreshCw, FileText, Banknote, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
@@ -17,6 +17,7 @@ import { subDays, format, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useSupabaseTitulos } from '@/hooks/useSupabaseTitulos';
 import { useSupabaseRecebimentos } from '@/hooks/useSupabaseRecebimentos';
+import { useSupabaseCobrancasInter } from '@/hooks/useSupabaseCobrancasInter';
 
 export default function GestaoContasReceber() {
   const { can } = usePermissions();
@@ -34,6 +35,17 @@ export default function GestaoContasReceber() {
 
   const { titulos = [] } = useSupabaseTitulos(lojaAtual?.id);
   const { recebimentos = [] } = useSupabaseRecebimentos(lojaAtual?.id);
+  const { cobrancas = [] } = useSupabaseCobrancasInter(lojaAtual?.id);
+
+  // Inter KPIs
+  const interKpis = useMemo(() => {
+    const ativas = cobrancas.filter(c => c.status === 'ISSUED' || c.status === 'PROCESSING' || c.status === 'REQUESTED');
+    const pagas = cobrancas.filter(c => c.status === 'PAID');
+    const expiradas = cobrancas.filter(c => c.status === 'EXPIRED' || c.status === 'CANCELLED');
+    const total = cobrancas.length;
+    const taxaConversao = total > 0 ? (pagas.length / total) * 100 : 0;
+    return { ativas: ativas.length, pagas: pagas.length, expiradas: expiradas.length, taxaConversao };
+  }, [cobrancas]);
 
   // Calcular dados financeiros baseados em dados reais do Supabase
   const financialData = useMemo(() => {
@@ -296,6 +308,54 @@ export default function GestaoContasReceber() {
             semaforo={financialData.kpis.percentualAtrasado <= 20 ? 'green' : 
                      financialData.kpis.percentualAtrasado <= 30 ? 'yellow' : 'red'}
           />
+        </div>
+
+        {/* Inter KPIs */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Banknote className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Cobranças Ativas (Inter)</p>
+                <p className="text-2xl font-bold">{interKpis.ativas}</p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Taxa de Conversão</p>
+                <p className="text-2xl font-bold">{interKpis.taxaConversao.toFixed(1)}%</p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                <Banknote className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pagas (Inter)</p>
+                <p className="text-2xl font-bold">{interKpis.pagas}</p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Banknote className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Expiradas/Canceladas</p>
+                <p className="text-2xl font-bold">{interKpis.expiradas}</p>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* Gráficos */}
