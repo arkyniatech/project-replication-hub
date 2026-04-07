@@ -1,8 +1,7 @@
 // Sistema de integração entre módulos de Contratos e outros sistemas
 import { useTransferenciasStore } from '@/stores/transferenciasStore';
-import { useConferenciaStore } from '@/stores/conferenciaStore';
 import { useAgendaDisponibilidadeStore } from '@/stores/agendaDisponibilidadeStore';
-import { useContratosStore } from '@/stores/contratosStore';
+import { supabase } from '@/integrations/supabase/client';
 
 // Tipos de eventos do contrato
 export type ContractEventType = 
@@ -38,14 +37,11 @@ class ContractEventBus {
     }
     this.listeners.get(eventType)!.push(callback);
 
-    // Return unsubscribe function
     return () => {
       const callbacks = this.listeners.get(eventType);
       if (callbacks) {
         const index = callbacks.indexOf(callback);
-        if (index >= 0) {
-          callbacks.splice(index, 1);
-        }
+        if (index >= 0) callbacks.splice(index, 1);
       }
     };
   }
@@ -92,40 +88,41 @@ export function checkEquipmentInTransfer(equipamentoId: string, lojaId: string):
     );
     
     if (itemInTransfer) {
-      return {
-        isInTransfer: true,
-        transferencia: transfer
-      };
+      return { isInTransfer: true, transferencia: transfer };
     }
   }
 
   return { isInTransfer: false };
 }
 
-// Verificar se equipamento está bloqueado por contagem cega
-export function checkEquipmentInBlindCount(equipamentoId: string, lojaId: string): {
+// Verificar se equipamento está bloqueado por contagem (agora via Supabase)
+export async function checkEquipmentInBlindCount(equipamentoId: string, lojaId: string): Promise<{
   isBlocked: boolean;
   sessao?: any;
-} {
-  const conferenciaStore = useConferenciaStore.getState();
-  
-  const sessoesAtivas = conferenciaStore.sessoes.filter(s => 
-    s.lojaId === lojaId && 
-    ['EM_CONTAGEM', 'EM_REVISAO', 'AJUSTADA'].includes(s.status)
-  );
+}> {
+  try {
+    const { data: sessoes } = await supabase
+      .from('sessoes_contagem')
+      .select('id, display_no, status')
+      .eq('loja_id', lojaId)
+      .in('status', ['EM_CONTAGEM', 'EM_REVISAO', 'AJUSTADA']);
 
-  for (const sessao of sessoesAtivas) {
-    const itemBloqueado = conferenciaStore.itens.find(item => 
-      item.sessaoId === sessao.id && 
-      (item.codigo === equipamentoId || item.codigo.includes(equipamentoId))
-    );
-    
-    if (itemBloqueado) {
-      return {
-        isBlocked: true,
-        sessao
-      };
+    if (!sessoes || sessoes.length === 0) return { isBlocked: false };
+
+    for (const sessao of sessoes) {
+      const { data: itens } = await supabase
+        .from('itens_contagem')
+        .select('id, codigo')
+        .eq('sessao_id', sessao.id)
+        .ilike('codigo', `%${equipamentoId}%`)
+        .limit(1);
+
+      if (itens && itens.length > 0) {
+        return { isBlocked: true, sessao };
+      }
     }
+  } catch (err) {
+    console.error('Error checking blind count:', err);
   }
 
   return { isBlocked: false };
@@ -137,16 +134,13 @@ export function updateAgendaFromContract(event: ContractIntegrationEvent) {
   
   console.log('Updating agenda from contract event:', event);
   
-  // Force agenda rebuild for the affected store
   if (event.lojaId) {
-    // This will trigger a rebuild of the agenda when next accessed
     agendaStore.setFiltros({ lojaId: event.lojaId });
   }
 }
 
 // Inicializar listeners dos módulos
 export function initializeContractIntegrations() {
-  // Listener para atualizar agenda
   contractEventBus.subscribe('RENOVADO', updateAgendaFromContract);
   contractEventBus.subscribe('ITEM_DEVOLVIDO', updateAgendaFromContract);
   contractEventBus.subscribe('ITEM_SUBSTITUIDO', updateAgendaFromContract);
@@ -168,10 +162,7 @@ export function emitContractRenewal(
     contratoId,
     contratoNumero,
     lojaId,
-    payload: {
-      novaDataFim,
-      equipamentoIds
-    }
+    payload: { novaDataFim, equipamentoIds }
   });
 }
 
@@ -187,9 +178,7 @@ export function emitItemReturn(
     contratoId,
     contratoNumero,
     lojaId,
-    payload: {
-      equipamentoIds
-    }
+    payload: { equipamentoIds }
   });
 }
 
@@ -205,18 +194,14 @@ export function emitItemSubstitution(
     contratoId,
     contratoNumero,
     lojaId,
-    payload: {
-      equipamentoIds
-    }
+    payload: { equipamentoIds }
   });
 }
 
 // Seed de dados para testes das integrações
 export function seedIntegrationTestData() {
   const transferenciasStore = useTransferenciasStore.getState();
-  const conferenciaStore = useConferenciaStore.getState();
   
-  // Seed transferência EM_TRANSITO que afeta contrato
   const transferencia = {
     id: 'transfer-test-1',
     numero: 999,
@@ -227,7 +212,7 @@ export function seedIntegrationTestData() {
     itens: [{
       id: 'item-transfer-test',
       tipo: 'SERIAL' as const,
-      codigoInterno: 'BET015', // Equipment que pode estar em contrato
+      codigoInterno: 'BET015',
       modeloId: 'modelo-betoneira',
       grupoId: 'grupo-concreto',
       descricao: 'Betoneira 400L - Em Transferência',
@@ -245,45 +230,9 @@ export function seedIntegrationTestData() {
     }]
   };
 
-  // Add to store if not exists
   const existingTransfer = transferenciasStore.transferencias.find(t => t.id === transferencia.id);
   if (!existingTransfer) {
     transferenciasStore.transferencias.push(transferencia);
-  }
-
-  // Seed sessão de contagem ativa que bloqueia equipamentos
-  const sessaoContagem = {
-    id: 'contagem-test-1',
-    lojaId: 'loja-1',
-    displayNo: 'CE-CENTRO-20240120-01',
-    status: 'EM_CONTAGEM' as const,
-    criadaEm: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    criadaPor: { id: 'user-1', nome: 'Admin' },
-    filtros: { tipo: 'AMBOS' as const },
-    log: []
-  };
-
-  const existingSessao = conferenciaStore.sessoes.find(s => s.id === sessaoContagem.id);
-  if (!existingSessao) {
-    conferenciaStore.sessoes.push(sessaoContagem);
-    
-    // Add some items to the counting session
-    const itensContagem = [
-      {
-        id: 'item-contagem-1',
-        sessaoId: sessaoContagem.id,
-        lojaId: 'loja-1',
-        tipo: 'SERIE' as const,
-        codigo: 'AND010', // Another equipment that might be in contracts
-        descricao: 'Andaime Tubular - Em Contagem',
-        grupoNome: 'Andaimes',
-        modeloNome: 'Tubular 2m',
-        qtdContada: null,
-        observacao: ''
-      }
-    ];
-
-    conferenciaStore.itens.push(...itensContagem);
   }
 
   console.log('Integration test data seeded');
