@@ -350,6 +350,75 @@ export type Database = {
           },
         ]
       }
+      cobrancas_inter: {
+        Row: {
+          codigo_barras: string | null
+          codigo_solicitacao: string | null
+          created_at: string
+          created_by: string | null
+          history: Json
+          id: string
+          idempotency_key: string
+          linha_digitavel: string | null
+          loja_id: string
+          pdf_url: string | null
+          pix_copia_cola: string | null
+          qr_code_data_url: string | null
+          status: string
+          titulo_id: string
+          updated_at: string
+        }
+        Insert: {
+          codigo_barras?: string | null
+          codigo_solicitacao?: string | null
+          created_at?: string
+          created_by?: string | null
+          history?: Json
+          id?: string
+          idempotency_key: string
+          linha_digitavel?: string | null
+          loja_id: string
+          pdf_url?: string | null
+          pix_copia_cola?: string | null
+          qr_code_data_url?: string | null
+          status?: string
+          titulo_id: string
+          updated_at?: string
+        }
+        Update: {
+          codigo_barras?: string | null
+          codigo_solicitacao?: string | null
+          created_at?: string
+          created_by?: string | null
+          history?: Json
+          id?: string
+          idempotency_key?: string
+          linha_digitavel?: string | null
+          loja_id?: string
+          pdf_url?: string | null
+          pix_copia_cola?: string | null
+          qr_code_data_url?: string | null
+          status?: string
+          titulo_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobrancas_inter_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobrancas_inter_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: false
+            referencedRelation: "titulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       config_avisos_header: {
         Row: {
           animacao: boolean | null
