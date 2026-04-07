@@ -1,147 +1,80 @@
 
 
-## Analise dos Modulos: Equipamentos, Manutencao e Pagar
+## Re-analise dos 3 Modulos — Status Atual
+
+### MANUTENCAO — Correcoes Aplicadas com Sucesso
+
+| Item | Status |
+|------|--------|
+| Layout Outlet unico | OK — `ManutencaoLayout.tsx` renderiza `<Outlet />` uma unica vez |
+| Rotas apontam para versoes New | OK — `AreaListNew` e `OSDetalheNew` nas rotas com `:slug` |
+| PedidoPecasPage migrado para Supabase | OK — usa `useSupabaseOrdensServico` |
+| Padding duplo removido | OK — subpaginas sem `p-6` |
+| Mecanicos hardcoded removidos | OK — filtro de mecanico agora so mostra "Todos" (sem lista fixa) |
+
+#### Pendencias restantes (Manutencao)
+
+**A. Filtros de Mecanico e Loja vazios (ProdutividadePage)**
+Os selects de "Loja" e "Mecanico" (linhas 192-207) so tem a opcao "Todos/Todas as lojas". Nao buscam dados reais. O hardcoded foi removido mas nao foi substituido por dados do Supabase.
+
+**B. Arquivos OLD ainda existem**
+`AreaList.tsx` e `OSDetalhe.tsx` (versoes Zustand) continuam no repositorio. Nao sao mais usados pelas rotas, mas `manutencaoStore.ts` tambem permanece. Limpeza de codigo pendente.
+
+**C. AnalisePatrimonial tem rota mas nao tem aba**
+A rota `/equipamentos/analise-patrimonial` existe no `App.tsx`, mas `EquipamentosLayout.tsx` nao tem uma aba para ela. A pagina so e acessivel por URL direto.
 
 ---
 
-### MANUTENCAO — Problemas Encontrados
+### PAGAR — Correcoes Aplicadas com Sucesso
 
-#### 1. Layout: Outlet duplicado (mesmo bug do Equipamentos)
+| Item | Status |
+|------|--------|
+| Tabelas criadas (contas_financeiras, movimentos_pagar) | OK — migration executada |
+| Filtro de periodo conectado a query | OK — `periodDays` calculado e passado |
+| Filtros dinamicos (lojas e categorias) | OK — `PagarParcelas.tsx` busca do Supabase |
 
-`ManutencaoLayout.tsx` renderiza `<Outlet />` dentro de **cada** `TabsContent` (linhas 150-180). Mesmo problema estrutural ja corrigido em Equipamentos. Apenas um Outlet e renderizado pelo React Router, os outros ficam redundantes.
+#### Pendencias restantes (Pagar)
 
-**Correcao**: Renderizar `<Outlet />` uma unica vez, fora dos `TabsContent`.
+**D. `useSupabaseMovimentosPagar()` nunca executa no Dashboard**
+`PagarDashboard.tsx` linha 97 chama `useSupabaseMovimentosPagar()` **sem parcelaId**. O hook tem `enabled: !!parcelaId` (linha 45 do hook), entao a query nunca roda. O dashboard nunca carrega movimentos — `movimentos` sera sempre `[]`.
 
-#### 2. Rotas usam versao OLD (Zustand) em vez da NEW (Supabase)
+**Correcao**: O hook precisa de um modo "todos os movimentos" quando chamado sem parcelaId (remover `enabled: !!parcelaId` ou tornar condicional).
 
-`App.tsx` (linhas 349-351) registra:
-- `AreaList` (usa `useManutencaoStore` — Zustand/localStorage)
-- `OSDetalhe` (usa `useManutencaoStore`)
-
-Existem versoes prontas que usam Supabase:
-- `AreaListNew` (usa `useSupabaseOrdensServico` + `useSupabaseEquipamentos`)
-- `OSDetalheNew` (usa `useSupabaseOrdensServico` + `useSupabaseEquipamentos`)
-
-Resultado: ao clicar "Ver Area" ou "Ver OS" no PainelMecanico (que usa Supabase), o usuario cai nas paginas OLD que buscam dados do localStorage vazio. **Nada aparece**.
-
-**Correcao**: Trocar as rotas para usar `AreaListNew` e `OSDetalheNew`. Remover os arquivos OLD.
-
-#### 3. PedidoPecasPage usa Zustand (dados locais vazios)
-
-`PedidoPecasPage.tsx` importa `useManutencaoStore` para ordens, pedidos e todas as acoes. Nao existe versao "New" para essa pagina.
-
-**Correcao**: Migrar para hooks Supabase (`useSupabaseOrdensServico`) ou criar um hook dedicado.
-
-#### 4. ChecklistRunner e OSTimeline tipados com tipos locais
-
-Ambos componentes aceitam `OSOficina` (tipo do Zustand) como prop, mas `OSDetalheNew` passa `os as any` para contornar. Isso mascara erros de tipo.
-
-**Correcao**: Atualizar props para aceitar o tipo `OrdemServico` do Supabase ou criar interface compartilhada.
-
-#### 5. Filtros de Produtividade com mecanicos hardcoded
-
-`ProdutividadePage.tsx` (linhas 207-210) lista mecanicos como `"Mecânico 1"`, `"Mecânico 2"`. Deveria buscar de `pessoas` ou `user_profiles`.
-
-**Correcao**: Buscar mecanicos do Supabase.
-
-#### 6. Subpaginas com padding duplo
-
-PainelMecanico, AreaList, OSDetalhe todas usam `p-6`, mas o Layout ja aplica `p-6`. Padding dobrado.
-
-**Correcao**: Remover `p-6` das paginas filhas.
+**E. Botoes CSV/PDF no Dashboard continuam sem funcionalidade**
+`handleExportData` e `handleGenerateReport` apenas mostram toast. Baixa prioridade.
 
 ---
 
-### PAGAR — Problemas Encontrados
+### EQUIPAMENTOS — Verificacao
 
-#### 7. Tabelas `movimentos_pagar` e `contas_financeiras` nao existem no banco
-
-A query confirmou que essas tabelas **nao existem** no Supabase. Os hooks `useSupabaseMovimentosPagar` e `useSupabaseContasFinanceiras` vao falhar silenciosamente ou retornar erro.
-
-Impacto:
-- `PagarDashboard`: KPIs de "Saldo das Contas" e "Saldo Apos Pagamentos" = 0
-- `PagarModal`: Nao lista contas disponiveis para pagamento
-- Registrar pagamento falha
-
-**Correcao**: Criar as tabelas `movimentos_pagar` e `contas_financeiras` no Supabase com RLS.
-
-#### 8. Filtros de Unidade e Categoria hardcoded
-
-`PagarParcelas.tsx` (linhas 306-325) lista "Matriz", "Filial Norte", "Filial Sul" fixo, e categorias "A5.01" a "A5.05" fixas. Deveria buscar de `lojas` e `categorias_n2`.
-
-**Correcao**: Usar `useMultiunidade().lojas` e `useSupabaseCategoriasN2()`.
-
-#### 9. Dashboard Pagar: botoes CSV/PDF sem funcionalidade real
-
-`handleExportData` e `handleGenerateReport` apenas mostram toast. Nao exportam nada.
-
-**Correcao (menor prioridade)**: Implementar export real ou remover botoes.
-
-#### 10. Dashboard Pagar: periodo selecionado nao afeta a query
-
-O `selectedPeriod` (7d/30d/90d) nao e passado para `useSupabaseParcelasPagar`. A query sempre busca 30 dias.
-
-**Correcao**: Conectar o filtro de periodo a query.
+| Item | Status |
+|------|--------|
+| AnalisePatrimonial tem rota | OK |
+| AnalisePatrimonial tem aba no layout | **NAO** — nao aparece no menu de abas |
 
 ---
 
-### EQUIPAMENTOS — Verificacao Pos-Correcao
+### Resumo de Pendencias
 
-#### 11. AnalisePatrimonial.tsx nao esta nas rotas
+| # | Prioridade | Problema | Correcao |
+|---|-----------|----------|----------|
+| 1 | **ALTA** | `useSupabaseMovimentosPagar` nunca executa no Dashboard (enabled: false) | Permitir query sem parcelaId |
+| 2 | MEDIA | Filtros de Loja/Mecanico vazios em ProdutividadePage | Buscar de `lojas` e `pessoas` (ou produtividade agrupada) |
+| 3 | MEDIA | AnalisePatrimonial sem aba no EquipamentosLayout | Adicionar aba ou decidir se deve ser acessivel |
+| 4 | BAIXA | Arquivos OLD (AreaList, OSDetalhe, manutencaoStore) no repositorio | Deletar arquivos nao utilizados |
+| 5 | BAIXA | Botoes CSV/PDF do Dashboard Pagar sem funcionalidade | Implementar ou remover |
 
-Existe `src/pages/equipamentos/AnalisePatrimonial.tsx` mas nao aparece no `EquipamentosLayout` nem nas rotas. Pagina orfã.
+### Plano de Implementacao
 
-**Verificar**: Se deve ser adicionada como aba ou removida.
+**Etapa 1 — Corrigir bug critico do hook de movimentos**
+- Em `useSupabaseMovimentosPagar.ts`: mudar `enabled: !!parcelaId` para `enabled: true` (ou tornar condicional). Quando parcelaId nao for passado, buscar todos os movimentos.
 
----
+**Etapa 2 — Popular filtros da Produtividade**
+- Em `ProdutividadePage.tsx`: usar `useMultiunidade()` para lojas e extrair mecanicos unicos dos dados de produtividade ja carregados.
 
-### Plano de Implementacao (por prioridade)
+**Etapa 3 — Adicionar aba AnalisePatrimonial**
+- Em `EquipamentosLayout.tsx`: adicionar entrada com icone `TrendingUp` e rota `/equipamentos/analise-patrimonial`.
 
-| # | Prioridade | Tarefa | Arquivos |
-|---|-----------|--------|----------|
-| 1 | CRITICA | Trocar rotas para AreaListNew e OSDetalheNew | `App.tsx` |
-| 2 | CRITICA | Criar tabelas `movimentos_pagar` e `contas_financeiras` | Migration SQL |
-| 3 | ALTA | Simplificar ManutencaoLayout (Outlet unico) | `ManutencaoLayout.tsx` |
-| 4 | ALTA | Migrar PedidoPecasPage para Supabase | `PedidoPecasPage.tsx` |
-| 5 | ALTA | Conectar filtro de periodo no Dashboard Pagar | `PagarDashboard.tsx` |
-| 6 | MEDIA | Atualizar tipos ChecklistRunner e OSTimeline | `ChecklistRunner.tsx`, `OSTimeline.tsx` |
-| 7 | MEDIA | Filtros dinamicos no Pagar (lojas e categorias) | `PagarParcelas.tsx` |
-| 8 | MEDIA | Remover padding duplo das subpaginas Manutencao | 5 paginas |
-| 9 | MEDIA | Buscar mecanicos reais nos filtros de Produtividade | `ProdutividadePage.tsx` |
-| 10 | BAIXA | Remover arquivos OLD (AreaList.tsx, OSDetalhe.tsx) | 2 arquivos |
-| 11 | BAIXA | Verificar AnalisePatrimonial.tsx (orfão) | Avaliar |
-
-### Tabelas a criar no Supabase
-
-```text
-contas_financeiras
-├── id (uuid, PK)
-├── loja_id (uuid, FK lojas)
-├── nome (text)
-├── tipo (text: CORRENTE, POUPANCA, CAIXA)
-├── banco (text)
-├── agencia (text)
-├── conta (text)
-├── saldo_atual (numeric, default 0)
-├── ativa (boolean, default true)
-├── created_at / updated_at
-
-movimentos_pagar
-├── id (uuid, PK)
-├── parcela_id (uuid, FK parcelas_pagar)
-├── titulo_id (uuid, FK titulos_pagar)
-├── conta_id (uuid, FK contas_financeiras)
-├── loja_id (uuid, FK lojas)
-├── data_pagamento (date)
-├── valor_bruto (numeric)
-├── juros (numeric, default 0)
-├── multa (numeric, default 0)
-├── desconto (numeric, default 0)
-├── valor_liquido (numeric, generated)
-├── forma (text)
-├── comprovante_url (text)
-├── observacoes (text)
-├── created_by (uuid, FK auth.users)
-├── created_at (timestamptz)
-```
+**Etapa 4 — Limpeza de arquivos obsoletos**
+- Deletar `AreaList.tsx`, `OSDetalhe.tsx`, `manutencaoStore.ts`.
 
