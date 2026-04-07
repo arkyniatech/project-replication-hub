@@ -1,4 +1,5 @@
 // @ts-nocheck
+// TODO: Remove @ts-nocheck and fix type issues
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -148,20 +149,51 @@ export default function ContratoDetalhes() {
   const diasVencidos = diasRestantes < 0 ? Math.abs(diasRestantes) : 0;
   const diasParaVencer = diasRestantes > 0 ? diasRestantes : undefined;
 
+  // Buscar recebimentos do contrato
+  const [recebimentosContrato, setRecebimentosContrato] = useState<any[]>([]);
+  useEffect(() => {
+    if (!id) return;
+    supabase
+      .from('recebimentos')
+      .select('*')
+      .eq('titulo_id', id)
+      .then(({ data }) => {
+        // Buscar recebimentos vinculados a títulos deste contrato
+      });
+    
+    // Buscar via títulos do contrato
+    supabase
+      .from('titulos')
+      .select('id')
+      .eq('contrato_id', id)
+      .then(async ({ data: titulosContrato }) => {
+        if (!titulosContrato?.length) return;
+        const tituloIds = titulosContrato.map(t => t.id);
+        const { data: recebimentos } = await supabase
+          .from('recebimentos')
+          .select('*')
+          .in('titulo_id', tituloIds);
+        setRecebimentosContrato(recebimentos || []);
+      });
+  }, [id]);
+
   // Transformar faturas em parcelas para o FinanceiroCompacto
   const parcelas = useMemo(() => {
     if (!faturas.length) return [];
     
     return faturas.map((fatura: any) => {
       const valorTotal = Number(fatura.total || 0);
-      const valorPago = 0; // TODO: somar recebimentos quando integrado
+      // Somar recebimentos reais vinculados a títulos desta fatura
+      const valorPago = recebimentosContrato
+        .filter(r => r.titulo_id && faturas.some((f: any) => f.id === r.fatura_id))
+        .reduce((sum, r) => sum + Number(r.valor_liquido || 0), 0) || 0;
       const saldo = valorTotal - valorPago;
       const hoje = new Date();
       const vencimento = new Date(fatura.vencimento);
       const isVencido = vencimento < hoje && saldo > 0;
       
       let status: 'ABERTA' | 'ATRASADA' | 'PAGA' | 'CANCELADA' = 'ABERTA';
-      if (saldo === 0) status = 'PAGA';
+      if (saldo <= 0) status = 'PAGA';
       else if (isVencido) status = 'ATRASADA';
       
       return {
@@ -176,13 +208,13 @@ export default function ContratoDetalhes() {
         valor: valorTotal,
         situacao: status,
         pago: valorPago,
-        saldo,
-        recebimentos: [], // TODO: buscar recebimentos quando integrado
+        saldo: Math.max(0, saldo),
+        recebimentos: recebimentosContrato,
         aditivos: [],
         nfse: null,
       };
     });
-  }, [faturas]);
+  }, [faturas, recebimentosContrato]);
 
   // Calcular saldos financeiros
   const saldoAberto = contrato?.valorPendente || 0;
@@ -217,7 +249,12 @@ export default function ContratoDetalhes() {
     return previsoesNaoFaturadas.reduce((sum, p) => sum + p.valor, 0);
   }, [previsoesNaoFaturadas]);
   
-  const clienteBloqueado = false; // TODO: Verificar status do cliente quando integrado
+  // Verificar se cliente está bloqueado via status_credito ou inadimplência
+  const clienteBloqueado = useMemo(() => {
+    if (!contratoSupabase?.clientes) return false;
+    const cliente = contratoSupabase.clientes as any;
+    return cliente.inadimplente === true || cliente.status_credito === 'BLOQUEADO';
+  }, [contratoSupabase]);
 
   // Extrair próxima ação da logística
   const proximaAcao = useMemo(() => {
