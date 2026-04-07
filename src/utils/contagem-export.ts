@@ -3,7 +3,7 @@ import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Divergencia, ContagemSessao } from '@/stores/conferenciaStore';
+import type { Divergencia, ContagemSessao } from '@/hooks/useSupabaseConferencia';
 import { ACOES_LABELS, STATUS_LABELS } from '@/config/inventario';
 
 // Extend jsPDF type to include autoTable
