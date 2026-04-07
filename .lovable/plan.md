@@ -1,61 +1,79 @@
 
 
-## Diagnóstico: Integração Inter + Abas "Financeiro a Receber"
+## Sequência Lógica: Quando gerar Boleto/PIX no sistema
 
-### A integração Inter esta conectada ao Financeiro a Receber?
+### Problema atual
 
-**Sim, parcialmente.** A aba "Contas a Receber" (TitulosTab) ja esta integrada:
-- Usa `useSupabaseCobrancasInter` para criar cobranças na tabela `cobrancas_inter`
-- Tem botao "Emitir BolePix" que chama o `EmitirBolePixModal`
-- O `BackendInterAdapter` chama a Edge Function `inter-proxy` para emitir boletos
-- O webhook `inter-webhook` atualiza automaticamente `titulos.status` → `PAGO` e cria registro em `recebimentos`
+O sistema tem **3 botoes separados e desconectados** no Faturamento:
+1. "Emitir Fatura" — cria fatura no store (Zustand, nem vai pro Supabase)
+2. "Gerar Cobranca" — funcao do store, nao chama Inter
+3. "Emitir BolePix Inter" — chama Inter mas sem titulo_id, sem salvar cobranca_inter
 
-**O que NAO esta integrado ainda:**
-- A aba **Faturamento** emite faturas mas nao gera cobrancas Inter automaticamente (fatura → titulo → cobranca Inter nao e automatico)
-- A aba **Inadimplencia** mostra aging/vencidos mas nao tem acao de "reemitir boleto" ou "gerar PIX" direto
-- A aba **Gestao Financeira** exibe KPIs de faturado/recebido mas nao reflete status de cobrancas Inter (PAID/ISSUED)
+Na Contas a Receber, o fluxo funciona: titulo existe → clica "Emitir BolePix" → modal abre → emite → salva em `cobrancas_inter`. Mas no Faturamento nao tem titulo pra vincular.
 
----
+### Fluxo logico correto (proposta)
 
-### Estado de cada aba
+```text
+CONTRATO ATIVO
+  └─→ Gera TITULOS (parcelas) no Supabase
+       └─→ Titulo com status PENDENTE
+            └─→ Na aba Contas a Receber:
+                 Botao "Emitir BolePix" por titulo
+                 └─→ Chama Inter API (boleto + PIX)
+                 └─→ Salva em cobrancas_inter
+                 └─→ Titulo fica EMITIDO
+                      └─→ Cliente paga
+                      └─→ Webhook Inter detecta PAGO
+                      └─→ Titulo atualiza para PAGO
+                      └─→ Recebimento criado automaticamente
 
-| Aba | Status | Dados Reais? | Integração Inter |
-|-----|--------|--------------|------------------|
-| **Contas a Receber** | Funcional | Sim (Supabase `titulos` + `recebimentos`) | Sim — emitir boleto, criar cobranca |
-| **Faturamento** | Funcional | Parcial (usa zustand store, nao Supabase direto) | Nao — fatura nao gera cobranca Inter |
-| **Inadimplencia** | Funcional | Sim (Supabase `titulos` + `clientes`) | Nao — sem acao de recobranca |
-| **Gestao Financeira** | Funcional | Sim (Supabase `titulos` + `recebimentos`) | Nao — nao reflete status Inter |
+FATURAMENTO (agrupamento)
+  └─→ Seleciona titulos pendentes do cliente
+  └─→ Emite FATURA (agrupa titulos)
+  └─→ Apos confirmar fatura:
+       Opcao "Emitir BolePix para todos os titulos"
+       └─→ Loop: emite Inter para cada titulo da fatura
+       └─→ Salva cobrancas_inter vinculadas
 
----
+INADIMPLENCIA (recobranca)
+  └─→ Titulo vencido/expirado
+  └─→ Botao "Reemitir BolePix"
+  └─→ Gera nova cobranca Inter com novo vencimento
+```
 
-### Plano de Integração Completa (4 itens)
+### O que precisa mudar
 
-**1. Faturamento → Cobranca Inter automatica**
-- Quando uma fatura e emitida e gera titulos, oferecer opcao de "Emitir Boleto/PIX" automaticamente
-- Adicionar botao no `FaturamentoCarrinho` para emitir cobranca Inter apos confirmar fatura
-- Chamar `inter-proxy` com action `emitir-boleto` para cada titulo gerado
+**1. Faturamento: unificar os 3 botoes em um fluxo sequencial**
+- Remover botao "Gerar Cobranca" (store mock) e "Emitir BolePix Inter" (isolado)
+- Apos "Emitir Fatura" com sucesso, mostrar opcao: "Deseja emitir Boleto/PIX para os titulos desta fatura?"
+- Se sim: para cada titulo gerado pela fatura, chamar `BackendInterAdapter.emitCharge()` e salvar em `cobrancas_inter`
+- Isso requer que o faturamento gere titulos reais no Supabase (hoje usa Zustand store)
 
-**2. Inadimplencia → Acoes de recobranca**
-- Adicionar botao "Reemitir Boleto" e "Gerar PIX" na tabela de aging por titulo vencido
-- Usar `BackendInterAdapter.emitCharge()` para gerar nova cobranca
-- Mostrar status da ultima cobranca Inter (ISSUED/PAID/EXPIRED) em cada linha
+**2. Faturamento: persistir faturas e titulos no Supabase**
+- A funcao `emitirFatura` do `faturamentoStore` precisa criar registros em `faturas` e `titulos` no Supabase
+- Sem isso, nao ha titulo_id para vincular a cobranca Inter
+- Usar `useSupabaseTitulos.createTitulo` apos confirmar fatura
 
-**3. Gestao Financeira → Indicadores Inter**
-- Adicionar KPI "Cobranças Ativas" (count de `cobrancas_inter` com status ISSUED)
-- Adicionar KPI "Taxa de Conversão" (PAID / total emitidas)
-- No AlertsTable, mostrar cobranças expiradas ou com falha
+**3. Contas a Receber: ja funciona — manter como esta**
+- Fluxo correto: titulo → botao BolePix → modal → emite → salva cobranca_inter
+- Webhook ja processa pagamento automaticamente
 
-**4. Coluna de status Inter na TitulosTab**
-- Mostrar badge com status da cobranca Inter (ISSUED/PAID/EXPIRED) ao lado do status do titulo
-- Link para PDF do boleto quando disponivel
-- Botao copiar PIX copia-e-cola
+**4. Inadimplencia: ja tem botao — garantir que salva cobranca_inter**
+- Verificar se o `handleEmitirBolePixInadimplencia` salva corretamente em `cobrancas_inter`
 
 ### Arquivos a alterar
 
-- `src/components/faturamento/FaturamentoCarrinho.tsx` — botao emitir cobranca pos-fatura
-- `src/pages/Inadimplencia.tsx` — botoes reemitir boleto/PIX por titulo
-- `src/pages/GestaoContasReceber.tsx` — KPIs de cobrancas Inter
-- `src/components/contas-receber/TitulosTab.tsx` — coluna status Inter + acoes
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/components/faturamento/FaturamentoCarrinho.tsx` | Remover botoes avulsos; apos emitir fatura, oferecer emissao Inter para titulos gerados |
+| `src/stores/faturamentoStore.ts` | Adaptar `emitirFatura` para persistir no Supabase (faturas + titulos) |
+| `src/pages/Inadimplencia.tsx` | Verificar/corrigir salvamento em cobrancas_inter no callback |
 
-Nenhuma migration necessaria — as tabelas `cobrancas_inter` e `inter_webhook_events` ja existem.
+### Resumo da sequencia
+
+1. **Contrato gera titulos** (ja funciona)
+2. **Faturamento agrupa titulos em fatura** (precisa persistir no Supabase)
+3. **Apos fatura, usuario escolhe emitir Boleto/PIX** (unificar botoes)
+4. **Inter emite e salva cobranca_inter** (vincular titulo_id)
+5. **Webhook detecta pagamento e baixa automaticamente** (ja implementado)
 
