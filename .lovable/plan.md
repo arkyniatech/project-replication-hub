@@ -1,103 +1,70 @@
 
 
-## Plano: Corrigir Visibilidade Master + Integração Banco Inter Multi-Tenant
+## Plano: Detecção Automática de Pagamento + Endpoints PIX
 
-### Parte 1 — Bug de Visibilidade do Master
+### Contexto
 
-**Problema**: Em `useMultiunidade.ts`, a função `getLojasPermitidas()` (linha 125) retorna apenas as lojas da tabela `user_lojas_permitidas` se houver registros. Se o Master tiver 1 registro nessa tabela, ele so ve 1 loja — mesmo sendo Master.
+O webhook `inter-webhook` atualmente apenas **loga** os eventos — não atualiza nada. Precisamos:
+1. Vincular `codigoSolicitacao` aos títulos para que o webhook saiba qual título foi pago
+2. Atualizar automaticamente o status do título quando o Inter notifica pagamento
+3. Adicionar endpoint de criação de cobrança PIX (QR Code)
 
-**Correção**: Verificar `canViewAllLojas()` antes de filtrar. Se for master/admin, retornar todas as lojas independente de `user_lojas_permitidas`.
+### Problema de vínculo
+
+A tabela `titulos` não tem coluna `codigo_solicitacao`. A tabela `cobrancas_inter` (referenciada no hook) **não existe** no banco. Precisamos criar essa tabela que faz o link: `cobrancas_inter.titulo_id` ↔ `cobrancas_inter.codigo_solicitacao`.
+
+### Implementação (4 itens)
+
+**1. Migration — Criar tabela `cobrancas_inter`**
+
+Tabela que vincula titulo ao código Inter:
+- `id`, `titulo_id` (FK titulos), `loja_id` (FK lojas), `codigo_solicitacao`, `status`, `idempotency_key`
+- `linha_digitavel`, `codigo_barras`, `pix_copia_cola`, `qr_code_data_url`, `pdf_url`
+- `history` (jsonb), `created_at`, `updated_at`, `created_by`
+- RLS: master tudo, admin/staff da loja
+
+**2. Edge Function `inter-webhook` — Processar pagamento automaticamente**
+
+Quando recebe evento `PAGO`:
+1. Busca `cobrancas_inter` pelo `codigo_solicitacao`
+2. Atualiza `cobrancas_inter.status` → `PAID`
+3. Atualiza `titulos.status` → `PAGO`, `titulos.pago` → valor recebido, `titulos.saldo` → 0
+4. Cria registro em `recebimentos` (forma = `BOLETO_PIX_INTER`, valor recebido)
+5. Marca `inter_webhook_events.processado` → true
+
+Para `CANCELADO`/`EXPIRADO`: atualiza status na `cobrancas_inter` e no título.
+
+**3. Edge Function `inter-proxy` — Adicionar criação de PIX**
+
+Novo action `criar-pix` usando endpoint `/pix/v2/cob` do Inter:
+- Gera cobrança PIX com QR Code
+- Retorna `txid`, `pixCopiaECola`, `qrCodeUrl`
+
+Novo action `consultar-pix-cobranca` usando `/pix/v2/cob/{txid}`.
+
+**4. Nenhuma alteração no frontend necessária nesta fase**
+
+O hook `useSupabaseCobrancasInter.ts` já está pronto para a tabela — só precisa existir no banco.
+
+### Fluxo automático após implementação
 
 ```text
-getLojasPermitidas():
-  SE master/admin → retorna TODAS as lojas
-  SE tem registros em user_lojas_permitidas → retorna apenas essas
-  SE não tem registros → retorna todas (fallback atual)
+Boleto/PIX emitido → codigo_solicitacao salvo em cobrancas_inter
+  → Cliente paga
+  → Inter envia webhook (situacao: PAGO)
+  → inter-webhook busca cobrancas_inter pelo codigo_solicitacao
+  → Atualiza cobrancas_inter.status = PAID
+  → Atualiza titulos.status = PAGO, pago = valor
+  → Cria registro em recebimentos
+  → Marca webhook_event como processado
 ```
-
-1 arquivo alterado: `src/hooks/useMultiunidade.ts`
-
----
-
-### Parte 2 — Integração Banco Inter (PIX + Boleto) Multi-Tenant
-
-**Conceito**: Cada empresa/loja tem suas proprias credenciais do Inter. As credenciais ficam no Supabase (criptografadas). Uma Edge Function faz o proxy seguro para a API do Inter.
-
-#### O que o Banco Inter exige para integração:
-
-1. **Client ID** e **Client Secret** (obtidos no Internet Banking do Inter, area de APIs)
-2. **Certificado digital** (.crt) e **Chave privada** (.key) — gerados no portal Inter para autenticação mTLS
-3. **Escopo**: `boleto-cobranca.write`, `boleto-cobranca.read`, `pix.write`, `pix.read`
-4. **OAuth2**: Token obtido via `POST https://cdpj.partners.bancointer.com.br/oauth/v2/token`
-
-#### Arquitetura proposta:
-
-```text
-Frontend (Config)          Supabase DB              Edge Function           Banco Inter
-┌──────────────┐    ┌─────────────────────┐    ┌──────────────────┐    ┌──────────────┐
-│ Admin salva  │───>│ inter_credentials   │    │ inter-proxy      │    │ API Inter    │
-│ credenciais  │    │ (por loja_id)       │<───│                  │───>│ OAuth + mTLS │
-│ por loja     │    │ client_id           │    │ 1. Busca creds   │    │              │
-│              │    │ client_secret (enc) │    │ 2. Gera token    │    │ /boletos     │
-│ Emitir boleto│───>│ certificado (enc)   │    │ 3. Proxy request │<───│ /pix         │
-│              │    │ chave_privada (enc) │    │ 4. Retorna resp  │    │ /webhooks    │
-└──────────────┘    └─────────────────────┘    └──────────────────┘    └──────────────┘
-```
-
-#### Implementação (5 itens):
-
-**1. Tabela `inter_credentials`** (migration)
-- `id`, `loja_id` (FK lojas), `client_id`, `client_secret_encrypted`, `certificado_encrypted`, `chave_privada_encrypted`, `ambiente` (sandbox/producao), `escopos`, `webhook_url`, `ativo`, `created_by`, timestamps
-- RLS: apenas master/admin da loja pode ler/escrever
-- Criptografia via `pgcrypto` usando secret do Vault
-
-**2. Edge Function `inter-proxy`**
-- Recebe ações: `emitir-boleto`, `consultar-boleto`, `cancelar-boleto`, `gerar-pix`, `consultar-pix`
-- Busca credenciais da loja do usuário autenticado
-- Faz OAuth2 token exchange com o Inter
-- Proxy da requisição com mTLS (certificado da loja)
-- Retorna resposta ao frontend
-
-**3. Edge Function `inter-webhook`** (verify_jwt = false)
-- Recebe callbacks do Inter (pagamento confirmado, boleto vencido, etc.)
-- Identifica a loja pelo `codigoSolicitacao` ou metadata
-- Atualiza status do título no Supabase
-- Registra evento na tabela `webhook_events`
-
-**4. Frontend — InterConfigForm por loja**
-- Formulario salva credenciais na tabela `inter_credentials` (não mais no zustand/localStorage)
-- Upload de certificado .crt e .key (enviados para Edge Function que criptografa e salva)
-- Seletor de loja no topo (cada loja tem suas credenciais)
-- Botão "Testar Conexão" chama a Edge Function para validar as credenciais
-
-**5. BackendInterAdapter → Edge Function**
-- Substituir o stub atual para chamar a Edge Function `inter-proxy`
-- Passar `loja_id` em cada request
-- Remover mock adapter do fluxo de produção
-
-#### Segurança
-- Credenciais **nunca** trafegam em texto puro no frontend — são criptografadas na Edge Function antes de salvar
-- Certificados mTLS armazenados criptografados no banco
-- RLS garante que cada admin so ve as credenciais das suas lojas
-- Tokens OAuth2 com cache curto (5min) na Edge Function
-
-#### Passo a passo para o admin configurar:
-1. Acessar o Internet Banking do Inter → API → Criar aplicação
-2. Gerar certificado e chave privada
-3. Copiar Client ID e Client Secret
-4. No sistema: Configurações → Integrações → Banco Inter → Selecionar loja → Colar credenciais + upload certificado
-5. Testar conexão → Pronto
-
----
 
 ### Resumo
 
 | Item | Tipo | Escopo |
 |------|------|--------|
-| Fix visibilidade Master | Bug fix | 1 arquivo frontend |
-| Tabela `inter_credentials` | Migration | 1 migration SQL |
-| Edge Function `inter-proxy` | Backend | 1 edge function |
-| Edge Function `inter-webhook` | Backend | 1 edge function |
-| InterConfigForm multi-loja | Frontend | 2 componentes |
-| BackendInterAdapter real | Frontend | 1 service |
+| Tabela `cobrancas_inter` | Migration | 1 migration SQL |
+| Webhook auto-atualização | Edge Function | `inter-webhook` |
+| Endpoints PIX (criar/consultar) | Edge Function | `inter-proxy` |
+| Frontend | Nenhum | Hook já existe |
 
