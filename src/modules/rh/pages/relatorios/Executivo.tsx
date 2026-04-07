@@ -2,11 +2,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, ResponsiveContainer, Bar, XAxis, YAxis, Tooltip, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, UserCheck, UserX, Percent } from 'lucide-react';
-import { useRhStore } from '../../store/rhStore';
-import { buildHeadcountSeries, buildTurnover } from '../../utils/seedRhContent';
+import { useSupabasePessoas } from '../../hooks/useSupabasePessoas';
+import { buildHeadcountSeries, buildTurnover } from '../../utils/helpers';
 
 export default function RelatorioExecutivo() {
-  const { pessoas, aprovacoes, ausencias } = useRhStore();
+  const { pessoas } = useSupabasePessoas();
   
   const headcountData = buildHeadcountSeries(pessoas);
   const turnoverRate = buildTurnover(pessoas);
@@ -15,8 +15,8 @@ export default function RelatorioExecutivo() {
   // KPIs calculados
   const totalAdmissoes12m = headcountData.reduce((sum, month) => sum + month.admissoes, 0);
   const totalDesligamentos12m = headcountData.reduce((sum, month) => sum + month.desligamentos, 0);
-  const absenteismo = Math.round((ausencias.length / pessoasAtivas.length) * 100 * 10) / 10; // Mock calculation
-  const heAcumuladas = Math.floor(Math.random() * 500 + 100); // Mock
+  const absenteismo = 0;
+  const heAcumuladas = 0;
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
 
@@ -172,8 +172,8 @@ export default function RelatorioExecutivo() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Pendências RH</span>
-                <Badge variant={aprovacoes.filter(a => a.status === 'pendente').length > 10 ? "destructive" : "default"}>
-                  {aprovacoes.filter(a => a.status === 'pendente').length}
+                <Badge variant="default">
+                  0
                 </Badge>
               </div>
             </div>
