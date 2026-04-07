@@ -144,6 +144,14 @@ export default function ProdutividadePage() {
     }
   ];
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
