@@ -123,7 +123,9 @@ export function useMultiunidade() {
   }, [userRoles]);
 
   const getLojasPermitidas = (): Loja[] => {
-    if (userLojas.length === 0) return lojas; // Admin tem acesso a todas
+    // Master/admin/gestor veem TODAS as lojas, independente de user_lojas_permitidas
+    if (canViewAllLojas()) return lojas;
+    if (userLojas.length === 0) return lojas; // Fallback: sem restrições
     return lojas.filter(loja => userLojas.includes(loja.id));
   };
 
