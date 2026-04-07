@@ -303,6 +303,7 @@ export default function Inadimplencia() {
   };
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -690,6 +691,7 @@ export default function Inadimplencia() {
                                 <TableHead>Saldo</TableHead>
                                 <TableHead>Dias Atraso</TableHead>
                                 <TableHead>Com Juros</TableHead>
+                                <TableHead>Inter</TableHead>
                                 <TableHead>Ações</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -712,7 +714,38 @@ export default function Inadimplencia() {
                                       R$ {calculoJuros.valorComJuros.toLocaleString('pt-BR')}
                                     </TableCell>
                                     <TableCell>
+                                      {(() => {
+                                        const cob = cobrancaByTitulo.get(titulo.id);
+                                        if (!cob) return <span className="text-muted-foreground text-xs">—</span>;
+                                        return (
+                                          <div className="flex items-center gap-1">
+                                            <Badge variant={cob.status === 'PAID' ? 'default' : cob.status === 'ISSUED' ? 'outline' : 'destructive'} className="text-xs">
+                                              {cob.status}
+                                            </Badge>
+                                            {cob.pix_copia_cola && (
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleCopyPix(cob.pix_copia_cola)}>
+                                                <Copy className="w-3 h-3" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+                                    </TableCell>
+                                    <TableCell>
                                       <div className="flex gap-1">
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleEmitirBolePixInadimplencia(titulo)}
+                                              className="text-primary"
+                                            >
+                                              <QrCode className="w-4 h-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent><p>Emitir BolePix</p></TooltipContent>
+                                        </Tooltip>
                                         <Button
                                           variant="outline"
                                           size="sm"
@@ -734,9 +767,6 @@ export default function Inadimplencia() {
                                           })}
                                         >
                                           <Phone className="w-4 h-4" />
-                                        </Button>
-                                        <Button variant="outline" size="sm">
-                                          <FileText className="w-4 h-4" />
                                         </Button>
                                       </div>
                                     </TableCell>
@@ -769,7 +799,6 @@ export default function Inadimplencia() {
         clienteId={modalAviso.clienteId}
         tituloId={modalAviso.tituloId}
         onSuccess={() => {
-          // Forçar recálculo do aging data
           window.location.reload();
         }}
       />
@@ -780,10 +809,18 @@ export default function Inadimplencia() {
         clienteId={modalContato.clienteId}
         tituloId={modalContato.tituloId}
         onSuccess={() => {
-          // Forçar recálculo do aging data
           window.location.reload();
         }}
       />
-    </div>
+
+      {selectedTituloForBolePix && (
+        <EmitirBolePixModal
+          titulo={selectedTituloForBolePix}
+          open={showBolePixModal}
+          onClose={() => setShowBolePixModal(false)}
+          onSuccess={onBolePixSuccess}
+        />
+      )}
+    </TooltipProvider>
   );
 }
