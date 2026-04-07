@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, X } from "lucide-react";
-import { contratoStorage, tituloStorage, equipamentoStorage } from "@/lib/storage";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, Titulo, ItemContrato, EventoTimeline } from "@/types";
 import { generateNumber } from "@/lib/numeracao";
@@ -242,38 +242,37 @@ export default function DevolucaoModal({
           descricaoTitulo = `Acréscimo: R$ ${acrescimoManual.toLocaleString('pt-BR')} • Desconto: R$ ${descontoManual.toLocaleString('pt-BR')}`;
         }
         
-        const novoTitulo = {
-          id: Date.now().toString(),
-          numero: numeroTitulo,
-          contratoId: contrato.id,
-          contrato: contrato,
-          clienteId: contrato.clienteId,
-          cliente: contrato.cliente,
-          lojaId: contrato.lojaId || '1',
-          categoria: 'Locação',
-          subcategoria: tipoTitulo,
-          origem: 'CONTRATO' as const,
-          emissao: new Date().toISOString().split('T')[0],
-          vencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          valor: Math.abs(diferenca),
-          pago: diferenca < 0 ? Math.abs(diferenca) : 0, // Se desconto, marcar como "pago"
-          saldo: diferenca > 0 ? diferenca : 0,
-          forma: 'PIX' as const,
-          status: diferenca > 0 ? 'Em aberto' as const : 'Quitado' as const,
-          timeline: [{
-            id: Date.now().toString(),
-            timestamp: new Date().toISOString(),
-            tipo: 'criacao' as const,
-            descricao: `Título criado por devolução ${tipo.toLowerCase()}`,
-            usuario: 'Admin',
-          }],
-          observacoes: `${descricaoTitulo}\n\nJustificativa: ${justificativaFinanceira}\n\nDevolução confirmada em ${dataDevolucao} ${horaDevolucao}. ${observacoes}`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        } as Titulo;
+        // Criar título no Supabase em vez de localStorage
+        const { error: tituloError } = await supabase
+          .from('titulos')
+          .insert({
+            numero: generateNumber('titulo'),
+            contrato_id: String(contrato.id),
+            cliente_id: contrato.clienteId,
+            loja_id: contrato.lojaId || '',
+            categoria: 'Locação',
+            subcategoria: tipoTitulo,
+            origem: 'CONTRATO',
+            emissao: new Date().toISOString(),
+            vencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            valor: Math.abs(diferenca),
+            pago: diferenca < 0 ? Math.abs(diferenca) : 0,
+            saldo: diferenca > 0 ? diferenca : 0,
+            forma: 'PIX',
+            status: diferenca > 0 ? 'ABERTO' : 'QUITADO',
+            observacoes: `${descricaoTitulo}\n\nJustificativa: ${justificativaFinanceira}\n\nDevolução confirmada em ${dataDevolucao} ${horaDevolucao}. ${observacoes}`,
+            timeline: [{
+              id: Date.now().toString(),
+              timestamp: new Date().toISOString(),
+              tipo: 'criacao',
+              descricao: `Título criado por devolução ${tipo.toLowerCase()}`,
+              usuario: 'Sistema',
+            }],
+          });
 
-        tituloStorage.add(novoTitulo);
-      }
+        if (tituloError) {
+          console.error('[DevolucaoModal] Erro ao criar título:', tituloError);
+        }
 
       // Publicar evento para manutenção (Amarela)
       window.dispatchEvent(new CustomEvent('contrato:devolucaoConfirmada', {
