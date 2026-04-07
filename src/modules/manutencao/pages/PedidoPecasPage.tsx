@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useManutencaoStore } from "../stores/manutencaoStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { 
   ArrowLeft,
   Plus,
@@ -17,7 +17,18 @@ import {
   Calendar,
   Upload
 } from "lucide-react";
-import { PedidoItem, ClassDefeito, StatusPedido } from "../types";
+import { useSupabaseOrdensServico } from "@/hooks/useSupabaseOrdensServico";
+import { toast } from "sonner";
+
+interface PedidoItem {
+  cod: string;
+  descr: string;
+  qtd: number;
+  custo?: number;
+}
+
+type ClassDefeito = 'DESGASTE' | 'MAU_USO' | 'NA';
+type StatusPedido = 'RASCUNHO' | 'FINALIZADO' | 'COMPRADO' | 'PARCIAL' | 'TOTAL';
 
 export default function PedidoPecasPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,20 +41,14 @@ export default function PedidoPecasPage() {
   const [justificativa, setJustificativa] = useState("");
   const [classificacao, setClassificacao] = useState<ClassDefeito>("DESGASTE");
 
-  const {
-    ordens,
-    criarPedidoPecas,
-    atualizarPedidoPecas,
-    finalizarPedido,
-    receberPecas
-  } = useManutencaoStore();
+  const { useOS, updateOS } = useSupabaseOrdensServico();
+  const { data: os, isLoading } = useOS(id || "");
 
-  const os = ordens.find(o => o.id === id);
-  const pedido = os?.pedido;
+  const pedido = os?.pedido_pecas as any;
 
   useEffect(() => {
     if (pedido) {
-      setItens(pedido.itens);
+      setItens(pedido.itens || []);
       setFornecedor(pedido.fornecedor || "");
       setNf(pedido.nf || "");
       setDtPrevista(pedido.dtPrevista || "");
@@ -52,15 +57,21 @@ export default function PedidoPecasPage() {
     }
   }, [pedido]);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
   if (!os) {
     return (
-      <div className="p-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">OS não encontrada</h1>
-          <Button onClick={() => navigate('/manutencao')} className="mt-4">
-            Voltar ao Painel
-          </Button>
-        </div>
+      <div className="text-center py-12">
+        <h1 className="text-2xl font-bold">OS não encontrada</h1>
+        <Button onClick={() => navigate('/manutencao')} className="mt-4">
+          Voltar ao Painel
+        </Button>
       </div>
     );
   }
@@ -79,7 +90,7 @@ export default function PedidoPecasPage() {
     setItens(novosItens);
   };
 
-  const salvarRascunho = () => {
+  const salvarPedido = (status: StatusPedido) => {
     const dadosPedido = {
       itens,
       fornecedor,
@@ -87,28 +98,23 @@ export default function PedidoPecasPage() {
       dtPrevista,
       justificativa,
       classificacao,
-      status: 'RASCUNHO' as StatusPedido
+      status
     };
 
-    if (pedido) {
-      atualizarPedidoPecas(os.id, dadosPedido);
-    } else {
-      criarPedidoPecas(os.id, dadosPedido);
-    }
-  };
-
-  const finalizar = () => {
-    salvarRascunho();
-    finalizarPedido(os.id);
-  };
-
-  const marcarComoRecebido = (tipo: 'PARCIAL' | 'TOTAL') => {
-    receberPecas(os.id, tipo);
+    updateOS.mutate(
+      { id: os.id, pedido_pecas: dadosPedido },
+      {
+        onSuccess: () => {
+          toast.success(status === 'RASCUNHO' ? "Rascunho salvo" : `Pedido atualizado para ${status}`);
+        }
+      }
+    );
   };
 
   const totalCusto = itens.reduce((acc, item) => acc + (item.custo || 0) * item.qtd, 0);
+  const currentStatus = pedido?.status as StatusPedido | undefined;
 
-  const STATUS_CONFIG = {
+  const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
     RASCUNHO: { color: "bg-gray-500", label: "Rascunho" },
     FINALIZADO: { color: "bg-blue-500", label: "Finalizado" },
     COMPRADO: { color: "bg-yellow-500", label: "Comprado" },
@@ -117,7 +123,7 @@ export default function PedidoPecasPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -132,14 +138,14 @@ export default function PedidoPecasPage() {
           <div>
             <h1 className="text-2xl font-bold">Pedido de Peças</h1>
             <p className="text-muted-foreground">
-              OS {os.id} - {os.equipamentoId}
+              OS {os.numero} — {os.area_atual}
             </p>
           </div>
         </div>
         
-        {pedido && (
-          <Badge className={`text-white ${STATUS_CONFIG[pedido.status].color}`}>
-            {STATUS_CONFIG[pedido.status].label}
+        {currentStatus && STATUS_CONFIG[currentStatus] && (
+          <Badge className={`text-white ${STATUS_CONFIG[currentStatus].color}`}>
+            {STATUS_CONFIG[currentStatus].label}
           </Badge>
         )}
       </div>
@@ -167,45 +173,22 @@ export default function PedidoPecasPage() {
                   <div key={index} className="grid grid-cols-12 gap-3 items-end">
                     <div className="col-span-3">
                       <label className="text-sm font-medium">Código</label>
-                      <Input
-                        value={item.cod}
-                        onChange={(e) => atualizarItem(index, 'cod', e.target.value)}
-                        placeholder="Código da peça"
-                      />
+                      <Input value={item.cod} onChange={(e) => atualizarItem(index, 'cod', e.target.value)} placeholder="Código" />
                     </div>
                     <div className="col-span-4">
                       <label className="text-sm font-medium">Descrição</label>
-                      <Input
-                        value={item.descr}
-                        onChange={(e) => atualizarItem(index, 'descr', e.target.value)}
-                        placeholder="Descrição"
-                      />
+                      <Input value={item.descr} onChange={(e) => atualizarItem(index, 'descr', e.target.value)} placeholder="Descrição" />
                     </div>
                     <div className="col-span-2">
                       <label className="text-sm font-medium">Qtd</label>
-                      <Input
-                        type="number"
-                        value={item.qtd}
-                        onChange={(e) => atualizarItem(index, 'qtd', parseInt(e.target.value) || 1)}
-                        min="1"
-                      />
+                      <Input type="number" value={item.qtd} onChange={(e) => atualizarItem(index, 'qtd', parseInt(e.target.value) || 1)} min="1" />
                     </div>
                     <div className="col-span-2">
                       <label className="text-sm font-medium">Custo Un.</label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={item.custo || ''}
-                        onChange={(e) => atualizarItem(index, 'custo', parseFloat(e.target.value) || 0)}
-                        placeholder="0,00"
-                      />
+                      <Input type="number" step="0.01" value={item.custo || ''} onChange={(e) => atualizarItem(index, 'custo', parseFloat(e.target.value) || 0)} placeholder="0,00" />
                     </div>
                     <div className="col-span-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removerItem(index)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => removerItem(index)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -219,9 +202,7 @@ export default function PedidoPecasPage() {
                   </div>
                 )}
                 
-                {itens.length > 0 && (
-                  <Separator />
-                )}
+                {itens.length > 0 && <Separator />}
                 
                 <div className="flex justify-between items-center font-medium">
                   <span>Total Estimado:</span>
@@ -243,13 +224,8 @@ export default function PedidoPecasPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Classificação</label>
-                  <Select 
-                    value={classificacao} 
-                    onValueChange={(value: ClassDefeito) => setClassificacao(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Select value={classificacao} onValueChange={(v: ClassDefeito) => setClassificacao(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="DESGASTE">Desgaste Normal</SelectItem>
                       <SelectItem value="MAU_USO">Mau Uso</SelectItem>
@@ -257,25 +233,14 @@ export default function PedidoPecasPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                
                 <div>
                   <label className="block text-sm font-medium mb-2">Fornecedor</label>
-                  <Input
-                    value={fornecedor}
-                    onChange={(e) => setFornecedor(e.target.value)}
-                    placeholder="Nome do fornecedor"
-                  />
+                  <Input value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} placeholder="Nome do fornecedor" />
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium mb-2">Justificativa</label>
-                <Textarea
-                  value={justificativa}
-                  onChange={(e) => setJustificativa(e.target.value)}
-                  placeholder="Descreva o motivo da solicitação das peças..."
-                  rows={3}
-                />
+                <Textarea value={justificativa} onChange={(e) => setJustificativa(e.target.value)} placeholder="Descreva o motivo..." rows={3} />
               </div>
             </CardContent>
           </Card>
@@ -283,81 +248,51 @@ export default function PedidoPecasPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Status & Actions */}
           <Card>
-            <CardHeader>
-              <CardTitle>Ações</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Ações</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {!pedido || pedido.status === 'RASCUNHO' ? (
+              {!currentStatus || currentStatus === 'RASCUNHO' ? (
                 <>
-                  <Button onClick={salvarRascunho} variant="outline" className="w-full">
-                    Salvar Rascunho
-                  </Button>
-                  <Button onClick={finalizar} className="w-full">
-                    Finalizar Pedido
-                  </Button>
+                  <Button onClick={() => salvarPedido('RASCUNHO')} variant="outline" className="w-full">Salvar Rascunho</Button>
+                  <Button onClick={() => salvarPedido('FINALIZADO')} className="w-full">Finalizar Pedido</Button>
                 </>
               ) : (
                 <>
-                  {pedido.status === 'FINALIZADO' && (
-                    <Button onClick={() => atualizarPedidoPecas(os.id, { status: 'COMPRADO' })} className="w-full">
-                      Marcar como Comprado
-                    </Button>
+                  {currentStatus === 'FINALIZADO' && (
+                    <Button onClick={() => salvarPedido('COMPRADO')} className="w-full">Marcar como Comprado</Button>
                   )}
-                  
-                  {pedido.status === 'COMPRADO' && (
+                  {currentStatus === 'COMPRADO' && (
                     <>
-                      <Button onClick={() => marcarComoRecebido('PARCIAL')} variant="outline" className="w-full">
-                        Recebimento Parcial
-                      </Button>
-                      <Button onClick={() => marcarComoRecebido('TOTAL')} className="w-full">
-                        Recebimento Total
-                      </Button>
+                      <Button onClick={() => salvarPedido('PARCIAL')} variant="outline" className="w-full">Recebimento Parcial</Button>
+                      <Button onClick={() => salvarPedido('TOTAL')} className="w-full">Recebimento Total</Button>
                     </>
                   )}
-                  
-                  {pedido.status === 'PARCIAL' && (
-                    <Button onClick={() => marcarComoRecebido('TOTAL')} className="w-full">
-                      Completar Recebimento
-                    </Button>
+                  {currentStatus === 'PARCIAL' && (
+                    <Button onClick={() => salvarPedido('TOTAL')} className="w-full">Completar Recebimento</Button>
                   )}
                 </>
               )}
             </CardContent>
           </Card>
 
-          {/* Purchase Info */}
-          {pedido && pedido.status !== 'RASCUNHO' && (
+          {currentStatus && currentStatus !== 'RASCUNHO' && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Info da Compra
+                  <Calendar className="h-5 w-5" />Info da Compra
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium mb-1">Nota Fiscal</label>
-                  <Input
-                    value={nf}
-                    onChange={(e) => setNf(e.target.value)}
-                    placeholder="Número da NF"
-                  />
+                  <Input value={nf} onChange={(e) => setNf(e.target.value)} placeholder="Número da NF" />
                 </div>
-                
                 <div>
                   <label className="block text-sm font-medium mb-1">Data Prevista</label>
-                  <Input
-                    type="date"
-                    value={dtPrevista}
-                    onChange={(e) => setDtPrevista(e.target.value)}
-                  />
+                  <Input type="date" value={dtPrevista} onChange={(e) => setDtPrevista(e.target.value)} />
                 </div>
-                
                 <Button variant="outline" className="w-full">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Anexar Documentos
+                  <Upload className="h-4 w-4 mr-2" />Anexar Documentos
                 </Button>
               </CardContent>
             </Card>

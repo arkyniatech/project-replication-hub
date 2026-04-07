@@ -78,8 +78,8 @@ const EquipamentosLayout = lazy(() => import("./layouts/EquipamentosLayout"));
 const ContasPagarLayout = lazy(() => import("./layouts/ContasPagarLayout"));
 const ContasReceberLayout = lazy(() => import("./layouts/ContasReceberLayout"));
 const PainelMecanico = lazy(() => import("./modules/manutencao/pages/PainelMecanico"));
-const AreaList = lazy(() => import("./modules/manutencao/pages/AreaList"));
-const OSDetalhe = lazy(() => import("./modules/manutencao/pages/OSDetalhe"));
+const AreaList = lazy(() => import("./modules/manutencao/pages/AreaListNew"));
+const OSDetalhe = lazy(() => import("./modules/manutencao/pages/OSDetalheNew"));
 const ProdutividadePage = lazy(() => import("./modules/manutencao/pages/ProdutividadePage"));
 const PedidoPecasPage = lazy(() => import("./modules/manutencao/pages/PedidoPecasPage"));
 
@@ -347,7 +347,7 @@ const App = () => {
                 </Suspense>
               }>
                 <Route index element={<PainelMecanico />} />
-                <Route path="area/:area" element={<AreaList />} />
+                <Route path="area/:slug" element={<AreaList />} />
                 <Route path="os/:id" element={<OSDetalhe />} />
                 <Route path="solicitacoes" element={
                   <Suspense fallback={<div className="p-6">Carregando...</div>}>

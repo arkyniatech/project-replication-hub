@@ -500,6 +500,65 @@ export type Database = {
         }
         Relationships: []
       }
+      contas_financeiras: {
+        Row: {
+          agencia: string | null
+          ativo: boolean
+          banco: string | null
+          bloqueios: number
+          codigo: string
+          created_at: string
+          id: string
+          loja_id: string
+          moeda: string
+          nome: string
+          numero: string | null
+          saldo_atual: number
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          agencia?: string | null
+          ativo?: boolean
+          banco?: string | null
+          bloqueios?: number
+          codigo?: string
+          created_at?: string
+          id?: string
+          loja_id: string
+          moeda?: string
+          nome: string
+          numero?: string | null
+          saldo_atual?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          agencia?: string | null
+          ativo?: boolean
+          banco?: string | null
+          bloqueios?: number
+          codigo?: string
+          created_at?: string
+          id?: string
+          loja_id?: string
+          moeda?: string
+          nome?: string
+          numero?: string | null
+          saldo_atual?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_financeiras_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contrato_itens: {
         Row: {
           contrato_id: string
@@ -1467,6 +1526,92 @@ export type Database = {
             columns: ["grupo_id"]
             isOneToOne: false
             referencedRelation: "grupos_equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimentos_pagar: {
+        Row: {
+          comprovante_url: string | null
+          conta_id: string
+          created_at: string
+          created_by: string | null
+          data_pagamento: string
+          desconto: number
+          forma: string
+          id: string
+          juros: number
+          loja_id: string
+          multa: number
+          observacoes: string | null
+          parcela_id: string
+          titulo_id: string
+          valor_bruto: number
+          valor_liquido: number | null
+        }
+        Insert: {
+          comprovante_url?: string | null
+          conta_id: string
+          created_at?: string
+          created_by?: string | null
+          data_pagamento?: string
+          desconto?: number
+          forma?: string
+          id?: string
+          juros?: number
+          loja_id: string
+          multa?: number
+          observacoes?: string | null
+          parcela_id: string
+          titulo_id: string
+          valor_bruto?: number
+          valor_liquido?: number | null
+        }
+        Update: {
+          comprovante_url?: string | null
+          conta_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_pagamento?: string
+          desconto?: number
+          forma?: string
+          id?: string
+          juros?: number
+          loja_id?: string
+          multa?: number
+          observacoes?: string | null
+          parcela_id?: string
+          titulo_id?: string
+          valor_bruto?: number
+          valor_liquido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentos_pagar_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentos_pagar_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentos_pagar_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcelas_pagar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentos_pagar_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: false
+            referencedRelation: "titulos_pagar"
             referencedColumns: ["id"]
           },
         ]

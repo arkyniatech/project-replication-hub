@@ -17,6 +17,9 @@ import { NovoTituloDrawer } from '@/components/contas-pagar/NovoTituloDrawer';
 import { DetalheTituloDrawer } from '@/components/contas-pagar/DetalheTituloDrawer';
 import { EditarParcelaModal } from '@/components/contas-pagar/EditarParcelaModal';
 import { AnexosModal } from '@/components/contas-pagar/AnexosModal';
+import { useSupabaseCategoriasN2 } from '@/hooks/useSupabaseCategoriasN2';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 type StatusFilter = 'all' | 'hoje' | 'amanha' | 'semana' | 'mes' | 'atrasadas';
 
@@ -67,9 +70,19 @@ function getStatusLabel(status: string) {
 
 export default function PagarParcelas() {
   const { can } = usePermissions();
-  const { lojaAtual } = useMultiunidade();
+  const { lojaAtual, lojas: lojasPermitidas } = useMultiunidade();
   const { parcelas, isLoading } = useSupabaseParcelasPagar({ lojaId: lojaAtual?.id });
-  
+  const { categorias } = useSupabaseCategoriasN2();
+
+  // Fetch lojas for filter
+  const { data: lojas } = useQuery({
+    queryKey: ['lojas-filter'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('lojas').select('id, nome, codigo').eq('ativo', true).order('nome');
+      if (error) throw error;
+      return data || [];
+    }
+  });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUnidade, setSelectedUnidade] = useState('all');
@@ -304,9 +317,9 @@ export default function PagarParcelas() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as unidades</SelectItem>
-                  <SelectItem value="Matriz">Matriz</SelectItem>
-                  <SelectItem value="Filial Norte">Filial Norte</SelectItem>
-                  <SelectItem value="Filial Sul">Filial Sul</SelectItem>
+                  {(lojas || []).map(loja => (
+                    <SelectItem key={loja.id} value={loja.id}>{loja.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -316,11 +329,9 @@ export default function PagarParcelas() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
-                  <SelectItem value="A5.01">A5.01 - Combustível</SelectItem>
-                  <SelectItem value="A5.02">A5.02 - Manutenção</SelectItem>
-                  <SelectItem value="A5.03">A5.03 - Peças e Materiais</SelectItem>
-                  <SelectItem value="A5.04">A5.04 - Serviços</SelectItem>
-                  <SelectItem value="A5.05">A5.05 - Logística</SelectItem>
+                  {(categorias || []).map((cat: any) => (
+                    <SelectItem key={cat.id} value={cat.nome || cat.descricao || cat.id}>{cat.nome || cat.descricao}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
