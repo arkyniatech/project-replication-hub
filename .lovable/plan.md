@@ -1,34 +1,59 @@
 
 
-## Analise: Integração Contrato → Logistica (Tarefas Pendentes)
+## Criar Tarefa de RETIRADA Automatica ao Encerrar Contrato
 
-### O que ja funciona hoje
+### Contexto
 
-O sistema **ja possui** exatamente o fluxo que voce descreveu:
+Hoje, quando um contrato e encerrado (devolucao total via `DevolucaoModal`), o status muda para `ENCERRADO` no banco. Porem, nenhuma tarefa de logistica e criada para a retirada dos equipamentos. O motorista precisa ser alocado para ir buscar os equipamentos no cliente.
 
-1. **Trigger automatico no banco**: `criar_tarefa_logistica_ao_ativar_contrato` -- quando um contrato muda para status `ATIVO`, o trigger cria automaticamente uma tarefa de `ENTREGA` na tabela `logistica_tarefas` com status `PROGRAMADO`.
+### O que sera feito
 
-2. **Auto-atribuicao de motorista**: Se a loja tem apenas 1 motorista ativo, o trigger ja atribui automaticamente. Se tem mais de 1, a tarefa fica **sem motorista** (pendente de alocacao).
+**1. Migration SQL — Novo trigger `criar_tarefa_retirada_ao_encerrar_contrato`**
 
-3. **Visibilidade de tarefas nao atribuidas**: O layout da Logistica (`LogisticaLayout.tsx`) ja exibe um **badge com contagem** de tarefas sem motorista. O itinerario diario tem uma secao dedicada "Nao Atribuidas" com destaque amarelo.
+Trigger no banco que dispara quando `contratos.status` muda para `ENCERRADO`:
+- Cria uma tarefa do tipo `RETIRADA` na `logistica_tarefas` com status `AGENDAR` (pendente de alocacao)
+- Preenche cliente, endereco (da obra ou do contrato), telefone
+- **Nao atribui motorista automaticamente** — fica pendente para alocacao manual
+- Protecao contra duplicatas: nao cria se ja existe RETIRADA para o contrato
+- Prioridade `ALTA` (retirada precisa acontecer rapido)
 
-4. **Quadro Kanban**: O `QuadroLogistica.tsx` tem 6 colunas incluindo `AGENDAR` e `PROGRAMADO`, permitindo arrastar tarefas entre status.
+```sql
+CREATE OR REPLACE FUNCTION public.criar_tarefa_retirada_ao_encerrar_contrato()
+RETURNS trigger AS $$
+-- Similar ao trigger de ENTREGA, mas:
+-- tipo = 'RETIRADA', status = 'AGENDAR', motorista_id = NULL
+-- Apenas dispara quando status muda para 'ENCERRADO'
+$$;
 
-5. **Realtime**: O hook `useContratoLogisticaSync` escuta mudancas via Supabase Realtime e invalida caches automaticamente.
-
-6. **Protecoes contra duplicatas**: O trigger nao cria tarefa se o contrato ja era `ATIVO` (renovacao) ou se ja existe tarefa de entrega para aquele contrato.
-
-### Conclusao
-
-**Nenhuma alteracao necessaria.** O fluxo completo ja esta implementado:
-
-```text
-Contrato criado → Status muda p/ ATIVO → Trigger cria tarefa ENTREGA
-  → Tarefa aparece como "Nao Atribuida" na Logistica
-  → Gestor atribui motorista/veiculo
-  → Motorista executa entrega
-  → Entrega concluida → Trigger ativa contrato (se necessario)
+CREATE TRIGGER trg_retirada_ao_encerrar
+  AFTER UPDATE ON contratos
+  FOR EACH ROW
+  WHEN (NEW.status = 'ENCERRADO' AND OLD.status <> 'ENCERRADO')
+  EXECUTE FUNCTION criar_tarefa_retirada_ao_encerrar_contrato();
 ```
 
-O unico ponto de atencao e que tarefas de **RETIRADA** (devolucao) ainda nao sao criadas automaticamente quando um contrato e encerrado -- isso foi listado como sugestao futura na varredura anterior.
+**2. Nenhuma alteracao no frontend necessaria**
+
+O fluxo ja existente cobre tudo:
+- A tarefa aparece automaticamente na secao "Nao Atribuidas" do itinerario (badge amarelo)
+- O gestor usa o modal `AtribuirTarefaModal` para alocar motorista e veiculo
+- Apenas motoristas **ativos** (`ativo = true`) aparecem no select — isso ja e filtrado pelo hook `useSupabaseLogisticaMotoristas` (linha `eq("ativo", true)`)
+- O Kanban (`QuadroLogistica`) exibe a coluna `AGENDAR` onde a tarefa vai aparecer
+
+### Fluxo completo apos implementacao
+
+```text
+Devolucao total confirmada
+  → Contrato muda p/ ENCERRADO
+  → Trigger cria tarefa RETIRADA (status AGENDAR, sem motorista)
+  → Tarefa aparece em "Nao Atribuidas" na Logistica
+  → Gestor atribui motorista ativo + veiculo
+  → Motorista executa retirada
+  → Equipamentos voltam p/ area Amarela (manutencao)
+```
+
+### Escopo
+
+- 1 migration SQL (trigger + function)
+- 0 alteracoes no frontend
 
