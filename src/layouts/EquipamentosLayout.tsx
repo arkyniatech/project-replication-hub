@@ -6,7 +6,8 @@ import {
   Calendar, 
   ArrowLeftRight, 
   DollarSign, 
-  ClipboardCheck 
+  ClipboardCheck,
+  TrendingUp
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -37,6 +38,8 @@ export default function EquipamentosLayout() {
       setActiveTab("tabela-precos");
     } else if (path.includes("/equipamentos/conferencia")) {
       setActiveTab("conferencia");
+    } else if (path.includes("/equipamentos/analise-patrimonial")) {
+      setActiveTab("analise-patrimonial");
     }
   }, [location.pathname]);
 
@@ -62,6 +65,9 @@ export default function EquipamentosLayout() {
       case "conferencia":
         navigate("/equipamentos/conferencia");
         break;
+      case "analise-patrimonial":
+        navigate("/equipamentos/analise-patrimonial");
+        break;
     }
   };
 
@@ -77,7 +83,7 @@ export default function EquipamentosLayout() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-3">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="lista" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             <span className="hidden sm:inline">Lista</span>
@@ -101,6 +107,10 @@ export default function EquipamentosLayout() {
           <TabsTrigger value="conferencia" className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4" />
             <span className="hidden sm:inline">Conferência</span>
+          </TabsTrigger>
+          <TabsTrigger value="analise-patrimonial" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            <span className="hidden sm:inline">Patrimonial</span>
           </TabsTrigger>
         </TabsList>
       </Tabs>
