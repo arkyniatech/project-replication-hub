@@ -391,6 +391,7 @@ export function FaturamentoCarrinho() {
               <QrCode className="mr-2 h-4 w-4" />
               {isEmitindoInter ? "Emitindo Inter..." : "Emitir BolePix Inter"}
             </Button>
+          )}
 
           {/* Envios */}
           <div className="flex gap-2">
