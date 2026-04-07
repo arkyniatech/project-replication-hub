@@ -1,73 +1,82 @@
 
 
-## Analise Completa - Modulos Principais
+## Analise e Melhorias - Gestao de Equipamentos (6 abas)
 
-### Resumo Executivo
-
-Os modulos Dashboard, Clientes, Contratos e Logistica estao **estruturalmente OK**. Encontrei **3 problemas reais** que precisam de correcao imediata e **2 melhorias de dados** para o sistema funcionar corretamente com os dados atuais.
+### Problemas Identificados
 
 ---
 
-### Problema 1: RLS bloqueando criacao de faturas (CRITICO)
+#### 1. Layout: Outlet duplicado dentro de TabsContent (BUG ESTRUTURAL)
 
-**Sintoma**: Erro `new row violates row-level security policy for table "faturas"` no console.
+O `EquipamentosLayout.tsx` renderiza `<Outlet />` dentro de **cada** `TabsContent`. Porem, o React Router so renderiza **um** Outlet. O resultado: o conteudo so aparece quando o `TabsContent` ativo corresponde ao valor correto. Funciona, mas e fragil e gera 6 Outlets redundantes no DOM.
 
-**Causa**: A policy de INSERT na tabela `faturas` aceita roles `vendedor`, `gestor`, `financeiro`, `admin` — mas **nao inclui `master`**. Os dois usuarios do sistema (`contato@arkynia.com` e `admin@locacaoerp.com`) possuem role `master`, entao nao conseguem criar faturas.
-
-**Correcao**: Migration SQL para atualizar a policy:
-```sql
-DROP POLICY "Vendedor pode criar faturas" ON faturas;
-CREATE POLICY "Staff pode criar faturas" ON faturas FOR INSERT
-WITH CHECK (
-  (is_master(auth.uid()) OR has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'gestor') 
-   OR has_role(auth.uid(), 'financeiro') OR has_role(auth.uid(), 'admin'))
-  AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
-);
-```
+**Correcao**: Renderizar `<Outlet />` uma unica vez, fora dos `TabsContent`. Remover todos os `TabsContent` e usar as tabs apenas como navegacao (que ja e o caso — `handleTabChange` faz `navigate()`).
 
 ---
 
-### Problema 2: Titulos com valor/saldo zerados
+#### 2. Agenda: Linhas muito pequenas (32px) e grid comprimido
 
-Os 2 titulos do contrato ativo tem `valor = 0` e `saldo = 0`. Mesmo com o Faturamento e Contas a Receber funcionando, os KPIs mostrarao tudo zerado.
+A agenda usa `style={{ height: '32px' }}` para cada linha e colunas de `w-8` (32px) para os dias. Isso torna a visualizacao ilegivel, especialmente com 30 colunas. O label da data (`dd/MM`) tambem e cortado em 32px.
 
-**Correcao**: Migration SQL:
-```sql
-UPDATE titulos SET valor = 100, saldo = 100 
-WHERE contrato_id = '53882f9f-3dd1-46ae-b75f-e48ee65cd81a';
-```
-
----
-
-### Problema 3: NovoContratoV2.tsx e ContratoDetalhes.tsx com @ts-nocheck
-
-Esses dois arquivos criticos (2325 e 879 linhas) usam `@ts-nocheck`, o que significa que erros de tipo passam silenciosamente. Isso e um risco tecnico, mas **nao e urgente** — pode ser tratado em uma fase de refatoracao.
+**Correcao**:
+- Aumentar altura das linhas para `h-10` (40px)
+- Aumentar largura das colunas de dias para `w-12` (48px) 
+- Garantir que o grid use `overflow-x-auto` com scroll horizontal suave
+- Adicionar header sticky para a coluna de equipamento
 
 ---
 
-### Status por Modulo
+#### 3. Tabela de Precos: Usando store local (Zustand) em vez de Supabase
 
-| Modulo | Status | Observacoes |
-|--------|--------|-------------|
-| **Dashboard** | OK | Cards de acao, KPIs, modais — tudo funcional. Dados reais do Supabase via hooks. |
-| **Clientes** | OK | CRUD completo, busca, Visao 360. Apenas 1 cliente cadastrado (dados de teste). |
-| **Contratos** | OK | Listagem, detalhes, renovacoes, aditivos. Contrato ativo com datas de Abril. |
-| **Logistica** | OK | Quadro Kanban, mobile driver, tarefas — estrutura completa. |
-| **Faturamento** | PARCIAL | Filtros corrigidos no ultimo ciclo, mas criacao de faturas bloqueada pela RLS (Problema 1). |
-| **Contas a Receber** | PARCIAL | Titulos com valor zerado (Problema 2). Apos correcao, KPIs e listagem funcionarao. |
+`TabelaPrecos.tsx` importa `useEquipamentosStore` para obter `grupos` e `modelos`. Esse store local (persist/localStorage) pode estar vazio ou desatualizado. As outras abas (Lista, Catalogo) ja usam `useSupabaseGrupos` e `useSupabaseModelos`.
+
+**Correcao**: Substituir `useEquipamentosStore` por `useSupabaseGrupos` + `useSupabaseModelos` no `TabelaPrecos.tsx`. Adaptar os campos (`nome_comercial` vs `nomeComercial`, `grupo_id` vs `grupoId`, `tabela_por_loja` vs `tabelaPorLoja`).
 
 ---
 
-### Plano de Correcao
+#### 4. Conferencia de Estoque: Mesma fonte de dados errada
 
-1. **Migration SQL**: Corrigir RLS da tabela `faturas` para incluir `is_master()`
-2. **Migration SQL**: Atualizar `valor` e `saldo` dos titulos existentes para R$100
-3. Nenhuma alteracao de codigo frontend necessaria
+`ConferenciaEstoque.tsx` usa `useEquipamentosStore` para `grupos`, `modelos` e `lojas`. Dados podem estar vazios.
 
-### Arquivos Afetados
+**Correcao**: Migrar para hooks Supabase (`useSupabaseGrupos`, `useSupabaseModelos`). Para `lojas`, usar `useMultiunidade().lojas`.
 
-| Recurso | Alteracao |
-|---------|-----------|
-| Policy `faturas` (INSERT) | Adicionar `is_master()` |
-| Tabela `titulos` (dados) | Atualizar valor/saldo para 100 |
+---
+
+#### 5. Catalogo: Contagem de equipamentos usando store local
+
+`CatalogoGruposModelos.tsx` usa `useEquipamentosStore().equipamentos` para contar itens por grupo (`getEquipamentosCount`). Esse dado esta no store local e pode estar vazio.
+
+**Correcao**: Usar `useSupabaseEquipamentos` para obter a contagem real.
+
+---
+
+#### 6. Headers duplicados entre Layout e paginas internas
+
+O `EquipamentosLayout` ja renderiza titulo "Gestao de Equipamentos". Mas cada pagina filha tambem renderiza seu proprio header (ex: "Equipamentos" na Lista, "Transferencias entre Lojas", "Agenda de Disponibilidade"). Isso cria redundancia visual.
+
+**Correcao**: Remover os headers e breadcrumbs das paginas filhas (Lista, Catalogo, Agenda, Transferencias, Precos, Conferencia) ja que o Layout cuida do contexto. Manter apenas o conteudo funcional.
+
+---
+
+#### 7. Transferencias: Padding duplo do container
+
+`Transferencias.tsx` usa `className="container mx-auto p-6"` mas o layout pai ja aplica `container mx-auto p-4`. Resultado: padding dobrado.
+
+**Correcao**: Remover `container mx-auto p-6` do componente Transferencias, usar apenas `space-y-6`.
+
+---
+
+### Plano de Implementacao
+
+| # | Tarefa | Arquivos |
+|---|--------|----------|
+| 1 | Simplificar EquipamentosLayout — remover TabsContent duplicados, usar Outlet unico | `EquipamentosLayout.tsx` |
+| 2 | Melhorar Agenda — linhas maiores, colunas mais largas, scroll horizontal | `AgendaDisponibilidade.tsx` |
+| 3 | Migrar TabelaPrecos para Supabase hooks | `TabelaPrecos.tsx` |
+| 4 | Migrar ConferenciaEstoque para Supabase hooks | `ConferenciaEstoque.tsx` |
+| 5 | Corrigir contagem no Catalogo usando Supabase | `CatalogoGruposModelos.tsx` |
+| 6 | Remover headers/breadcrumbs redundantes das paginas filhas | Todas as 6 paginas |
+| 7 | Corrigir padding duplo em Transferencias | `Transferencias.tsx` |
+
+### Sem alteracao de banco de dados necessaria
 
