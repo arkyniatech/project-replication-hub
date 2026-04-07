@@ -1,109 +1,147 @@
 
 
-## Analise do Fluxo de Conferencia — Problemas Encontrados
-
-Apos analisar o codigo em detalhe, o fluxo de Conferencia **nao pode funcionar end-to-end** no estado atual. Existem problemas estruturais que impedem o teste.
+## Analise dos Modulos: Equipamentos, Manutencao e Pagar
 
 ---
 
-### Problemas Criticos
+### MANUTENCAO — Problemas Encontrados
 
-#### 1. Dados de equipamentos vem do store local (vazio)
+#### 1. Layout: Outlet duplicado (mesmo bug do Equipamentos)
 
-`gerarItens()` em `conferenciaStore.ts` (linha 270) usa `useEquipamentosStore.getState()` para obter equipamentos, grupos e modelos. Esse store local (Zustand + localStorage) esta **vazio** porque os dados reais estao no Supabase. Resultado: a sessao e criada mas **sem nenhum item para contar**.
+`ManutencaoLayout.tsx` renderiza `<Outlet />` dentro de **cada** `TabsContent` (linhas 150-180). Mesmo problema estrutural ja corrigido em Equipamentos. Apenas um Outlet e renderizado pelo React Router, os outros ficam redundantes.
 
-#### 2. `canEdit()` usa localStorage mock (inseguro)
+**Correcao**: Renderizar `<Outlet />` uma unica vez, fora dos `TabsContent`.
 
-Linha 750-753: `canEdit()` verifica `localStorage.getItem('rh-dev-profile')` em vez de usar roles reais do Supabase. Funciona por acaso (default 'admin'), mas e inseguro e inconsistente com o resto do sistema.
+#### 2. Rotas usam versao OLD (Zustand) em vez da NEW (Supabase)
 
-#### 3. Usuario hardcoded como "demo-user"
+`App.tsx` (linhas 349-351) registra:
+- `AreaList` (usa `useManutencaoStore` — Zustand/localStorage)
+- `OSDetalhe` (usa `useManutencaoStore`)
 
-Linhas 72-76 em `ConferenciaEstoque.tsx` e linha 97-101 em `ContagemForm.tsx`: o usuario e sempre `{ id: "demo-user", nome: "Demo User", perfil: localStorage... }`. Nao usa o usuario autenticado real.
+Existem versoes prontas que usam Supabase:
+- `AreaListNew` (usa `useSupabaseOrdensServico` + `useSupabaseEquipamentos`)
+- `OSDetalheNew` (usa `useSupabaseOrdensServico` + `useSupabaseEquipamentos`)
 
-#### 4. Toda a persistencia e local (localStorage)
+Resultado: ao clicar "Ver Area" ou "Ver OS" no PainelMecanico (que usa Supabase), o usuario cai nas paginas OLD que buscam dados do localStorage vazio. **Nada aparece**.
 
-Sessoes, itens, divergencias, ajustes — tudo fica apenas no localStorage do browser. Nao ha tabelas no Supabase para conferencia. Dados nao sao compartilhados entre usuarios.
+**Correcao**: Trocar as rotas para usar `AreaListNew` e `OSDetalheNew`. Remover os arquivos OLD.
+
+#### 3. PedidoPecasPage usa Zustand (dados locais vazios)
+
+`PedidoPecasPage.tsx` importa `useManutencaoStore` para ordens, pedidos e todas as acoes. Nao existe versao "New" para essa pagina.
+
+**Correcao**: Migrar para hooks Supabase (`useSupabaseOrdensServico`) ou criar um hook dedicado.
+
+#### 4. ChecklistRunner e OSTimeline tipados com tipos locais
+
+Ambos componentes aceitam `OSOficina` (tipo do Zustand) como prop, mas `OSDetalheNew` passa `os as any` para contornar. Isso mascara erros de tipo.
+
+**Correcao**: Atualizar props para aceitar o tipo `OrdemServico` do Supabase ou criar interface compartilhada.
+
+#### 5. Filtros de Produtividade com mecanicos hardcoded
+
+`ProdutividadePage.tsx` (linhas 207-210) lista mecanicos como `"Mecânico 1"`, `"Mecânico 2"`. Deveria buscar de `pessoas` ou `user_profiles`.
+
+**Correcao**: Buscar mecanicos do Supabase.
+
+#### 6. Subpaginas com padding duplo
+
+PainelMecanico, AreaList, OSDetalhe todas usam `p-6`, mas o Layout ja aplica `p-6`. Padding dobrado.
+
+**Correcao**: Remover `p-6` das paginas filhas.
 
 ---
 
-### Plano de Correcao
+### PAGAR — Problemas Encontrados
 
-Para que o fluxo funcione de verdade, preciso migrar o modulo para Supabase:
+#### 7. Tabelas `movimentos_pagar` e `contas_financeiras` nao existem no banco
 
-| # | Tarefa | Detalhes |
-|---|--------|----------|
-| 1 | **Criar tabelas no Supabase** | `sessoes_contagem`, `itens_contagem`, `divergencias_contagem`, `ajustes_contagem` com RLS adequado |
-| 2 | **Criar hooks Supabase** | `useSupabaseConferencia` com queries/mutations para substituir o store local |
-| 3 | **Gerar itens a partir do Supabase** | `gerarItens()` deve buscar de `equipamentos` no Supabase (ja existem dados reais la) |
-| 4 | **Usar usuario autenticado real** | Substituir "demo-user" por `supabase.auth.getUser()` |
-| 5 | **Usar roles reais** | `canEdit()` deve usar `has_role()` do Supabase em vez de localStorage |
-| 6 | **Adaptar componentes** | `ConferenciaEstoque.tsx`, `ContagemForm.tsx`, `SessoesList.tsx`, `ResolucaoDivergencias.tsx` para usar os novos hooks |
+A query confirmou que essas tabelas **nao existem** no Supabase. Os hooks `useSupabaseMovimentosPagar` e `useSupabaseContasFinanceiras` vao falhar silenciosamente ou retornar erro.
 
-### Tabelas Propostas
+Impacto:
+- `PagarDashboard`: KPIs de "Saldo das Contas" e "Saldo Apos Pagamentos" = 0
+- `PagarModal`: Nao lista contas disponiveis para pagamento
+- Registrar pagamento falha
+
+**Correcao**: Criar as tabelas `movimentos_pagar` e `contas_financeiras` no Supabase com RLS.
+
+#### 8. Filtros de Unidade e Categoria hardcoded
+
+`PagarParcelas.tsx` (linhas 306-325) lista "Matriz", "Filial Norte", "Filial Sul" fixo, e categorias "A5.01" a "A5.05" fixas. Deveria buscar de `lojas` e `categorias_n2`.
+
+**Correcao**: Usar `useMultiunidade().lojas` e `useSupabaseCategoriasN2()`.
+
+#### 9. Dashboard Pagar: botoes CSV/PDF sem funcionalidade real
+
+`handleExportData` e `handleGenerateReport` apenas mostram toast. Nao exportam nada.
+
+**Correcao (menor prioridade)**: Implementar export real ou remover botoes.
+
+#### 10. Dashboard Pagar: periodo selecionado nao afeta a query
+
+O `selectedPeriod` (7d/30d/90d) nao e passado para `useSupabaseParcelasPagar`. A query sempre busca 30 dias.
+
+**Correcao**: Conectar o filtro de periodo a query.
+
+---
+
+### EQUIPAMENTOS — Verificacao Pos-Correcao
+
+#### 11. AnalisePatrimonial.tsx nao esta nas rotas
+
+Existe `src/pages/equipamentos/AnalisePatrimonial.tsx` mas nao aparece no `EquipamentosLayout` nem nas rotas. Pagina orfã.
+
+**Verificar**: Se deve ser adicionada como aba ou removida.
+
+---
+
+### Plano de Implementacao (por prioridade)
+
+| # | Prioridade | Tarefa | Arquivos |
+|---|-----------|--------|----------|
+| 1 | CRITICA | Trocar rotas para AreaListNew e OSDetalheNew | `App.tsx` |
+| 2 | CRITICA | Criar tabelas `movimentos_pagar` e `contas_financeiras` | Migration SQL |
+| 3 | ALTA | Simplificar ManutencaoLayout (Outlet unico) | `ManutencaoLayout.tsx` |
+| 4 | ALTA | Migrar PedidoPecasPage para Supabase | `PedidoPecasPage.tsx` |
+| 5 | ALTA | Conectar filtro de periodo no Dashboard Pagar | `PagarDashboard.tsx` |
+| 6 | MEDIA | Atualizar tipos ChecklistRunner e OSTimeline | `ChecklistRunner.tsx`, `OSTimeline.tsx` |
+| 7 | MEDIA | Filtros dinamicos no Pagar (lojas e categorias) | `PagarParcelas.tsx` |
+| 8 | MEDIA | Remover padding duplo das subpaginas Manutencao | 5 paginas |
+| 9 | MEDIA | Buscar mecanicos reais nos filtros de Produtividade | `ProdutividadePage.tsx` |
+| 10 | BAIXA | Remover arquivos OLD (AreaList.tsx, OSDetalhe.tsx) | 2 arquivos |
+| 11 | BAIXA | Verificar AnalisePatrimonial.tsx (orfão) | Avaliar |
+
+### Tabelas a criar no Supabase
 
 ```text
-sessoes_contagem
+contas_financeiras
 ├── id (uuid, PK)
 ├── loja_id (uuid, FK lojas)
-├── display_no (text)
-├── status (text: ABERTA, EM_CONTAGEM, EM_REVISAO, AJUSTADA, FECHADA)
-├── filtros (jsonb)
-├── observacao (text)
-├── criada_por (uuid, FK auth.users)
-├── finalizada_em (timestamptz)
+├── nome (text)
+├── tipo (text: CORRENTE, POUPANCA, CAIXA)
+├── banco (text)
+├── agencia (text)
+├── conta (text)
+├── saldo_atual (numeric, default 0)
+├── ativa (boolean, default true)
 ├── created_at / updated_at
-└── log (jsonb)
 
-itens_contagem
+movimentos_pagar
 ├── id (uuid, PK)
-├── sessao_id (uuid, FK sessoes_contagem)
-├── loja_id (uuid)
-├── tipo (text: SERIE, SALDO)
-├── codigo (text)
-├── descricao (text)
-├── grupo_nome (text)
-├── modelo_nome (text)
-├── qtd_contada (integer, nullable)
-├── observacao (text)
-└── created_at / updated_at
-
-divergencias_contagem
-├── id (uuid, PK)
-├── sessao_id (uuid, FK)
-├── item_id (uuid, FK itens_contagem)
-├── qtd_sistema (integer)
-├── qtd_contada (integer)
-├── delta (integer)
-├── perc (numeric)
-├── justificativa (text)
-├── acao (text)
-├── status (text)
-├── anexos (jsonb)
-├── exige_aprovacao (boolean)
-├── aprovacao (jsonb)
-└── created_at / updated_at
-
-ajustes_contagem
-├── id (uuid, PK)
-├── sessao_id (uuid, FK)
-├── item_id (uuid, FK)
-├── delta (integer)
-├── motivo (text)
-├── status (text: PROPOSTO, APROVADO, REJEITADO)
-├── criado_por (uuid)
-├── observacao (text)
-└── created_at / updated_at
+├── parcela_id (uuid, FK parcelas_pagar)
+├── titulo_id (uuid, FK titulos_pagar)
+├── conta_id (uuid, FK contas_financeiras)
+├── loja_id (uuid, FK lojas)
+├── data_pagamento (date)
+├── valor_bruto (numeric)
+├── juros (numeric, default 0)
+├── multa (numeric, default 0)
+├── desconto (numeric, default 0)
+├── valor_liquido (numeric, generated)
+├── forma (text)
+├── comprovante_url (text)
+├── observacoes (text)
+├── created_by (uuid, FK auth.users)
+├── created_at (timestamptz)
 ```
-
-### Sem mudanca de banco necessaria para o plano atual
-
-A migracao criara as 4 tabelas novas + policies RLS. Nenhuma tabela existente sera alterada.
-
-### Resultado Esperado
-
-Apos a migracao:
-- Criar sessao buscara equipamentos reais do Supabase
-- Contagem sera persistida no banco, compartilhada entre usuarios
-- Divergencias calculadas com dados reais do sistema
-- Permissoes baseadas em roles reais (has_role)
 
