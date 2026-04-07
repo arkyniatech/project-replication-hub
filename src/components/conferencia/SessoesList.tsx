@@ -5,18 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Search, 
-  Eye, 
-  Play, 
-  CheckCircle, 
-  X, 
-  Printer,
-  Calendar,
-  User,
-  Building2
+  Search, Eye, Play, CheckCircle, Printer, Calendar, User, Building2, Loader2
 } from "lucide-react";
-import { useConferenciaStore, type StatusConferencia } from "@/stores/conferenciaStore";
-import { useEquipamentosStore } from "@/stores/equipamentosStore";
+import { useSupabaseConferencia, type StatusConferencia } from "@/hooks/useSupabaseConferencia";
+import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,8 +33,8 @@ const STATUS_LABELS: Record<StatusConferencia, string> = {
 export function SessoesList() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { sessoes, getItensPorSessao, canEdit } = useConferenciaStore();
-  const { lojas } = useEquipamentosStore();
+  const { sessoes, useItensPorSessao, canEdit, loadingSessoes } = useSupabaseConferencia();
+  const { lojas } = useMultiunidade();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusConferencia | "">("");
@@ -56,104 +48,52 @@ export function SessoesList() {
       (sessao.displayNo?.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = !statusFilter || sessao.status === statusFilter;
-    
     return matchesSearch && matchesStatus;
-  }).sort((a, b) => {
-    // Ordenar por data de criação descendente (mais recentes primeiro)
-    return new Date(b.criadaEm).getTime() - new Date(a.criadaEm).getTime();
   });
 
   const handleAbrirSessao = (sessaoId: string) => {
     navigate(`/equipamentos/conferencia?sessao=${sessaoId}`);
   };
 
-  const handleImprimirLista = (sessaoId: string) => {
-    const sessao = sessoes.find(s => s.id === sessaoId);
-    const loja = lojas.find(l => l.id === sessao?.lojaId);
-    
-    if (!sessao || !loja) {
-      toast({
-        title: "Erro", 
-        description: "Sessão ou loja não encontrada",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const itens = getItensPorSessao(sessaoId);
-    
-    import("@/utils/conferencia-print").then(({ printContagemCega }) => {
-      const printData = {
-        sessao,
-        itens,
-        lojaNome: loja.nome
-      };
-      printContagemCega(printData);
-    });
-  };
-
   const getActionButton = (sessao: any) => {
-    const itens = getItensPorSessao(sessao.id);
-    const itensContados = itens.filter(i => i.qtdContada !== null);
-    
     switch (sessao.status) {
       case 'ABERTA':
-        return canEdit() ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleAbrirSessao(sessao.id)}
-          >
-            <Play className="w-4 h-4 mr-1" />
-            Continuar
-          </Button>
-        ) : null;
-        
       case 'EM_CONTAGEM':
         return canEdit() ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleAbrirSessao(sessao.id)}
-          >
-            <Play className="w-4 h-4 mr-1" />
-            Continuar ({itensContados.length}/{itens.length})
+          <Button size="sm" variant="outline" onClick={() => handleAbrirSessao(sessao.id)}>
+            <Play className="w-4 h-4 mr-1" /> Continuar
           </Button>
         ) : null;
-        
       case 'EM_REVISAO':
       case 'AJUSTADA':
         return canEdit() ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleAbrirSessao(sessao.id)}
-          >
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Revisar
+          <Button size="sm" variant="outline" onClick={() => handleAbrirSessao(sessao.id)}>
+            <CheckCircle className="w-4 h-4 mr-1" /> Revisar
           </Button>
         ) : null;
-        
       default:
         return (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleAbrirSessao(sessao.id)}
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            Visualizar
+          <Button size="sm" variant="ghost" onClick={() => handleAbrirSessao(sessao.id)}>
+            <Eye className="w-4 h-4 mr-1" /> Visualizar
           </Button>
         );
     }
   };
 
+  if (loadingSessoes) {
+    return (
+      <Card className="shadow-md">
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="shadow-md">
       <CardHeader>
         <CardTitle>Sessões de Contagem</CardTitle>
-        
-        {/* Filtros */}
         <div className="flex gap-4 mt-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -182,7 +122,6 @@ export function SessoesList() {
           <div className="space-y-4">
             {filteredSessoes.map((sessao) => {
               const loja = lojas.find(l => l.id === sessao.lojaId);
-              const itens = getItensPorSessao(sessao.id);
               
               return (
                 <div
@@ -196,11 +135,11 @@ export function SessoesList() {
                     
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                         <SessionDisplayChip sessao={sessao} showCopyButton={true} />
-                         <Badge className={STATUS_COLORS[sessao.status]}>
-                           {STATUS_LABELS[sessao.status]}
-                         </Badge>
-                       </div>
+                        <SessionDisplayChip sessao={sessao} showCopyButton={true} />
+                        <Badge className={STATUS_COLORS[sessao.status]}>
+                          {STATUS_LABELS[sessao.status]}
+                        </Badge>
+                      </div>
                       
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
@@ -217,40 +156,21 @@ export function SessoesList() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-muted-foreground">
-                          Itens: <span className="font-medium text-foreground">{itens.length}</span>
-                        </span>
-                        
-                        {sessao.filtros.tipo && (
-                          <span className="text-muted-foreground">
-                            Tipo: <span className="font-medium text-foreground">
-                              {sessao.filtros.tipo === 'AMBOS' ? 'Série + Saldo' : sessao.filtros.tipo}
-                            </span>
+                      {sessao.filtros.tipo && (
+                        <div className="text-sm text-muted-foreground">
+                          Tipo: <span className="font-medium text-foreground">
+                            {sessao.filtros.tipo === 'AMBOS' ? 'Série + Saldo' : sessao.filtros.tipo}
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                       
                       {sessao.observacao && (
-                        <p className="text-xs text-muted-foreground italic">
-                          {sessao.observacao}
-                        </p>
+                        <p className="text-xs text-muted-foreground italic">{sessao.observacao}</p>
                       )}
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    {canEdit() && sessao.status !== 'FECHADA' && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleImprimirLista(sessao.id)}
-                        title="Imprimir Lista"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </Button>
-                    )}
-                    
                     {getActionButton(sessao)}
                   </div>
                 </div>

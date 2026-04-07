@@ -1,4 +1,4 @@
-import { ContagemSessao, ContagemItem } from "@/stores/conferenciaStore";
+import { ContagemSessao, ContagemItem } from "@/hooks/useSupabaseConferencia";
 
 export interface PrintData {
   sessao: ContagemSessao;

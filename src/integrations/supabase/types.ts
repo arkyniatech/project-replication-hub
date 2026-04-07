@@ -83,6 +83,60 @@ export type Database = {
           },
         ]
       }
+      ajustes_contagem: {
+        Row: {
+          created_at: string
+          criado_por: string
+          delta: number
+          id: string
+          item_id: string
+          motivo: string | null
+          observacao: string | null
+          sessao_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por: string
+          delta?: number
+          id?: string
+          item_id: string
+          motivo?: string | null
+          observacao?: string | null
+          sessao_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string
+          delta?: number
+          id?: string
+          item_id?: string
+          motivo?: string | null
+          observacao?: string | null
+          sessao_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ajustes_contagem_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens_contagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ajustes_contagem_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "sessoes_contagem"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aprovacoes_cp: {
         Row: {
           created_at: string
@@ -644,6 +698,75 @@ export type Database = {
           },
         ]
       }
+      divergencias_contagem: {
+        Row: {
+          acao: string | null
+          anexos: Json
+          aprovacao: Json | null
+          created_at: string
+          delta: number
+          exige_aprovacao: boolean
+          id: string
+          item_id: string
+          justificativa: string | null
+          perc: number
+          qtd_contada: number
+          qtd_sistema: number
+          sessao_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acao?: string | null
+          anexos?: Json
+          aprovacao?: Json | null
+          created_at?: string
+          delta?: number
+          exige_aprovacao?: boolean
+          id?: string
+          item_id: string
+          justificativa?: string | null
+          perc?: number
+          qtd_contada?: number
+          qtd_sistema?: number
+          sessao_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acao?: string | null
+          anexos?: Json
+          aprovacao?: Json | null
+          created_at?: string
+          delta?: number
+          exige_aprovacao?: boolean
+          id?: string
+          item_id?: string
+          justificativa?: string | null
+          perc?: number
+          qtd_contada?: number
+          qtd_sistema?: number
+          sessao_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "divergencias_contagem_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "itens_contagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "divergencias_contagem_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "sessoes_contagem"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipamentos: {
         Row: {
           ativo: boolean
@@ -1089,6 +1212,66 @@ export type Database = {
             columns: ["titulo_id"]
             isOneToOne: false
             referencedRelation: "titulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itens_contagem: {
+        Row: {
+          codigo: string
+          created_at: string
+          descricao: string
+          grupo_nome: string
+          id: string
+          loja_id: string
+          modelo_nome: string
+          observacao: string | null
+          qtd_contada: number | null
+          sessao_id: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          grupo_nome?: string
+          id?: string
+          loja_id: string
+          modelo_nome?: string
+          observacao?: string | null
+          qtd_contada?: number | null
+          sessao_id: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          grupo_nome?: string
+          id?: string
+          loja_id?: string
+          modelo_nome?: string
+          observacao?: string | null
+          qtd_contada?: number | null
+          sessao_id?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_contagem_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_contagem_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "sessoes_contagem"
             referencedColumns: ["id"]
           },
         ]
@@ -1691,6 +1874,56 @@ export type Database = {
             columns: ["titulo_id"]
             isOneToOne: false
             referencedRelation: "titulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessoes_contagem: {
+        Row: {
+          created_at: string
+          criada_por: string
+          display_no: string
+          filtros: Json
+          finalizada_em: string | null
+          id: string
+          log: Json
+          loja_id: string
+          observacao: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          criada_por: string
+          display_no?: string
+          filtros?: Json
+          finalizada_em?: string | null
+          id?: string
+          log?: Json
+          loja_id: string
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          criada_por?: string
+          display_no?: string
+          filtros?: Json
+          finalizada_em?: string | null
+          id?: string
+          log?: Json
+          loja_id?: string
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessoes_contagem_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
             referencedColumns: ["id"]
           },
         ]
