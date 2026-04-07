@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,44 +12,41 @@ import {
   MessageSquare, 
   AlertCircle,
   Clock,
-  Copy
+  Copy,
+  Loader2
 } from "lucide-react";
-import { clienteStorage, contratoStorage, tituloStorage } from "@/lib/storage";
-import { Cliente, Contrato, Titulo } from "@/types";
+import { useSupabaseClientes } from "@/hooks/useSupabaseClientes";
+import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
+import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ClienteVisao() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   
-  const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [contratosAtivos, setContratosAtivos] = useState<Contrato[]>([]);
-  const [titulosAbertos, setTitulosAbertos] = useState<Titulo[]>([]);
+  // Buscar dados do Supabase
+  const { useCliente } = useSupabaseClientes();
+  const { data: clienteData, isLoading: loadingCliente } = useCliente(id || '');
+  const { contratos: contratosData, isLoading: loadingContratos } = useSupabaseContratos();
+  const { titulos: titulosData, isLoading: loadingTitulos } = useSupabaseTitulos(undefined, id);
+
   const [solicitacao, setSolicitacao] = useState({
     contratoId: '',
     tipo: '',
     observacao: ''
   });
 
-  useEffect(() => {
-    if (id) {
-      // Carregar cliente
-      const clienteData = clienteStorage.getById(id);
-      setCliente(clienteData || null);
+  const isLoading = loadingCliente || loadingContratos || loadingTitulos;
 
-      // Carregar contratos ativos
-      const contratos = contratoStorage.getAll().filter(c => 
-        c.clienteId === id && (c.status === 'ATIVO' || c.status === 'AGENDADO' || c.status === 'AGUARDANDO_ENTREGA')
-      );
-      setContratosAtivos(contratos);
+  // Filtrar contratos ativos do cliente
+  const contratosAtivos = (contratosData || []).filter((c: any) => 
+    c.cliente_id === id && ['ATIVO', 'AGENDADO', 'AGUARDANDO_ENTREGA'].includes(c.status)
+  );
 
-      // Carregar títulos em aberto
-      const titulos = tituloStorage.getAll().filter(t => 
-        t.clienteId === id && (t.status === 'Em aberto' || t.status === 'Parcial')
-      );
-      setTitulosAbertos(titulos);
-    }
-  }, [id]);
+  // Filtrar títulos em aberto do cliente
+  const titulosAbertos = (titulosData || []).filter((t: any) => 
+    ['ABERTO', 'Em aberto', 'Parcial', 'PARCIAL'].includes(t.status)
+  );
 
   const handleEnviarSolicitacao = () => {
     if (!solicitacao.contratoId || !solicitacao.tipo || !solicitacao.observacao.trim()) {
@@ -61,43 +58,33 @@ export default function ClienteVisao() {
       return;
     }
 
-    // Mock - registrar solicitação na timeline
-    const contrato = contratosAtivos.find(c => c.id.toString() === solicitacao.contratoId);
-    
     toast({
       title: "Solicitação enviada",
       description: `Sua solicitação de ${solicitacao.tipo} foi registrada e será analisada em breve.`,
     });
 
-    // Limpar formulário
-    setSolicitacao({
-      contratoId: '',
-      tipo: '',
-      observacao: ''
-    });
+    setSolicitacao({ contratoId: '', tipo: '', observacao: '' });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ATIVO':
-      case 'Ativo':
-        return 'default';
-      case 'AGENDADO':
-        return 'secondary';
-      case 'Em aberto':
-        return 'destructive';
-      case 'Parcial':
-        return 'secondary';
-      default:
-        return 'secondary';
+      case 'ATIVO': case 'Ativo': return 'default';
+      case 'AGENDADO': return 'secondary';
+      case 'ABERTO': case 'Em aberto': return 'destructive';
+      case 'Parcial': case 'PARCIAL': return 'secondary';
+      default: return 'secondary';
     }
   };
 
-  const formatarNumero = (numero: string | number) => {
-    return typeof numero === 'number' ? numero.toString() : numero;
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  if (!cliente) {
+  if (!clienteData) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
@@ -112,6 +99,9 @@ export default function ClienteVisao() {
     );
   }
 
+  const clienteNome = clienteData.nome || clienteData.razao_social || 'Cliente';
+  const clienteDoc = clienteData.cpf || clienteData.cnpj || '';
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -123,8 +113,8 @@ export default function ClienteVisao() {
                 <User className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold">{cliente.nomeRazao}</h1>
-                <p className="text-muted-foreground">{cliente.documento}</p>
+                <h1 className="text-2xl font-semibold">{clienteNome}</h1>
+                <p className="text-muted-foreground">{clienteDoc}</p>
               </div>
             </div>
             
@@ -151,19 +141,16 @@ export default function ClienteVisao() {
               <CardContent>
                 {contratosAtivos.length > 0 ? (
                   <div className="space-y-4">
-                    {contratosAtivos.map((contrato) => (
+                    {contratosAtivos.map((contrato: any) => (
                       <div 
                         key={contrato.id} 
                         className="p-4 border rounded-lg hover:bg-muted/30 transition-colors"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div>
-                            <h4 className="font-semibold">
-                              Contrato {formatarNumero(contrato.numero || contrato.id)}
-                            </h4>
+                            <h4 className="font-semibold">Contrato {contrato.numero}</h4>
                             <p className="text-sm text-muted-foreground">
-                              {contrato.itens?.length || 0} equipamento(s) • 
-                              Início: {new Date(contrato.dataInicio).toLocaleDateString('pt-BR')}
+                              Início: {new Date(contrato.data_inicio).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
                           <div className="text-right">
@@ -173,22 +160,10 @@ export default function ClienteVisao() {
                                contrato.status === 'AGUARDANDO_ENTREGA' ? 'Aguardando Entrega' : contrato.status}
                             </Badge>
                             <p className="text-sm font-medium mt-1">
-                              R$ {contrato.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              R$ {Number(contrato.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </p>
                           </div>
                         </div>
-                        
-                        {/* Principais equipamentos */}
-                        {contrato.itens && contrato.itens.length > 0 && (
-                          <div className="mt-3">
-                            <p className="text-sm text-muted-foreground">
-                              Equipamentos: {contrato.itens.slice(0, 2).map(item => 
-                                item.equipamento?.nome || `Item ${item.id}`
-                              ).join(', ')}
-                              {contrato.itens.length > 2 && ` +${contrato.itens.length - 2} mais`}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -212,7 +187,7 @@ export default function ClienteVisao() {
               <CardContent>
                 {titulosAbertos.length > 0 ? (
                   <div className="space-y-3">
-                    {titulosAbertos.map((titulo) => (
+                    {titulosAbertos.map((titulo: any) => (
                       <div 
                         key={titulo.id} 
                         className="flex items-center justify-between p-3 border rounded-lg"
@@ -234,7 +209,7 @@ export default function ClienteVisao() {
                         
                         <div className="text-right">
                           <p className="font-semibold">
-                            R$ {titulo.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            R$ {Number(titulo.saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </p>
                           <Badge variant={getStatusColor(titulo.status)}>
                             {titulo.status}
@@ -243,12 +218,11 @@ export default function ClienteVisao() {
                       </div>
                     ))}
                     
-                    {/* Total em aberto */}
                     <div className="border-t pt-3">
                       <div className="flex justify-between items-center font-semibold">
                         <span>Total em aberto:</span>
                         <span className="text-primary">
-                          R$ {titulosAbertos.reduce((sum, t) => sum + t.saldo, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {titulosAbertos.reduce((sum: number, t: any) => sum + Number(t.saldo), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>
@@ -284,9 +258,9 @@ export default function ClienteVisao() {
                       <SelectValue placeholder="Selecione um contrato" />
                     </SelectTrigger>
                     <SelectContent>
-                      {contratosAtivos.map((contrato) => (
-                        <SelectItem key={contrato.id} value={contrato.id.toString()}>
-                          Contrato {formatarNumero(contrato.numero || contrato.id)}
+                      {contratosAtivos.map((contrato: any) => (
+                        <SelectItem key={contrato.id} value={contrato.id}>
+                          Contrato {contrato.numero}
                         </SelectItem>
                       ))}
                     </SelectContent>

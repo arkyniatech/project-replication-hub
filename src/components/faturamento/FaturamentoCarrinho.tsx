@@ -28,8 +28,10 @@ import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useMultiunidade } from "@/hooks/useMultiunidade";
 
 export function FaturamentoCarrinho() {
+  const { lojaAtual } = useMultiunidade();
   const { 
     lancamentosFaturaveis, 
     kpis,
@@ -89,7 +91,7 @@ export function FaturamentoCarrinho() {
     
     try {
       const faturaId = emitirFatura({
-        unidadeId: 'loja1', // TODO: get from context
+        unidadeId: lojaAtual?.id || 'loja1',
         clienteId: clienteSelecionado.clienteId,
         clienteNome: clienteSelecionado.clienteNome,
         vencimento,
