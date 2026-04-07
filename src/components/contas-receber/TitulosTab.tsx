@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Search, ChevronDown, ChevronRight, Download, CheckCircle, DollarSign, Send, FileText, QrCode } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Download, CheckCircle, DollarSign, Send, FileText, QrCode, Copy, ExternalLink } from "lucide-react";
 import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,7 @@ import RegistrarRecebimentoModal from "./RegistrarRecebimentoModal";
 import { AgruparFaturaModal } from "./AgruparFaturaModal";
 import { EmitirBolePixModal } from "@/components/bolepix/EmitirBolePixModal";
 import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
+import { toast as sonnerToast } from "sonner";
 
 export default function TitulosTab() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,7 +30,41 @@ export default function TitulosTab() {
   const { lojaAtual } = useMultiunidade();
   
   const { titulos = [], updateTitulo, isLoading, error } = useSupabaseTitulos(lojaAtual?.id);
-  const { createCobranca } = useSupabaseCobrancasInter(lojaAtual?.id);
+  const { cobrancas, createCobranca } = useSupabaseCobrancasInter(lojaAtual?.id);
+
+  // Map titulo_id → latest cobranca for Inter status display
+  const cobrancaByTitulo = useMemo(() => {
+    const map = new Map<string, any>();
+    (cobrancas || []).forEach(c => {
+      const existing = map.get(c.titulo_id);
+      if (!existing || new Date(c.created_at) > new Date(existing.created_at)) {
+        map.set(c.titulo_id, c);
+      }
+    });
+    return map;
+  }, [cobrancas]);
+
+  const getInterStatusBadge = (status: string) => {
+    const map: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+      'DRAFT': { label: 'Rascunho', variant: 'secondary' },
+      'REQUESTED': { label: 'Solicitado', variant: 'outline' },
+      'PROCESSING': { label: 'Processando', variant: 'outline' },
+      'ISSUED': { label: 'Emitido', variant: 'default' },
+      'PAID': { label: 'Pago', variant: 'default' },
+      'CANCELLED': { label: 'Cancelado', variant: 'destructive' },
+      'EXPIRED': { label: 'Expirado', variant: 'destructive' },
+    };
+    return map[status] || { label: status, variant: 'secondary' as const };
+  };
+
+  const handleCopyPix = (pixCode: string) => {
+    navigator.clipboard.writeText(pixCode);
+    sonnerToast.success("PIX Copia e Cola copiado!");
+  };
+
+  const handleDownloadPdf = (pdfUrl: string) => {
+    window.open(pdfUrl, '_blank');
+  };
 
   console.log('[TitulosTab] Loja atual:', lojaAtual?.id);
   console.log('[TitulosTab] Total de títulos:', titulos.length);
@@ -318,6 +353,7 @@ export default function TitulosTab() {
                 <TableHead>Pago</TableHead>
                 <TableHead>Saldo</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Inter</TableHead>
                 <TableHead>Forma</TableHead>
                 <TableHead>Ações</TableHead>
               </TableRow>
@@ -372,6 +408,40 @@ export default function TitulosTab() {
                     <TableCell>R$ {(titulo.saldo || 0).toLocaleString('pt-BR')}</TableCell>
                     <TableCell>
                       <StatusBadge status={getStatusInfo(titulo.status)} />
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const cob = cobrancaByTitulo.get(titulo.id);
+                        if (!cob) return <span className="text-muted-foreground text-xs">—</span>;
+                        const info = getInterStatusBadge(cob.status);
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <Badge variant={info.variant} className="text-xs w-fit">{info.label}</Badge>
+                            <div className="flex gap-0.5">
+                              {cob.pix_copia_cola && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleCopyPix(cob.pix_copia_cola)}>
+                                      <Copy className="w-3 h-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Copiar PIX</p></TooltipContent>
+                                </Tooltip>
+                              )}
+                              {cob.pdf_url && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleDownloadPdf(cob.pdf_url)}>
+                                      <ExternalLink className="w-3 h-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>Abrir PDF</p></TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>{titulo.forma}</TableCell>
                     <TableCell>
@@ -444,7 +514,7 @@ export default function TitulosTab() {
                   {/* Linha expandida com timeline */}
                   {isExpanded && (
                     <TableRow>
-                      <TableCell colSpan={12} className="bg-muted/20">
+                      <TableCell colSpan={13} className="bg-muted/20">
                         <div className="p-4">
                           <h4 className="font-semibold mb-3">Timeline do Título</h4>
                           <div className="space-y-2">

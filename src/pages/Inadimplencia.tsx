@@ -5,18 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, DollarSign, Users, AlertTriangle, TrendingDown, MessageSquare, Phone, FileText, ChevronDown, ChevronRight, X, Clock } from "lucide-react";
+import { Calendar, DollarSign, Users, AlertTriangle, TrendingDown, MessageSquare, Phone, FileText, ChevronDown, ChevronRight, X, Clock, QrCode, Copy } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AgingBucket } from "@/types";
 import EnviarAvisoModal from "@/components/inadimplencia/EnviarAvisoModal";
 import RegistrarContatoModal from "@/components/inadimplencia/RegistrarContatoModal";
+import { EmitirBolePixModal } from "@/components/bolepix/EmitirBolePixModal";
 import { timelineStore } from "@/stores/timelineStore";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useSupabaseClientes } from "@/hooks/useSupabaseClientes";
+import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
+import { toast } from "sonner";
 
 // Configurações de juros e multa
 const CONFIG_COBRANCA = {
@@ -28,8 +32,59 @@ const CONFIG_COBRANCA = {
 
 export default function Inadimplencia() {
   const { lojaAtual } = useMultiunidade();
-  const { titulos = [] } = useSupabaseTitulos(lojaAtual?.id);
+  const { titulos = [], updateTitulo } = useSupabaseTitulos(lojaAtual?.id);
   const { clientes = [] } = useSupabaseClientes(lojaAtual?.id);
+  const { cobrancas, createCobranca } = useSupabaseCobrancasInter(lojaAtual?.id);
+
+  // BolePix modal state
+  const [showBolePixModal, setShowBolePixModal] = useState(false);
+  const [selectedTituloForBolePix, setSelectedTituloForBolePix] = useState<any>(null);
+
+  // Map titulo_id → latest cobranca
+  const cobrancaByTitulo = useMemo(() => {
+    const map = new Map<string, any>();
+    (cobrancas || []).forEach(c => {
+      const existing = map.get(c.titulo_id);
+      if (!existing || new Date(c.created_at) > new Date(existing.created_at)) {
+        map.set(c.titulo_id, c);
+      }
+    });
+    return map;
+  }, [cobrancas]);
+
+  const handleEmitirBolePixInadimplencia = (titulo: any) => {
+    setSelectedTituloForBolePix(titulo);
+    setShowBolePixModal(true);
+  };
+
+  const onBolePixSuccess = async (cobrancaData: any) => {
+    try {
+      await createCobranca.mutateAsync({
+        titulo_id: selectedTituloForBolePix.id,
+        loja_id: lojaAtual?.id || '',
+        status: cobrancaData.status,
+        idempotency_key: cobrancaData.idempotencyKey,
+        codigo_solicitacao: cobrancaData.codigoSolicitacao,
+        linha_digitavel: cobrancaData.linhaDigitavel,
+        codigo_barras: cobrancaData.codigoBarras,
+        pix_copia_cola: cobrancaData.pixCopiaECola,
+        qr_code_data_url: cobrancaData.qrCodeDataUrl,
+        pdf_url: cobrancaData.pdfUrl,
+        history: cobrancaData.history || [],
+      });
+      toast.success("BolePix emitido para título vencido!");
+      setShowBolePixModal(false);
+      setSelectedTituloForBolePix(null);
+    } catch (error) {
+      console.error('Erro ao emitir BolePix:', error);
+      toast.error("Erro ao emitir BolePix");
+    }
+  };
+
+  const handleCopyPix = (pixCode: string) => {
+    navigator.clipboard.writeText(pixCode);
+    toast.success("PIX Copia e Cola copiado!");
+  };
 
   // Estado dos filtros simplificados com persistência
   const [filtros, setFiltros] = useState(() => {
@@ -248,6 +303,7 @@ export default function Inadimplencia() {
   };
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -635,6 +691,7 @@ export default function Inadimplencia() {
                                 <TableHead>Saldo</TableHead>
                                 <TableHead>Dias Atraso</TableHead>
                                 <TableHead>Com Juros</TableHead>
+                                <TableHead>Inter</TableHead>
                                 <TableHead>Ações</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -657,7 +714,38 @@ export default function Inadimplencia() {
                                       R$ {calculoJuros.valorComJuros.toLocaleString('pt-BR')}
                                     </TableCell>
                                     <TableCell>
+                                      {(() => {
+                                        const cob = cobrancaByTitulo.get(titulo.id);
+                                        if (!cob) return <span className="text-muted-foreground text-xs">—</span>;
+                                        return (
+                                          <div className="flex items-center gap-1">
+                                            <Badge variant={cob.status === 'PAID' ? 'default' : cob.status === 'ISSUED' ? 'outline' : 'destructive'} className="text-xs">
+                                              {cob.status}
+                                            </Badge>
+                                            {cob.pix_copia_cola && (
+                                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleCopyPix(cob.pix_copia_cola)}>
+                                                <Copy className="w-3 h-3" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+                                    </TableCell>
+                                    <TableCell>
                                       <div className="flex gap-1">
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleEmitirBolePixInadimplencia(titulo)}
+                                              className="text-primary"
+                                            >
+                                              <QrCode className="w-4 h-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent><p>Emitir BolePix</p></TooltipContent>
+                                        </Tooltip>
                                         <Button
                                           variant="outline"
                                           size="sm"
@@ -679,9 +767,6 @@ export default function Inadimplencia() {
                                           })}
                                         >
                                           <Phone className="w-4 h-4" />
-                                        </Button>
-                                        <Button variant="outline" size="sm">
-                                          <FileText className="w-4 h-4" />
                                         </Button>
                                       </div>
                                     </TableCell>
@@ -714,7 +799,6 @@ export default function Inadimplencia() {
         clienteId={modalAviso.clienteId}
         tituloId={modalAviso.tituloId}
         onSuccess={() => {
-          // Forçar recálculo do aging data
           window.location.reload();
         }}
       />
@@ -725,10 +809,19 @@ export default function Inadimplencia() {
         clienteId={modalContato.clienteId}
         tituloId={modalContato.tituloId}
         onSuccess={() => {
-          // Forçar recálculo do aging data
           window.location.reload();
         }}
       />
+
+      {selectedTituloForBolePix && (
+        <EmitirBolePixModal
+          titulo={selectedTituloForBolePix}
+          open={showBolePixModal}
+          onClose={() => setShowBolePixModal(false)}
+          onSuccess={onBolePixSuccess}
+        />
+      )}
     </div>
+    </TooltipProvider>
   );
 }
