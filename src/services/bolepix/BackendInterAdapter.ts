@@ -1,124 +1,124 @@
-// Backend Adapter para BolePix - Stub para integração futura
+// Backend Adapter para BolePix - Integração via Edge Function
 import {
   BolePixGateway,
   EmitChargePayload,
   ChargeDTO,
   ListChargesFilters
 } from '@/types/bolepix';
+import { supabase } from '@/integrations/supabase/client';
 
 export class BackendInterAdapter implements BolePixGateway {
-  private baseUrl: string;
+  private lojaId: string;
 
-  constructor(baseUrl = '/api/inter') {
-    this.baseUrl = baseUrl;
+  constructor(lojaId: string = '') {
+    this.lojaId = lojaId;
+  }
+
+  setLojaId(lojaId: string) {
+    this.lojaId = lojaId;
+  }
+
+  private async invokeProxy(action: string, payload?: any) {
+    const { data, error } = await supabase.functions.invoke('inter-proxy', {
+      body: {
+        action,
+        loja_id: this.lojaId,
+        payload: payload || {},
+      },
+    });
+
+    if (error) throw new Error(`Erro na Edge Function: ${error.message}`);
+    if (data?.error) throw new Error(data.error);
+    return data;
   }
 
   async emitCharge(payload: EmitChargePayload): Promise<{ codigoSolicitacao: string; status: 'REQUESTED' }> {
-    // TODO: Implementar quando backend estiver pronto
-    const response = await fetch(`${this.baseUrl}/charges`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const interPayload = {
+      seuNumero: payload.seuNumero || payload.idempotencyKey,
+      valorNominal: payload.valor,
+      dataVencimento: payload.vencimento,
+      numDiasAgenda: 30,
+      pagador: {
+        cpfCnpj: payload.sacado.cpfCnpj,
+        tipoPessoa: payload.sacado.cpfCnpj.length > 11 ? 'JURIDICA' : 'FISICA',
+        nome: payload.sacado.nome,
+        email: payload.sacado.email,
+        endereco: payload.sacado.endereco ? {
+          cep: payload.sacado.endereco.cep,
+          logradouro: payload.sacado.endereco.logradouro,
+          numero: payload.sacado.endereco.numero,
+          bairro: payload.sacado.endereco.bairro,
+          cidade: payload.sacado.endereco.cidade,
+          uf: payload.sacado.endereco.uf,
+        } : undefined,
       },
-      body: JSON.stringify(payload),
-    });
+      ...(payload.multa && { multa: { codigoMulta: 'PERCENTUAL', taxa: payload.multa } }),
+      ...(payload.juros && { mora: { codigoMora: 'TAXAMENSAL', taxa: payload.juros } }),
+    };
 
-    if (!response.ok) {
-      throw new Error(`Erro ao emitir cobrança: ${response.statusText}`);
-    }
-
-    return response.json();
+    const result = await this.invokeProxy('emitir-boleto', interPayload);
+    return {
+      codigoSolicitacao: result.codigoSolicitacao || result.nossoNumero || 'PENDING',
+      status: 'REQUESTED',
+    };
   }
 
   async getCharge(codigoSolicitacao: string): Promise<ChargeDTO> {
-    // TODO: Implementar quando backend estiver pronto
-    const response = await fetch(`${this.baseUrl}/charges/${codigoSolicitacao}`);
-
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar cobrança: ${response.statusText}`);
-    }
-
-    return response.json();
+    const result = await this.invokeProxy('consultar-boleto', { codigoSolicitacao });
+    
+    return {
+      codigoSolicitacao: result.codigoSolicitacao || codigoSolicitacao,
+      status: result.situacao || result.status || 'PROCESSING',
+      valor: result.valorNominal || 0,
+      vencimento: result.dataVencimento || '',
+      sacado: {
+        nome: result.pagador?.nome || '',
+        cpfCnpj: result.pagador?.cpfCnpj || '',
+        email: result.pagador?.email || '',
+      },
+      linhaDigitavel: result.linhaDigitavel,
+      codigoBarras: result.codigoBarras,
+      pixCopiaECola: result.pixCopiaECola,
+    };
   }
 
   async listCharges(filters?: ListChargesFilters): Promise<ChargeDTO[]> {
-    // TODO: Implementar quando backend estiver pronto
-    const params = new URLSearchParams();
-    
-    if (filters?.statusIn) {
-      params.append('status', filters.statusIn.join(','));
-    }
-    if (filters?.dataInicio) {
-      params.append('dataInicio', filters.dataInicio);
-    }
-    if (filters?.dataFim) {
-      params.append('dataFim', filters.dataFim);
-    }
-    if (filters?.limit) {
-      params.append('limit', filters.limit.toString());
-    }
+    // Inter API uses date-range based listing
+    const payload: any = {};
+    if (filters?.dataInicio) payload.dataInicio = filters.dataInicio;
+    if (filters?.dataFim) payload.dataFim = filters.dataFim;
+    if (filters?.statusIn) payload.filtrarSituacao = filters.statusIn.join(',');
 
-    const response = await fetch(`${this.baseUrl}/charges?${params}`);
-
-    if (!response.ok) {
-      throw new Error(`Erro ao listar cobranças: ${response.statusText}`);
-    }
-
-    return response.json();
+    const result = await this.invokeProxy('consultar-boleto', payload);
+    return Array.isArray(result) ? result : [];
   }
 
   async cancelCharge(codigoSolicitacao: string, reason?: string): Promise<{ status: string }> {
-    // TODO: Implementar quando backend estiver pronto
-    const response = await fetch(`${this.baseUrl}/charges/${codigoSolicitacao}/cancel`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ reason }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro ao cancelar cobrança: ${response.statusText}`);
-    }
-
-    return response.json();
+    return await this.invokeProxy('cancelar-boleto', { codigoSolicitacao, motivo: reason });
   }
 
   async getPdf(codigoSolicitacao: string): Promise<{ pdfBlob?: Blob; url?: string }> {
-    // TODO: Implementar quando backend estiver pronto
-    const response = await fetch(`${this.baseUrl}/charges/${codigoSolicitacao}/pdf`);
-
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar PDF: ${response.statusText}`);
+    const result = await this.invokeProxy('get-pdf', { codigoSolicitacao });
+    
+    if (result.pdf_base64) {
+      const binaryString = atob(result.pdf_base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return { pdfBlob: new Blob([bytes], { type: 'application/pdf' }) };
     }
 
-    const pdfBlob = await response.blob();
-    return { pdfBlob };
+    return {};
   }
 
   async registerWebhook(url: string): Promise<void> {
-    // TODO: Implementar quando backend estiver pronto
-    const response = await fetch(`${this.baseUrl}/webhooks`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro ao registrar webhook: ${response.statusText}`);
-    }
+    // Webhook is configured via Inter dashboard, not API
+    console.log('Webhook URL to register in Inter dashboard:', url);
   }
 
   async deleteWebhook(id: string): Promise<void> {
-    // TODO: Implementar quando backend estiver pronto
-    const response = await fetch(`${this.baseUrl}/webhooks/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro ao remover webhook: ${response.statusText}`);
-    }
+    // Webhook is managed via Inter dashboard
+    console.log('Webhook to delete in Inter dashboard:', id);
   }
 }
