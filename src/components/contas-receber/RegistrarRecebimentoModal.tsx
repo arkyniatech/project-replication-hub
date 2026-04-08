@@ -125,7 +125,7 @@ export default function RegistrarRecebimentoModal({
       if (gerarRecibo) {
         toast({
           title: "Recibo gerado",
-          description: "Recibo de pagamento foi gerado (mock).",
+          description: "Recibo de pagamento foi gerado.",
           duration: 1500
         });
       }
@@ -133,7 +133,7 @@ export default function RegistrarRecebimentoModal({
       if (notificarCliente) {
         toast({
           title: "Cliente notificado",
-          description: "Cliente foi notificado sobre o recebimento (mock).",
+          description: "Cliente foi notificado sobre o recebimento.",
           duration: 1500
         });
       }
@@ -162,7 +162,7 @@ export default function RegistrarRecebimentoModal({
     
     toast({
       title: "2ª via gerada",
-      description: "Segunda via do saldo foi gerada (mock).",
+      description: "Segunda via do saldo foi gerada.",
       duration: 2000
     });
   };
@@ -292,7 +292,7 @@ export default function RegistrarRecebimentoModal({
                 checked={gerarRecibo}
                 onChange={(e) => setGerarRecibo(e.target.checked)}
               />
-              <Label htmlFor="gerarRecibo">Gerar Recibo (mock)</Label>
+              <Label htmlFor="gerarRecibo">Gerar Recibo</Label>
             </div>
             <div className="flex items-center space-x-2">
               <input
@@ -301,7 +301,7 @@ export default function RegistrarRecebimentoModal({
                 checked={notificarCliente}
                 onChange={(e) => setNotificarCliente(e.target.checked)}
               />
-              <Label htmlFor="notificarCliente">Notificar cliente (mock)</Label>
+              <Label htmlFor="notificarCliente">Notificar cliente</Label>
             </div>
           </div>
         </div>

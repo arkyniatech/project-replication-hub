@@ -121,7 +121,7 @@ export function FaturasFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os tipos</SelectItem>
-              <SelectItem value="FISCAL_MOCK">Fiscal Mock</SelectItem>
+              <SelectItem value="FISCAL">Fiscal</SelectItem>
               <SelectItem value="DEMONSTRATIVO">Demonstrativo</SelectItem>
             </SelectContent>
           </Select>

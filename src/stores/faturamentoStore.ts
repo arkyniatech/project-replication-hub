@@ -396,7 +396,7 @@ export const useFaturamentoStore = create<FaturamentoState>()(
         const formasPreferidas = events
           .filter(e => e.tipo === 'GERADA')
           .reduce((acc, event) => {
-            // Mock - poderia extrair da fatura
+            // TODO: extrair da fatura
             const forma = 'PIX'; // placeholder
             acc[forma] = (acc[forma] || 0) + 1;
             return acc;

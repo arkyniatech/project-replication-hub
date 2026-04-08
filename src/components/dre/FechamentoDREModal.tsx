@@ -27,7 +27,7 @@ interface FechamentoDREModalProps {
   onClose: () => void;
   competencia: string;
   lojas: Array<{ id: string; nome: string }>;
-  mockExpensesData: any[];
+  expensesData: any[];
   onFechamentoComplete: () => void;
 }
 
@@ -36,7 +36,7 @@ export function FechamentoDREModal({
   onClose, 
   competencia, 
   lojas,
-  mockExpensesData,
+  expensesData,
   onFechamentoComplete 
 }: FechamentoDREModalProps) {
   const { toast } = useToast();
@@ -44,8 +44,8 @@ export function FechamentoDREModal({
   const [isProcessing, setIsProcessing] = useState(false);
   
   const versions = getVersionsMeta();
-  const totalReal = mockExpensesData.reduce((sum, item) => sum + item.real, 0);
-  const totalMeta = mockExpensesData.reduce((sum, item) => sum + item.meta, 0);
+  const totalReal = expensesData.reduce((sum, item) => sum + item.real, 0);
+  const totalMeta = expensesData.reduce((sum, item) => sum + item.meta, 0);
   const deltaTotal = totalReal - totalMeta;
   const deltaPercentualTotal = totalMeta > 0 ? (deltaTotal / totalMeta) * 100 : 0;
 
@@ -70,7 +70,7 @@ export function FechamentoDREModal({
         lojas.map(l => l.id),
         selectedVersionMeta,
         'admin', // Mock user
-        mockExpensesData
+        expensesData
       );
 
       toast({

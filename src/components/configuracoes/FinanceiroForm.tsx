@@ -47,7 +47,7 @@ interface ConfigFinanceiro {
     mostrarNaFatura: boolean;
   };
   faturaPreferencias: {
-    tipoPadrao: "DEMONSTRATIVO" | "FISCAL_MOCK";
+    tipoPadrao: "DEMONSTRATIVO" | "FISCAL";
     vencimentoPadraoDias: number;
     mostrarQrPix: boolean;
     mostrarLinhaBoleto: boolean;
@@ -459,7 +459,7 @@ export function FinanceiroForm() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building className="w-5 h-5 text-primary" />
-                Contas Bancárias & PIX (Mock)
+                Contas Bancárias & PIX
                 <Tooltip>
                   <TooltipTrigger>
                     <Info className="w-4 h-4 text-muted-foreground" />
@@ -470,7 +470,7 @@ export function FinanceiroForm() {
                 </Tooltip>
               </CardTitle>
               <CardDescription>
-                Informações para exibir em documentos fiscais (mock)
+                Informações para exibir em documentos fiscais
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -608,7 +608,7 @@ export function FinanceiroForm() {
                 <Label htmlFor="tipo-padrao">Tipo padrão de Fatura</Label>
                 <Select 
                   value={config.faturaPreferencias.tipoPadrao}
-                  onValueChange={(value: "DEMONSTRATIVO" | "FISCAL_MOCK") => setConfig(prev => ({
+                  onValueChange={(value: "DEMONSTRATIVO" | "FISCAL") => setConfig(prev => ({
                     ...prev,
                     faturaPreferencias: { ...prev.faturaPreferencias, tipoPadrao: value }
                   }))}
@@ -618,7 +618,7 @@ export function FinanceiroForm() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="DEMONSTRATIVO">Sem valor fiscal (demonstrativo)</SelectItem>
-                    <SelectItem value="FISCAL_MOCK">Com valor fiscal (mock)</SelectItem>
+                    <SelectItem value="FISCAL">Com valor fiscal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -691,7 +691,7 @@ export function FinanceiroForm() {
               {(!config.contas.chavePix || config.contas.bancos.length === 0) && (
                 <Alert>
                   <AlertDescription>
-                    Para usar PIX/Boleto, configure chave PIX e contas bancárias acima (dados mock).
+                    Para usar PIX/Boleto, configure chave PIX e contas bancárias acima (em breve).
                   </AlertDescription>
                 </Alert>
               )}

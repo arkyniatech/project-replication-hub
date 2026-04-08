@@ -55,7 +55,7 @@ export function useEstoqueAutoEvents() {
 
         equipamentoStorage.update(equipamento.id, equipamentoAtualizado);
 
-        // Registrar evento na timeline (mock)
+        // Registrar evento na timeline
         const eventoEstoque = {
           id: Date.now().toString() + Math.random(),
           ts: Date.now(),

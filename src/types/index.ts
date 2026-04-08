@@ -260,7 +260,7 @@ export interface OSLogistica {
   criadoEm: string;
 }
 
-// Agrupador de Cobrança (mock)
+// Agrupador de Cobrança
 export interface AgregadorCobranca {
   id: string;
   clienteId: string;
@@ -394,7 +394,7 @@ export interface Fatura {
   acrescimos: number;
   descontos: number;
   valor: number;
-  valorFiscalMock: boolean;
+  valorFiscal: boolean;
   formaPreferida: 'Boleto' | 'PIX' | 'Cartão';
   observacoes?: string;
   // Compatibilidade com código existente
@@ -854,7 +854,7 @@ export interface ConfiguracaoFinanceiro {
     mostrarNaFatura: boolean;
   };
   faturaPreferencias: {
-    tipoPadrao: "DEMONSTRATIVO" | "FISCAL_MOCK";
+    tipoPadrao: "DEMONSTRATIVO" | "FISCAL";
     vencimentoPadraoDias: number;
     mostrarQrPix: boolean;
     mostrarLinhaBoleto: boolean;

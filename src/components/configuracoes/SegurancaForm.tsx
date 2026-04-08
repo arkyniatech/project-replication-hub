@@ -198,7 +198,7 @@ export function SegurancaForm() {
                     Habilitar 2FA
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Requer código adicional via SMS ou aplicativo autenticador (Mock)
+                    Requer código adicional via SMS ou aplicativo autenticador
                   </p>
                 </div>
                 <Switch

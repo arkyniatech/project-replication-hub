@@ -66,7 +66,7 @@ export function ensureNotInUse(ccId: string): boolean {
     return false;
   }
   
-  // Verificar uso em parcelas (mock)
+  // Verificar uso em parcelas
   try {
     const titulos = localStorage.getItem('contas-pagar.titulos');
     const parcelas = localStorage.getItem('contas-pagar.parcelas');

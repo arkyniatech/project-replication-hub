@@ -203,7 +203,7 @@ export default function EmitirFaturaModal({
         cliente_id: contrato.clienteId,
         contrato_id: contrato.id,
         numero: numeroFatura,
-        tipo: tipoFatura === 'fiscal' ? 'FISCAL_MOCK' : 'DEMONSTRATIVO',
+        tipo: tipoFatura === 'fiscal' ? 'FISCAL' : 'DEMONSTRATIVO',
         emissao: new Date().toISOString(),
         vencimento: new Date(vencimento).toISOString(),
         itens: itens.map(i => ({
@@ -340,7 +340,7 @@ export default function EmitirFaturaModal({
                     checked={tipoFatura === 'fiscal'}
                     onChange={(e) => setTipoFatura(e.target.value as any)}
                   />
-                  <Label htmlFor="fiscal">Com valor fiscal (mock)</Label>
+                  <Label htmlFor="fiscal">Com valor fiscal</Label>
                 </div>
               </div>
             </div>

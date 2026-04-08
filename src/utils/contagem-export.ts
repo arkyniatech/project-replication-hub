@@ -115,7 +115,7 @@ export async function exportContagemPDF(data: ExportData): Promise<void> {
 
   // Função para adicionar cabeçalho
   const addHeader = () => {
-    // Logo/Marca (mock)
+    // Logo/Marca
     pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
     pdf.text('ERP LocaAção', margin, currentY);

@@ -451,7 +451,7 @@ export function OrganizacaoForm() {
                     className="w-full"
                   >
                     <Upload className="w-4 h-4 mr-2" />
-                    Upload de Logo (Mock)
+                    Upload de Logo
                   </Button>
                 </div>
 

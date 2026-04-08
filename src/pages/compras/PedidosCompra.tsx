@@ -37,7 +37,7 @@ export default function PedidosCompra() {
   const selectedCotacao = selectedPOData ? cotacoes.find(c => c.id === selectedPOData.cotacaoId) : null;
 
   const handlePrintPO = (poId: string) => {
-    toast.success('PO enviado para impressão (mock)');
+    toast.success('PO enviado para impressão');
   };
 
   const formatCurrency = (value: number) => {

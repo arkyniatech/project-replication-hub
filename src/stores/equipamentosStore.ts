@@ -71,7 +71,7 @@ interface EquipamentosState {
   // Histórico de preços
   addHistoricoPreco: (entry: Omit<HistoricoPreco, 'id' | 'dataISO'>) => void;
   
-  // Transfer methods (mock)
+  // Transfer methods
   transferirEquipamento: (modeloId: string, origemLojaId: string, destinoLojaId: string, quantidade: number) => void;
   alterarStatusEquipamento: (equipamentoId: string, novoStatus: StatusEquipamento) => void;
   alterarLojaEquipamento: (equipamentoId: string, novaLojaId: string) => void;

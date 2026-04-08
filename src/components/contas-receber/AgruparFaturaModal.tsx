@@ -48,7 +48,7 @@ export function AgruparFaturaModal({ open, onClose, titulos }: AgruparFaturaModa
       return;
     }
 
-    // Simular geração de documento consolidado (mock)
+    // Simular geração de documento consolidado
     const numeroDocumento = `DOC-${Date.now()}`;
     const vencimentoFinal = tipoVencimento === 'unica' && dataUnica 
       ? dataUnica 
@@ -71,7 +71,7 @@ export function AgruparFaturaModal({ open, onClose, titulos }: AgruparFaturaModa
       }
     });
 
-    // Salvar títulos atualizados (mock)
+    // Salvar títulos atualizados
     try {
       const titulosStorage = JSON.parse(localStorage.getItem('erp-titulos') || '[]');
       titulos.forEach(titulo => {

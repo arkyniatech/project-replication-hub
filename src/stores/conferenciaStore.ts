@@ -748,7 +748,7 @@ export const useConferenciaStore = create<ConferenciaStore>()(
       },
 
       canEdit: () => {
-        // Verificar se é admin ou gestor via localStorage (mock)
+        // Verificar se é admin ou gestor via localStorage
         const devProfile = localStorage.getItem('rh-dev-profile') || 'admin';
         return ['admin', 'gestor'].includes(devProfile);
       },

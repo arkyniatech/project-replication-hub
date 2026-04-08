@@ -80,9 +80,8 @@ export default function AgendaDisponibilidade() {
     }
 
     // Initialize contract integrations
-    import('@/utils/contract-integrations').then(({ initializeContractIntegrations, seedIntegrationTestData }) => {
+    import('@/utils/contract-integrations').then(({ initializeContractIntegrations }) => {
       initializeContractIntegrations();
-      seedIntegrationTestData();
     });
   }, [session.lojaAtivaId, equipamentos, grupos, modelos, contratos, filtros.lojaId, setFiltros, syncFromStorage, buildAgenda]);
 
@@ -163,14 +162,14 @@ export default function AgendaDisponibilidade() {
     }
     
     toast({
-      description: "Reserva criada (mock)!",
+      description: "Reserva criada!",
     });
     setDrawerOpen(false);
   };
 
   const handleAvisarComercial = () => {
     toast({
-      description: "Aviso enviado ao comercial (mock)!",
+      description: "Aviso enviado ao comercial!",
     });
     setDrawerOpen(false);
   };

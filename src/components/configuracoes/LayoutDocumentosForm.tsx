@@ -274,7 +274,7 @@ export function LayoutDocumentosForm() {
             {currentLayout.cabecalho.linhas.map((linha, idx) => (
               <p key={idx} className="text-sm" style={{ fontFamily: currentLayout.fonte.titulo }}>
                 {linha.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
-                  const mockData: any = {
+                  const previewData: any = {
                     'empresa.razao': APP_CONFIG.company.fullName,
                     'empresa.cnpj': APP_CONFIG.company.cnpj,
                     'empresa.endereco': `${APP_CONFIG.company.address.street} - ${APP_CONFIG.company.address.district}`,
@@ -287,7 +287,7 @@ export function LayoutDocumentosForm() {
                     'fatura.numero': 'FAT-2025-001',
                     'fatura.emissao': '15/01/2025'
                   };
-                  return mockData[key] || match;
+                  return previewData[key] || match;
                 })}
               </p>
             ))}
@@ -392,10 +392,10 @@ export function LayoutDocumentosForm() {
           {currentLayout.rodape.linhas.map((linha, idx) => (
             <p key={idx} className="text-xs text-center" style={{ color: currentLayout.cores.secundaria }}>
               {linha.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
-                const mockData: any = {
+                const previewData: any = {
                   'empresa.email': 'contato@erplocacao.com'
                 };
-                return mockData[key] || match;
+                return previewData[key] || match;
               })}
             </p>
           ))}
@@ -437,7 +437,7 @@ export function LayoutDocumentosForm() {
                       <CardContent className="space-y-3">
                         <Button variant="outline" size="sm" className="w-full">
                           <Upload className="w-4 h-4 mr-2" />
-                          Fazer Upload (Mock)
+                          Fazer Upload
                         </Button>
                         <p className="text-xs text-muted-foreground">
                           Tamanho recomendado: 360x120px (proporção 3:1)

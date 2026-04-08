@@ -152,7 +152,7 @@ export const useTransferenciasStore = create<TransferenciasState>()(
           }]
         };
 
-        // Atualizar saldos na origem (mock)
+        // Atualizar saldos na origem
         const equipamentosStore = useEquipamentosStore.getState();
         payload.itens.forEach(item => {
           if (item.tipo === 'SALDO') {
@@ -183,7 +183,7 @@ export const useTransferenciasStore = create<TransferenciasState>()(
             return state;
           }
 
-          // Atualizar saldos no destino (mock)
+          // Atualizar saldos no destino
           const equipamentosStore = useEquipamentosStore.getState();
           transferencia.itens.forEach(item => {
             if (item.tipo === 'SALDO') {
@@ -300,7 +300,7 @@ export const useTransferenciasStore = create<TransferenciasState>()(
             return state;
           }
 
-          // Restaurar saldos na origem (mock)
+          // Restaurar saldos na origem
           const equipamentosStore = useEquipamentosStore.getState();
           transferencia.itens.forEach(item => {
             if (item.tipo === 'SALDO') {

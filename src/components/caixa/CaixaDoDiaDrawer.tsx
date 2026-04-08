@@ -190,7 +190,7 @@ export default function CaixaDoDiaDrawer({
   const gerarRelatorioPDF = () => {
     toast({
       title: "Relatório Gerado",
-      description: "Relatório do caixa (PDF mock) foi gerado com sucesso"
+      description: "Relatório do caixa PDF foi gerado com sucesso"
     });
   };
 

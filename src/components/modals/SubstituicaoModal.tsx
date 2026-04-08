@@ -216,7 +216,7 @@ export default function SubstituicaoModal({
       contratos[contratoIndex] = contratoAtualizado;
       contratoStorage.save(contratos);
 
-      // Registrar evento na timeline do contrato (mock)
+      // Registrar evento na timeline do contrato
       const equipamentoOriginalData = equipamentos.find(e => e.id === itemOriginal.equipamentoId);
       const modeloOriginal = modelos.find(m => m.id === equipamentoOriginalData?.modeloId);
       
