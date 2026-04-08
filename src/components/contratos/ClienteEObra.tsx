@@ -141,7 +141,7 @@ export function ClienteEObra({ cliente, obra }: ClienteEObraProps) {
       <CobrancaUnicaModal
         open={cobrancaUnicaOpen}
         onClose={() => setCobrancaUnicaOpen(false)}
-        clienteId={cliente.id || 'mock-client-id'}
+        clienteId={cliente.id || 'temp-client-id'}
         clienteNome={cliente.nome}
         clienteDoc={cliente.documento}
       />

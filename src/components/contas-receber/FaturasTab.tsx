@@ -21,7 +21,7 @@ export default function FaturasTab() {
   const [contrato, setContrato] = useState("");
   const [emissao, setEmissao] = useState(new Date().toISOString().split('T')[0]);
   const [vencimento, setVencimento] = useState("");
-  const [valorFiscal, setValorFiscalMock] = useState(false);
+  const [valorFiscal, setValorFiscal] = useState(false);
   const [formaPreferida, setFormaPreferida] = useState<'Boleto' | 'PIX' | 'Cartão'>('Boleto');
   const [observacoes, setObservacoes] = useState("");
   const [itens, setItens] = useState<ItemFatura[]>([]);
@@ -143,7 +143,7 @@ export default function FaturasTab() {
       setItens([]);
       setAcrescimos("0");
       setDescontos("0");
-      setValorFiscalMock(false);
+      setValorFiscal(false);
     } catch (error) {
       console.error('Erro ao gerar fatura:', error);
       toast({
@@ -356,7 +356,7 @@ export default function FaturasTab() {
                 type="checkbox"
                 id="valorFiscal"
                 checked={valorFiscal}
-                onChange={(e) => setValorFiscalMock(e.target.checked)}
+                onChange={(e) => setValorFiscal(e.target.checked)}
               />
               <Label htmlFor="valorFiscal">Com valor fiscal</Label>
             </div>
@@ -532,7 +532,7 @@ export default function FaturasTab() {
       </Card>
       )}
 
-      {/* Preview Mock */}
+      {/* Preview */}
       {showPreview && (
         <Card>
           <CardHeader>

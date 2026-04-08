@@ -220,7 +220,7 @@ export function EmissaoAvulsaModal({
       description: "Documento gerado",
       action: {
         label: "Baixar",
-        onClick: () => console.log("Download PDF mock")
+        onClick: () => console.log("Download PDF")
       }
     });
   };

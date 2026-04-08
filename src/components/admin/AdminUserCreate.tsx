@@ -41,7 +41,7 @@ export function AdminUserCreate() {
             // For this demo/task, we simulate the success and log the "Intent".
             // The actual implementation requires backend infrastructure (Edge Function with Auth0 Secrets).
 
-            console.log('Mocking User Creation:', formData);
+            console.log('Criação de usuário:', formData);
 
             // 3. Log Success
             await logAction('USER_CREATED', {

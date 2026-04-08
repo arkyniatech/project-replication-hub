@@ -691,7 +691,7 @@ export function FinanceiroForm() {
               {(!config.contas.chavePix || config.contas.bancos.length === 0) && (
                 <Alert>
                   <AlertDescription>
-                    Para usar PIX/Boleto, configure chave PIX e contas bancárias acima (dados mock).
+                    Para usar PIX/Boleto, configure chave PIX e contas bancárias acima (em breve).
                   </AlertDescription>
                 </Alert>
               )}
