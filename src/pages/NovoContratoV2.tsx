@@ -143,16 +143,6 @@ export default function NovoContratoV2() {
         status: cliente.status,
         statusCredito: cliente.statusCredito
       });
-    } else {
-      // Fallback: buscar no localStorage
-      const clientesLocal = clienteStorage.getAll();
-      cliente = clientesLocal.find(c => c.id === clienteId);
-      if (cliente) {
-        console.log('[DEBUG] Cliente carregado do localStorage (fallback):', {
-          id: cliente.id,
-          nome: cliente.nomeRazao
-        });
-      }
     }
 
     if (cliente) {
@@ -229,18 +219,7 @@ export default function NovoContratoV2() {
     // Converter clientes do Supabase para formato legacy
     const clientesLegacy = clientesSupabase.map(supabaseClienteToLegacy);
 
-    // Buscar também no localStorage (fallback para dados antigos)
-    const clientesLocal = clienteStorage.getAll();
-
-    // Filtrar clientes do localStorage apenas pela loja ativa
-    const clientesLocalFiltrados = clientesLocal.filter(
-      cl => cl.lojaId === lojaAtual?.id
-    );
-
-    // Combinar ambos (Supabase tem prioridade)
-    const todosClientes = [...clientesLegacy, ...clientesLocalFiltrados.filter(
-      cl => !clientesLegacy.some(cs => cs.id === cl.id)
-    )];
+    const todosClientes = clientesLegacy;
 
     // Filtrar por busca
     const filtrados = searchCliente
@@ -856,7 +835,7 @@ export default function NovoContratoV2() {
         updatedAt: new Date().toISOString()
       };
 
-      contratoStorage.add(novoContrato as any);
+      // Contrato já salvo no Supabase acima
 
       // Criar tarefa logística no Supabase ao invés de localStorage
       try {
