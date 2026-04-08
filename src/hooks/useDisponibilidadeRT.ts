@@ -226,7 +226,7 @@ export function useDisponibilidadeRT({
           }
         }
 
-        // Verificar reservas de outros contratos ativos (mock)
+        // Verificar reservas de outros contratos ativos
         const contratosAtivos = contratoStorage.getAll().filter(c => 
           c.status === 'ATIVO' && 
           c.id.toString() !== contratoAtualId

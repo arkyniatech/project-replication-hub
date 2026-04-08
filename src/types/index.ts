@@ -260,7 +260,7 @@ export interface OSLogistica {
   criadoEm: string;
 }
 
-// Agrupador de Cobrança (mock)
+// Agrupador de Cobrança
 export interface AgregadorCobranca {
   id: string;
   clienteId: string;

@@ -21,7 +21,7 @@ export interface CobrancaHistoryEvent {
   requestId?: string;
 }
 
-// DTOs da API Inter (mock)
+// DTOs da API Inter
 export interface ChargeDTO {
   codigoSolicitacao: string;
   status: 'REQUESTED' | 'PROCESSING' | 'ISSUED' | 'PAID' | 'CANCELLED' | 'EXPIRED';

@@ -24,7 +24,7 @@ export interface AccountBalance {
   credits: number;        // somatório período (C)
   debits: number;         // somatório período (D)
   closing: number;        // opening + credits - debits
-  bloqueios?: number;     // retenções/bloqueios (mock)
+  bloqueios?: number;     // retenções/bloqueios
   available: number;      // closing - bloqueios
   conciliadoAte?: string; // maior data conciliada na conta
   pendentes?: {

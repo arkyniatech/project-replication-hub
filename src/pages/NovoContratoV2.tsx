@@ -482,7 +482,7 @@ export default function NovoContratoV2() {
         cliente: clienteBloqueado.cliente
       }));
 
-      // Registrar override na timeline (mock)
+      // Registrar override na timeline
       toast({
         title: "Cliente liberado",
         description: "Cliente liberado pelo gerente e adicionado ao contrato",

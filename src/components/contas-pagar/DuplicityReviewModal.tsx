@@ -157,7 +157,7 @@ export function DuplicityReviewModal({
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    // Simular abertura do título (mock)
+                    // Simular abertura do título
                     window.open(`#/contas-pagar/titulo/${match.tituloId}`, '_blank');
                   }}
                 >

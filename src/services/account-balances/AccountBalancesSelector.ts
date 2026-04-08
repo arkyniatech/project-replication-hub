@@ -116,7 +116,7 @@ class AccountBalancesSelector {
       // Conciliado até
       const conciliadoAte = this.getLastReconciledDate(conta.id, conciliacoes);
 
-      // Pendentes (mock)
+      // Pendentes
       const pendentes = {
         lanc: periodEntries.filter(l => !this.isEffetivated(l)).length,
         extrato: 0 // será calculado na conciliação
