@@ -1,109 +1,185 @@
 
 
-## Analise Completa: RH, Relatorios, Veiculos, Compras
+## Varredura Completa do Sistema — Auditoria Ponta a Ponta
 
-### Diagnostico
+### Resumo Executivo
 
-Todos os 4 modulos compartilham o mesmo problema fundamental: **dependem de dados mock hardcoded ou Zustand/localStorage** em vez do Supabase. Apenas `Pessoas.tsx` e `PessoaDetalhes.tsx` no modulo RH usam Supabase real.
-
----
-
-### RH & Pessoas — Problemas por Pagina
-
-| Pagina | Fonte de Dados | Problema |
-|--------|---------------|----------|
-| Dashboard.tsx | Hardcoded (247, 8.2%, etc) | KPIs ficticios, graficos estaticos |
-| Vagas.tsx | `mockVagas` hardcoded | Nenhum dado real |
-| Candidatos.tsx | `mockCandidatos` hardcoded | Nenhum dado real |
-| Admissoes.tsx | `mockAdmissoes` hardcoded | Nenhum dado real |
-| Ferias.tsx | `feriasMock` + `useRhStore` | Dados localStorage |
-| BancoHoras.tsx | `useRhStore` (bancoHorasMovs) | Dados localStorage |
-| Ponto.tsx | `mockPontoData` hardcoded | Nenhum dado real |
-| Holerites.tsx | `useRhStore` + mock inline | Dados localStorage |
-| Beneficios.tsx | `mockBeneficios` + `useRhStore` | Dados ficticios |
-| Aprovacoes.tsx | Mock inline + `useRhStore` | Dados ficticios |
-| Documentos.tsx | `mockTemplates` + `useRhStore` | Dados ficticios |
-| Offboarding.tsx | Mock inline hardcoded | Nenhum dado real |
-| SSMA.tsx | `useRhStore` | Dados localStorage |
-| Portal/*.tsx | `useRhStore` | Dados localStorage |
-| Relatorios/*.tsx | `useRhStore` + seed funcs | Dados localStorage |
-
-**Seed/Mock arquivos a remover**: `seedRhContent.ts` (521 linhas), `seedRhMissing8.ts` (391 linhas), e o seeding no `RhModuleProvider.tsx`.
-
-### Relatorios — Problemas
-
-- `Relatorios.tsx` linhas 318-327: `estatisticas` usa `clienteStorage`, `equipamentoStorage`, `contratoStorage`, `faturaStorage` (localStorage deprecated). Deve usar queries Supabase.
-- A aba de Faturas ja funciona com Supabase (`useSupabaseFaturasRelatorio`).
-- `UtilizacaoTab` usa `relatorioUtilizacaoStore` (Zustand local).
-
-### Veiculos — 100% Local
-
-- 12 paginas, todas usam `useVeiculosStore` (Zustand persist localStorage)
-- Nenhuma tabela no Supabase
-- ~24 arquivos dependentes (componentes, utils, reports)
-
-### Compras — 100% Local
-
-- 7 paginas, todas usam `useComprasStore` ou `useAlmoxStore` (Zustand persist)
-- Nenhuma tabela no Supabase
-- ~14 arquivos dependentes
+O sistema tem **~15 modulos** com graus variados de maturidade. Os modulos core (Dashboard, Contratos, Clientes, Equipamentos, Logistica, Manutencao, Contas a Receber, Contas a Pagar) ja usam Supabase. Porem, existem **camadas de dados ficticios, seeds, e referencias "(mock)" espalhadas por todo o sistema** que precisam ser removidas para entregar um produto limpo.
 
 ---
 
-### Plano de Implementacao
+### CATEGORIA 1: Dados Ficticios e Seeds Ativos (CRITICO)
 
-**Foco: remover dados mock/ficticios e conectar ao Supabase onde possivel. Modulos sem tabelas (Veiculos/Compras) ficam com telas vazias funcionais (empty states) em vez de dados falsos.**
+**1A. AppInitializer.tsx — Semeia dados falsos a cada sessao**
 
-#### Etapa 1 — RH Dashboard: KPIs reais da tabela `pessoas`
+O `AppInitializer.tsx` executa 3 seeds a cada carga:
+- `seedRhContent()`, `seedRhContentMissing()`, `seedRhMissing8()` — popula localStorage com 60+ pessoas, vagas, candidatos ficticios no modulo RH
+- `initializeMockData()` — cria clientes, equipamentos, contratos falsos no localStorage
+- `seedVeiculosData()` — cria veiculos, postos, oleos ficticios
+- `seedContratosV2()` — cria lojas e configs mock no localStorage
+- `seedIntegrationTestData()` — cria transferencia de teste
 
-Reescrever `Dashboard.tsx` para usar `useSupabasePessoas()`:
-- Headcount = `pessoas.filter(p => p.situacao === 'ativo').length`
-- Distribuicao por cargo/loja (agrupamento real)
-- Remover arrays hardcoded `kpiData`, `headcountData`, `distribuicaoData`
-- KPIs que nao tem dados reais (turnover, HE, absenteismo) mostrar "—" ou "N/D"
+Todos esses seeds devem ser REMOVIDOS. O sistema deve iniciar vazio e popular via Supabase.
 
-#### Etapa 2 — RH: Remover todos os mocks inline
-
-Para cada pagina com `mockVagas`, `mockCandidatos`, `mockAdmissoes`, `mockPontoData`, `mockBeneficios`, etc:
-- Remover arrays mock
-- Mostrar empty state: "Nenhum registro encontrado"
-- Manter formularios/modais funcionais (sem submit real, apenas UI)
-- Paginas que usam `useRhStore` para `pessoas` trocar por `useSupabasePessoas()`
-
-#### Etapa 3 — RhModuleProvider: Remover seeding
-
-- Remover imports de `seedRhContent` e `seedRhMissing8`
-- Remover logica de seed no `useEffect`
-- Manter Provider apenas para scope/filters/devProfile
-
-#### Etapa 4 — Deletar arquivos de seed
-
+**1B. Arquivos de Seed a deletar:**
 - `src/modules/rh/utils/seedRhContent.ts`
+- `src/modules/rh/utils/seedRhContentMissing.ts`
 - `src/modules/rh/utils/seedRhMissing8.ts`
+- `src/modules/rh/utils/seedData.ts`
+- `src/utils/veiculos-seed.ts`
+- `src/utils/equipamentos-seed.ts`
+- `src/utils/supabase-equipamentos-seed.ts`
+- `src/utils/clear-equipment-storage.ts`
+- `src/utils/force-reseed-equipments.ts`
+- `src/lib/mock-data.ts` (813 linhas de dados ficticios)
+- `src/lib/mock-financial-data.ts` (250 linhas, nao importado por ninguem)
 
-#### Etapa 5 — Relatorios: Estatisticas do Supabase
-
-Reescrever `estatisticas` em `Relatorios.tsx`:
-- Remover imports de `clienteStorage`, `equipamentoStorage`, `contratoStorage`, `faturaStorage`
-- Usar queries Supabase inline: `supabase.from('contratos').select('id, status')`, etc.
-- Buscar contagens reais de contratos, equipamentos, faturas, clientes
-
-#### Etapa 6 — Veiculos e Compras: Limpar mock data
-
-- Nos stores (`veiculosStore.ts`, `comprasStore.ts`, `almoxStore.ts`): remover qualquer seed/mock data pre-populado
-- Nas paginas: garantir empty states quando nao ha dados
-- **NAO** migrar para Supabase agora (escopo grande demais) — manter Zustand funcional mas sem dados ficticios
+**1C. itinerarioStore.ts — Auto-seed na importacao**
+Linhas 223-228: executa `initializeWithMockData()` automaticamente se vazio. Criar motoristas/veiculos/tarefas ficticias. Logistica JA usa Supabase — este store local e redundante para itinerarios.
 
 ---
 
-### Arquivos Modificados (estimativa)
+### CATEGORIA 2: localStorage Deprecated Ainda em Uso (ALTO)
 
-| Etapa | Arquivos |
-|-------|----------|
-| 1 | `Dashboard.tsx` |
-| 2 | `Vagas.tsx`, `Candidatos.tsx`, `Admissoes.tsx`, `Ferias.tsx`, `BancoHoras.tsx`, `Ponto.tsx`, `Holerites.tsx`, `Beneficios.tsx`, `Aprovacoes.tsx`, `Documentos.tsx`, `Offboarding.tsx`, `SSMA.tsx`, `Portal.tsx` e sub-paginas |
-| 3 | `RhModuleProvider.tsx` |
-| 4 | Deletar 2 arquivos |
-| 5 | `Relatorios.tsx` |
-| 6 | Verificar stores por seed data |
+**2A. Relatorios.tsx (linhas 318-327)**
+Usa `clienteStorage`, `equipamentoStorage`, `contratoStorage`, `faturaStorage` para estatisticas. Deve usar Supabase queries.
+
+**2B. NovoContratoV2.tsx**
+Importa `clienteStorage, equipamentoStorage, contratoStorage` como fallback. Ja tem Supabase hooks (`useSupabaseClientes`, `useSupabaseEquipamentos`). O fallback localStorage deve ser removido e `contratoStorage.add()` deve ser substituido por `supabase.from('contratos').insert()`.
+
+**2C. Componentes com localStorage:**
+| Arquivo | Uso |
+|---------|-----|
+| `EstoqueEventHandler.tsx` | `equipamentoStorage.update()` |
+| `RegistrarContatoModal.tsx` | `clienteStorage`, `tituloStorage` |
+| `EnviarAvisoModal.tsx` | `clienteStorage`, `tituloStorage` |
+| `SubstituicaoModal.tsx` | `contratoStorage` |
+| `EmissaoAvulsaModal.tsx` | `faturaStorage`, `tituloStorage` |
+| `AbrirCaixaModal.tsx` | `caixaStorage` |
+| `CaixaDoDiaDrawer.tsx` | `caixaStorage` |
+| `LancarDespesaModal.tsx` | `caixaStorage` |
+| `LayoutDocumentosForm.tsx` | `getAppConfig`, `setAppConfig` |
+| `taxaDeslocamentoService.ts` | `contratoStorage` |
+| `useDisponibilidadeRT.ts` | `contratoStorage` |
+
+**2D. Arquivos deprecated a remover eventualmente:**
+- `src/lib/storage-deprecated.ts` (545 linhas)
+- `src/lib/storage.ts` (re-export hub para deprecated)
+
+---
+
+### CATEGORIA 3: Palavra "mock" Visivel na UI (MEDIO)
+
+27 arquivos contem textos como "(mock)" visiveis ao usuario. Exemplos:
+- `RegistrarRecebimentoModal.tsx`: "Gerar Recibo (mock)", "Notificar cliente (mock)"
+- `FaturasTab.tsx`: "Fiscal (Mock)", "Preview da Fatura (Mock)", "Dados do Boleto (Mock)"
+- `ProximoPassoSnackbar.tsx`: "Segunda via do saldo foi gerada (mock)"
+- `EmissaoAvulsaModal.tsx`: "PIX/Boleto disponivel (mock)"
+- `FinanceiroForm.tsx`: "Contas Bancarias & PIX (Mock)"
+- `SegurancaForm.tsx`: "Requer codigo adicional via SMS (Mock)"
+- `ParametrizacoesLocacaoForm.tsx`: "Gerar comprovante digital (mock)"
+- `FechamentoMensalDrawer.tsx`: "PDF do fechamento exportado (mock)"
+- `Compliance.tsx`: toast "(mock)"
+
+---
+
+### CATEGORIA 4: Zustand Stores Locais (Sem Supabase)
+
+| Store | Modulo | Status |
+|-------|--------|--------|
+| `veiculosStore.ts` | Veiculos | 100% local, 449 linhas |
+| `comprasStore.ts` | Compras | 100% local, 395 linhas |
+| `almoxStore.ts` | Almox | 100% local |
+| `rhStore.ts` | RH | Usado por relatorios RH (Jornada, Financeiro, Compliance, RS) |
+| `equipamentosStore.ts` | Equipamentos | Misto — algumas paginas usam Supabase, store ainda importado |
+| `conferenciaStore.ts` | Conferencia | 100% local |
+| `itinerarioStore.ts` | Logistica | Redundante — Logistica ja usa Supabase |
+| `relatorioUtilizacaoStore.ts` | Relatorios | Gera dados ficticios (mock receita, mock manutencao) |
+| `contratosStore.ts` | Disponibilidade | Synca do Supabase — OK |
+| `faturamentoStore.ts` | Faturamento | Local |
+| `financeiroStore.ts` | Financeiro | Local |
+| `transferenciasStore.ts` | Transferencias | Local |
+| `timelineStore.ts` | Timeline | Local |
+
+---
+
+### CATEGORIA 5: Imports Nao Utilizados no App.tsx
+
+`App.tsx` linhas 31-34 importam mas **nunca usam** diretamente:
+```
+import { initializeMockData } from "./lib/mock-data";
+import { seedVeiculosData } from "./utils/veiculos-seed";
+import { seedContratosV2 } from "./lib/contratos-v2-utils";
+import { seedEquipamentosData } from "./utils/equipamentos-seed";
+```
+Esses imports inflam o bundle desnecessariamente.
+
+---
+
+### CATEGORIA 6: AgendaDisponibilidade — Seed de Teste
+
+`AgendaDisponibilidade.tsx` linha 85 chama `seedIntegrationTestData()` a cada render, criando transferencias ficticias.
+
+---
+
+### CATEGORIA 7: Funcionalidades com "user hardcoded"
+
+- `ConciliacaoTab.tsx`: `criadoPor: 'user'`
+- `EnviarAvisoModal.tsx`: `user: { id: 'user-1', nome: 'Admin' }`
+- `conferenciaStore.ts`: `devProfile = localStorage.getItem('rh-dev-profile')`
+
+Devem usar o usuario autenticado real (`useAuth()` ou `useSupabaseAuth()`).
+
+---
+
+### Plano de Implementacao (Priorizado)
+
+#### Etapa 1 — Limpar AppInitializer e Imports (CRITICO)
+- Remover TODOS os seeds do `AppInitializer.tsx` (manter apenas `useContratoLogisticaSync` e `useContratoManutencaoSync`)
+- Remover imports mortos do `App.tsx` (linhas 31-34)
+- Remover auto-seed do `itinerarioStore.ts` (linhas 223-228)
+- Remover `seedIntegrationTestData()` do `AgendaDisponibilidade.tsx`
+
+#### Etapa 2 — Deletar Arquivos de Seed/Mock (11 arquivos)
+- Deletar todos os arquivos listados em 1B
+
+#### Etapa 3 — Relatorios.tsx: Migrar Estatisticas para Supabase
+- Substituir `clienteStorage.getAll()` etc por queries Supabase
+- Usar `supabase.from('contratos').select('id, status')` etc
+
+#### Etapa 4 — Remover "(mock)" da UI
+- Substituir em 27+ arquivos todas as strings "(mock)", "(Mock)", "MOCK" visiveis ao usuario
+- Onde a funcionalidade existe de verdade: remover a palavra
+- Onde e placeholder: trocar por "Em breve" ou remover o botao
+
+#### Etapa 5 — NovoContratoV2: Remover Fallback localStorage
+- Remover imports de `clienteStorage`, `equipamentoStorage`, `contratoStorage`
+- Usar apenas hooks Supabase ja existentes
+- Trocar `contratoStorage.add()` por insert Supabase
+
+#### Etapa 6 — Componentes com localStorage deprecated
+- Migrar `EstoqueEventHandler`, `SubstituicaoModal`, `EmissaoAvulsaModal`, modais de inadimplencia, caixa para usar hooks Supabase
+
+#### Etapa 7 — Stores Zustand: Limpeza
+- `rhStore.ts`: manter para relatorios RH (que ainda nao tem tabelas Supabase), mas garantir que inicia vazio
+- `veiculosStore.ts`, `comprasStore.ts`, `almoxStore.ts`: manter funcional mas sem seed data
+- `relatorioUtilizacaoStore.ts`: remover mock de receita/manutencao
+
+#### Etapa 8 — User Hardcoded
+- Substituir `'user'`, `'user-1'`, `'Admin'` hardcoded por dados do auth context real
+
+---
+
+### Estimativa
+
+| Etapa | Arquivos Afetados | Prioridade |
+|-------|-------------------|------------|
+| 1 | 3 | CRITICA |
+| 2 | 11 deletados | CRITICA |
+| 3 | 1 | ALTA |
+| 4 | ~27 | ALTA |
+| 5 | 1 | ALTA |
+| 6 | ~10 | MEDIA |
+| 7 | ~5 | MEDIA |
+| 8 | ~3 | BAIXA |
 
