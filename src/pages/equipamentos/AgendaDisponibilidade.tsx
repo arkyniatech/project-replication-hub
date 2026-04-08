@@ -80,9 +80,8 @@ export default function AgendaDisponibilidade() {
     }
 
     // Initialize contract integrations
-    import('@/utils/contract-integrations').then(({ initializeContractIntegrations, seedIntegrationTestData }) => {
+    import('@/utils/contract-integrations').then(({ initializeContractIntegrations }) => {
       initializeContractIntegrations();
-      seedIntegrationTestData();
     });
   }, [session.lojaAtivaId, equipamentos, grupos, modelos, contratos, filtros.lojaId, setFiltros, syncFromStorage, buildAgenda]);
 
