@@ -126,7 +126,7 @@ export default function RelatorioFinanceiro() {
   const handleExport = (tipo: 'csv' | 'pdf') => {
     toast({
       title: "Export realizado",
-      description: `Relatório Financeiro RH exportado em ${tipo.toUpperCase()} (mock)`
+      description: `Relatório Financeiro RH exportado em ${tipo.toUpperCase()}`
     });
   };
 

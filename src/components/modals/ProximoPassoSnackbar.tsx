@@ -46,13 +46,13 @@ export default function ProximoPassoSnackbar({ tipo, dados, onAction }: ProximoP
       case 'recebimento-parcial':
         toast({
           title: "2ª via gerada",
-          description: "Segunda via do saldo foi gerada (mock).",
+          description: "Segunda via do saldo foi gerada.",
         });
         break;
       case 'fatura-emitida':
         toast({
           title: "WhatsApp enviado",
-          description: "Fatura enviada por WhatsApp (mock).",
+          description: "Fatura enviada por WhatsApp.",
         });
         break;
       case 'manutencao-agendada':

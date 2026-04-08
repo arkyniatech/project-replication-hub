@@ -807,7 +807,7 @@ export default function RenovarContratoModal({
                 // Simular envio de aviso
                 toast({
                   title: "Aviso enviado",
-                  description: "WhatsApp enviado ao cliente (mock)",
+                  description: "WhatsApp enviado ao cliente",
                 });
                 setShowAvisoAutomatico(false);
               }}

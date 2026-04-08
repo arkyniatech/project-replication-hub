@@ -340,7 +340,7 @@ export default function EmitirFaturaModal({
                     checked={tipoFatura === 'fiscal'}
                     onChange={(e) => setTipoFatura(e.target.value as any)}
                   />
-                  <Label htmlFor="fiscal">Com valor fiscal (mock)</Label>
+                  <Label htmlFor="fiscal">Com valor fiscal</Label>
                 </div>
               </div>
             </div>

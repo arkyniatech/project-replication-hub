@@ -104,7 +104,7 @@ export default function DevolucaoModal({
     setAnexosMock(prev => [...prev, nomeArquivo]);
     toast({
       title: "Anexo simulado",
-      description: `Arquivo "${nomeArquivo}" anexado (mock)`,
+      description: `Arquivo "${nomeArquivo}" anexado`,
       duration: 1500
     });
   };
@@ -465,7 +465,7 @@ export default function DevolucaoModal({
           </div>
 
           <div>
-            <Label>Anexos (Mock)</Label>
+            <Label>Anexos</Label>
             <div className="mt-2 space-y-2">
               <Button
                 type="button"

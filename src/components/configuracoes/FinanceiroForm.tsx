@@ -459,7 +459,7 @@ export function FinanceiroForm() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building className="w-5 h-5 text-primary" />
-                Contas Bancárias & PIX (Mock)
+                Contas Bancárias & PIX
                 <Tooltip>
                   <TooltipTrigger>
                     <Info className="w-4 h-4 text-muted-foreground" />
@@ -470,7 +470,7 @@ export function FinanceiroForm() {
                 </Tooltip>
               </CardTitle>
               <CardDescription>
-                Informações para exibir em documentos fiscais (mock)
+                Informações para exibir em documentos fiscais
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -618,7 +618,7 @@ export function FinanceiroForm() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="DEMONSTRATIVO">Sem valor fiscal (demonstrativo)</SelectItem>
-                    <SelectItem value="FISCAL_MOCK">Com valor fiscal (mock)</SelectItem>
+                    <SelectItem value="FISCAL_MOCK">Com valor fiscal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

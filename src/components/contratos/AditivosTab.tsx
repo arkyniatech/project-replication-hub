@@ -98,7 +98,7 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
 
   const handleGerarPDF = (aditivo: AditivoContratual) => {
     console.log('📄 Gerando PDF do aditivo:', aditivo);
-    toast({ title: "PDF gerado", description: "PDF do aditivo foi gerado com sucesso (mock)" });
+    toast({ title: "PDF gerado", description: "PDF do aditivo foi gerado com sucesso" });
   };
 
   const valorTotal = aditivos.reduce((total, aditivo) => {

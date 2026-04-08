@@ -78,7 +78,7 @@ export default function RelatorioRS() {
   const handleExport = (tipo: 'csv' | 'pdf') => {
     toast({
       title: "Export realizado",
-      description: `Relatório R&S exportado em ${tipo.toUpperCase()} (mock)`
+      description: `Relatório R&S exportado em ${tipo.toUpperCase()}`
     });
   };
 

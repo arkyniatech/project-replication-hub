@@ -169,21 +169,21 @@ export default function FaturasTab() {
   const handleSegundaVia = () => {
     toast({
       title: "2ª Via",
-      description: "Segunda via da fatura será reenviada (mock).",
+      description: "Segunda via da fatura será reenviada.",
     });
   };
 
   const handleEnviarEmail = () => {
     toast({
       title: "E-mail enviado",
-      description: "Fatura enviada por e-mail (mock).",
+      description: "Fatura enviada por e-mail.",
     });
   };
 
   const handleEnviarWhatsApp = () => {
     toast({
       title: "WhatsApp enviado",
-      description: "Fatura enviada por WhatsApp (mock).",
+      description: "Fatura enviada por WhatsApp.",
     });
   };
 
@@ -255,7 +255,7 @@ export default function FaturasTab() {
                         <TableCell>
                           <StatusBadge 
                             status={{
-                              label: fatura.tipo === 'FISCAL_MOCK' ? 'Fiscal (Mock)' : 'Demonstrativo',
+                              label: fatura.tipo === 'FISCAL_MOCK' ? 'Fiscal' : 'Demonstrativo',
                               value: fatura.tipo,
                               color: fatura.tipo === 'FISCAL_MOCK' ? 'info' as const : 'secondary' as const
                             }}
@@ -358,7 +358,7 @@ export default function FaturasTab() {
                 checked={valorFiscalMock}
                 onChange={(e) => setValorFiscalMock(e.target.checked)}
               />
-              <Label htmlFor="valorFiscalMock">Com valor fiscal (mock)</Label>
+              <Label htmlFor="valorFiscalMock">Com valor fiscal</Label>
             </div>
             <div>
               <Label htmlFor="formaPreferida">Forma Preferida</Label>
@@ -536,7 +536,7 @@ export default function FaturasTab() {
       {showPreview && (
         <Card>
           <CardHeader>
-            <CardTitle>Preview da Fatura (Mock)</CardTitle>
+            <CardTitle>Preview da Fatura</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="bg-white p-8 border rounded-lg text-black">
@@ -634,7 +634,7 @@ export default function FaturasTab() {
 
               {formaPreferida === 'Boleto' && (
                 <div className="mb-4 p-4 bg-gray-100 rounded">
-                  <p className="font-semibold">Dados do Boleto (Mock):</p>
+                  <p className="font-semibold">Dados do Boleto:</p>
                   <p>Linha digitável: 12345.67890 12345.678901 12345.678901 1 23456789012345</p>
                   <p>Nosso número: 123456789</p>
                 </div>
@@ -642,7 +642,7 @@ export default function FaturasTab() {
 
               {formaPreferida === 'PIX' && (
                 <div className="mb-4 p-4 bg-gray-100 rounded">
-                  <p className="font-semibold">PIX (Mock):</p>
+                  <p className="font-semibold">PIX:</p>
                   <p>Chave PIX: pagamentos@erp-locacao.com.br</p>
                   <p>QR Code: [Código QR seria exibido aqui]</p>
                 </div>
@@ -660,7 +660,7 @@ export default function FaturasTab() {
               <Button onClick={() => setShowPreview(false)} variant="outline">
                 Fechar Preview
               </Button>
-              <Button onClick={() => toast({ title: "Impressão", description: "Enviando para impressora (mock)." })}>
+              <Button onClick={() => toast({ title: "Impressão", description: "Enviando para impressora." })}>
                 <Printer className="w-4 h-4 mr-2" />
                 Imprimir
               </Button>

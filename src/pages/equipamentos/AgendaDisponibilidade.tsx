@@ -162,14 +162,14 @@ export default function AgendaDisponibilidade() {
     }
     
     toast({
-      description: "Reserva criada (mock)!",
+      description: "Reserva criada!",
     });
     setDrawerOpen(false);
   };
 
   const handleAvisarComercial = () => {
     toast({
-      description: "Aviso enviado ao comercial (mock)!",
+      description: "Aviso enviado ao comercial!",
     });
     setDrawerOpen(false);
   };

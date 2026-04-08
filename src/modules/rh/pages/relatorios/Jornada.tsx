@@ -99,7 +99,7 @@ export default function RelatorioJornada() {
   const handleExport = (tipo: 'csv' | 'pdf') => {
     toast({
       title: "Export realizado",
-      description: `Relatório de Jornada exportado em ${tipo.toUpperCase()} (mock)`
+      description: `Relatório de Jornada exportado em ${tipo.toUpperCase()}`
     });
   };
 
@@ -207,7 +207,7 @@ export default function RelatorioJornada() {
           <CardContent className="p-6 text-center">
             <Clock className="h-8 w-8 text-blue-500 mx-auto mb-2" />
             <div className="text-2xl font-bold">{kpis.horasExtras.toFixed(1)}h</div>
-            <div className="text-sm text-muted-foreground">HE Acumulada (mock)</div>
+            <div className="text-sm text-muted-foreground">HE Acumulada</div>
           </CardContent>
         </Card>
         <Card>

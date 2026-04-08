@@ -205,7 +205,7 @@ export default function LancarDespesaModal({
                 className="w-full"
               >
                 <Camera className="w-4 h-4 mr-2" />
-                {anexoMock ? "Foto anexada (mock)" : "Anexar foto (mock)"}
+                {anexoMock ? "Foto anexada" : "Anexar foto"}
               </Button>
             </div>
           </div>

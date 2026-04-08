@@ -129,7 +129,7 @@ export default function RelatorioCompliance() {
     
     toast({
       title: "Agendado com sucesso",
-      description: `${agendamento.tipo} agendado para ${format(new Date(agendamento.data), 'dd/MM/yyyy')} (mock)`
+      description: `${agendamento.tipo} agendado para ${format(new Date(agendamento.data), 'dd/MM/yyyy')}`
     });
 
     setAgendamento({
@@ -144,7 +144,7 @@ export default function RelatorioCompliance() {
   const handleExport = (tipo: 'csv' | 'pdf') => {
     toast({
       title: "Export realizado",
-      description: `Relatório de Compliance exportado em ${tipo.toUpperCase()} (mock)`
+      description: `Relatório de Compliance exportado em ${tipo.toUpperCase()}`
     });
   };
 

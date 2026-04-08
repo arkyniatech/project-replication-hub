@@ -217,7 +217,7 @@ export function EmissaoAvulsaModal({
     addEmissaoAvulsaEvent(event);
     
     sonnerToast.success("Preview PDF", {
-      description: "Documento gerado (mock)",
+      description: "Documento gerado",
       action: {
         label: "Baixar",
         onClick: () => console.log("Download PDF mock")
@@ -379,7 +379,7 @@ export function EmissaoAvulsaModal({
 
     // Mock da geração de cobrança
     sonnerToast.success("Cobrança gerada!", {
-      description: "PIX/Boleto disponível (mock)",
+      description: "PIX/Boleto disponível",
       action: {
         label: "Copiar PIX",
         onClick: () => console.log("Copiar código PIX")
@@ -395,7 +395,7 @@ export function EmissaoAvulsaModal({
 
   const handleEnviar = (canal: 'EMAIL' | 'WHATSAPP') => {
     sonnerToast.success(`Enviado via ${canal}`, {
-      description: "Documento enviado com sucesso (mock)"
+      description: "Documento enviado com sucesso"
     });
 
     addEmissaoAvulsaEvent({

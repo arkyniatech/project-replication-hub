@@ -723,7 +723,7 @@ export function ParametrizacoesLocacaoForm() {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Label htmlFor="comprovante-digital">Gerar comprovante digital (mock)</Label>
+                      <Label htmlFor="comprovante-digital">Gerar comprovante digital</Label>
                       <Tooltip>
                         <TooltipTrigger>
                           <Info className="w-4 h-4 text-muted-foreground" />

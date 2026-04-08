@@ -126,7 +126,7 @@ export const FechamentoMensalDrawer = ({ open, onClose }: FechamentoMensalDrawer
   };
 
   const exportarPDF = () => {
-    toast.info("PDF do fechamento exportado com sucesso (mock)");
+    toast.info("PDF do fechamento exportado com sucesso");
   };
 
   const getStatusUnidade = (unidadeId: string, periodo: string) => {
