@@ -41,7 +41,7 @@ import {
 import { getLockInfo } from '@/lib/fechamento-utils';
 
 // Mock data for DRE
-const mockExpensesData = [
+const expensesData = [
   {
     codigo: 'A5.01',
     descricao: 'Combustível',
@@ -284,7 +284,7 @@ export default function DRE() {
   const isMultiLoja = lojasPermitidas.length > 1;
 
   // Cálculos dos KPIs
-  const data = snapshot ? snapshot.porCategoria : mockExpensesData;
+  const data = snapshot ? snapshot.porCategoria : expensesData;
   const totalReal = data.reduce((sum, item) => sum + item.real, 0);
   const totalMeta = data.reduce((sum, item) => sum + item.meta, 0);
   const deltaTotal = totalReal - totalMeta;
@@ -301,7 +301,7 @@ export default function DRE() {
     .slice(0, 3);
 
   const handleExportCSV = () => {
-    const csvData = exportDREData(snapshot, mockExpensesData, showRealVsMeta);
+    const csvData = exportDREData(snapshot, expensesData, showRealVsMeta);
     const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -683,7 +683,7 @@ export default function DRE() {
         onClose={() => setShowFechamentoDRE(false)}
         competencia={competenciaAtual}
         lojas={lojasPermitidas.filter(l => lojasAtivas.includes(l.id))}
-        mockExpensesData={mockExpensesData}
+        expensesData={expensesData}
         onFechamentoComplete={handleFechamentoComplete}
       />
 
