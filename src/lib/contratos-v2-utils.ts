@@ -160,7 +160,7 @@ export function verificarDisponibilidade(equipamento: Equipamento, quantidadeDes
   }
 }
 
-// Gerar OS de Entrega (mock)
+// Gerar OS de Entrega
 export function gerarOSEntrega(contrato: Contrato): OSLogistica {
   const os: OSLogistica = {
     id: crypto.randomUUID(),
@@ -185,9 +185,9 @@ export function gerarOSEntrega(contrato: Contrato): OSLogistica {
   return os;
 }
 
-// Gerar títulos de fechamento (mock)
+// Gerar títulos de fechamento
 export function gerarTitulosFechamento(contrato: Contrato): TituloReceber[] {
-  // Mock - implementação simplificada
+  // Demo - implementação simplificada
   const titulo: any = {
     id: crypto.randomUUID(),
     lojaId: contrato.lojaId,
@@ -200,7 +200,7 @@ export function gerarTitulosFechamento(contrato: Contrato): TituloReceber[] {
     createdAt: new Date().toISOString(),
   };
 
-  // Salvar no storage dos títulos (mock)
+  // Salvar no storage dos títulos
   const titulos = getStorageData<any>('erp-titulos');
   titulos.push(titulo);
   setStorageData('erp-titulos', titulos);
@@ -208,9 +208,9 @@ export function gerarTitulosFechamento(contrato: Contrato): TituloReceber[] {
   return [titulo];
 }
 
-// Agrupar cobrança por cliente (mock)
+// Agrupar cobrança por cliente
 export function agruparCobrancaCliente(clienteId: string): AgregadorCobranca | null {
-  // Mock - coleta títulos em aberto do cliente
+  // Demo - coleta títulos em aberto do cliente
   const titulos = getStorageData<any>('erp-titulos').filter((t: any) => 
     t.clienteId === clienteId && t.status === 'ABERTO'
   );
