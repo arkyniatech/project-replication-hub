@@ -65,7 +65,17 @@ export function LojasForm() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // Auto-link: vincular o criador à nova loja
+      if (data?.id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('user_lojas_permitidas').insert({
+            user_id: user.id,
+            loja_id: data.id,
+          });
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ['lojas'] });
       toast.success('Loja criada com sucesso!');
       setIsDialogOpen(false);

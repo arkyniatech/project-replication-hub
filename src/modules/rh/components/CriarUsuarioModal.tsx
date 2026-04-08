@@ -23,7 +23,8 @@ interface CriarUsuarioModalProps {
   pessoa: Pessoa | null;
 }
 
-const ROLES_DISPONIVEIS: { value: AppRole; label: string; color: string }[] = [
+const ALL_ROLES: { value: AppRole; label: string; color: string; masterOnly?: boolean }[] = [
+  { value: 'master' as AppRole, label: 'Master', color: 'bg-black', masterOnly: true },
   { value: 'admin' as AppRole, label: 'Admin', color: 'bg-red-500' },
   { value: 'gerente' as AppRole, label: 'Gerente', color: 'bg-purple-500' },
   { value: 'rh' as AppRole, label: 'RH', color: 'bg-blue-500' },
@@ -63,6 +64,20 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
   const { addRoles } = useSupabaseUserRoles();
   const { addLojas } = useSupabaseUserLojas();
   const { lojas } = useSupabaseLojas();
+
+  // Detectar se o usuário logado é master para mostrar a opção master
+  const [isMaster, setIsMaster] = useState(false);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'master').then(({ data }) => {
+          setIsMaster(!!data && data.length > 0);
+        });
+      }
+    });
+  }, []);
+
+  const ROLES_DISPONIVEIS = ALL_ROLES.filter(r => !r.masterOnly || isMaster);
 
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
