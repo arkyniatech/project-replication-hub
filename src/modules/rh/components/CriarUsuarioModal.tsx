@@ -23,7 +23,8 @@ interface CriarUsuarioModalProps {
   pessoa: Pessoa | null;
 }
 
-const ROLES_DISPONIVEIS: { value: AppRole; label: string; color: string }[] = [
+const ALL_ROLES: { value: AppRole; label: string; color: string; masterOnly?: boolean }[] = [
+  { value: 'master' as AppRole, label: 'Master', color: 'bg-black', masterOnly: true },
   { value: 'admin' as AppRole, label: 'Admin', color: 'bg-red-500' },
   { value: 'gerente' as AppRole, label: 'Gerente', color: 'bg-purple-500' },
   { value: 'rh' as AppRole, label: 'RH', color: 'bg-blue-500' },
