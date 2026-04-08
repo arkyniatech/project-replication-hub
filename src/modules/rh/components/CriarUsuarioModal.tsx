@@ -65,6 +65,20 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
   const { addLojas } = useSupabaseUserLojas();
   const { lojas } = useSupabaseLojas();
 
+  // Detectar se o usuário logado é master para mostrar a opção master
+  const [isMaster, setIsMaster] = useState(false);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'master').then(({ data }) => {
+          setIsMaster(!!data && data.length > 0);
+        });
+      }
+    });
+  }, []);
+
+  const ROLES_DISPONIVEIS = ALL_ROLES.filter(r => !r.masterOnly || isMaster);
+
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [rolesSelecionadas, setRolesSelecionadas] = useState<AppRole[]>([]);
