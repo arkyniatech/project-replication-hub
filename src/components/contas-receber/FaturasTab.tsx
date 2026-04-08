@@ -545,7 +545,7 @@ export default function FaturasTab() {
                 <p>Sistema de Gestão de Equipamentos</p>
                 <hr className="my-4" />
                 <h3 className="text-xl font-semibold">
-                  {valorFiscal ? FATURA FISCAL : "DOCUMENTO DE COBRANÇA"}
+                  {valorFiscal ? "FATURA FISCAL" : "DOCUMENTO DE COBRANÇA"}
                 </h3>
               </div>
 
