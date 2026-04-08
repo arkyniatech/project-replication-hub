@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3, Download, Calendar, FileText, DollarSign, TrendingUp, ExternalLink, Wrench, Users, Receipt } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { clienteStorage, equipamentoStorage, contratoStorage, faturaStorage } from "@/lib/storage";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { UtilizacaoTab } from "@/components/relatorios/UtilizacaoTab";
 import { useRelatorioUtilizacaoStore } from "@/stores/relatorioUtilizacaoStore";
@@ -315,15 +316,35 @@ export default function Relatorios() {
     },
   ];
 
+  // Fetch real stats from Supabase
+  const { data: statsData } = useQuery({
+    queryKey: ['relatorios-stats'],
+    queryFn: async () => {
+      const [contratosRes, equipamentosRes, faturasRes, clientesRes] = await Promise.all([
+        supabase.from('contratos').select('id, status'),
+        supabase.from('equipamentos').select('id, status_global'),
+        supabase.from('faturas').select('id, tipo'),
+        supabase.from('clientes').select('id, ativo'),
+      ]);
+      return {
+        contratos: contratosRes.data || [],
+        equipamentos: equipamentosRes.data || [],
+        faturas: faturasRes.data || [],
+        clientes: clientesRes.data || [],
+      };
+    },
+    staleTime: 60_000,
+  });
+
   const estatisticas = {
-    totalContratos: contratoStorage.getAll().length,
-    contratosAtivos: contratoStorage.getAll().filter(c => c.status === 'ATIVO' || c.status === 'AGENDADO' || c.status === 'AGUARDANDO_ENTREGA').length,
-    totalEquipamentos: equipamentoStorage.getAll().length,
-    equipamentosDisponiveis: equipamentoStorage.getAll().filter(e => e.status === 'Disponível').length,
-    totalFaturas: faturaStorage.getAll().length,
-    faturasPendentes: faturaStorage.getAll().filter(f => f.status === 'Em aberto').length,
-    totalClientes: clienteStorage.getAll().length,
-    clientesAtivos: clienteStorage.getAll().filter(c => c.statusCredito === 'Ativo').length,
+    totalContratos: statsData?.contratos.length ?? 0,
+    contratosAtivos: statsData?.contratos.filter(c => ['ATIVO', 'AGENDADO', 'AGUARDANDO_ENTREGA'].includes(c.status)).length ?? 0,
+    totalEquipamentos: statsData?.equipamentos.length ?? 0,
+    equipamentosDisponiveis: statsData?.equipamentos.filter(e => e.status_global === 'DISPONIVEL').length ?? 0,
+    totalFaturas: statsData?.faturas.length ?? 0,
+    faturasPendentes: statsData?.faturas.filter(f => f.tipo === 'LOCACAO').length ?? 0,
+    totalClientes: statsData?.clientes.length ?? 0,
+    clientesAtivos: statsData?.clientes.filter(c => c.ativo).length ?? 0,
   };
 
   return (
