@@ -167,7 +167,7 @@ export default function RelatorioExecutivo() {
                 <Badge variant="outline">22 dias</Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Satisfação Interna (Mock)</span>
+                <span className="text-sm text-muted-foreground">Satisfação Interna</span>
                 <Badge variant="default">4.2/5</Badge>
               </div>
               <div className="flex justify-between items-center">
