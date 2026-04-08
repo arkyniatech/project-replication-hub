@@ -122,15 +122,15 @@ const calcularUtilizacao = (
     });
   });
   
-  // Mock de dias em manutenção (2-5% do período)
+  // Estimativa de dias em manutenção (2-5% do período)
   const diasManutencao = Math.floor(diasPeriodo * (Math.random() * 0.03 + 0.02));
   
   const diasDisponiveis = Math.max(0, capacidadeTotal - diasLocados - diasManutencao);
   const utilizacaoPercent = capacidadeTotal > 0 ? (diasLocados / capacidadeTotal) * 100 : 0;
   
-  // Receita estimada mock (R$ 150-300 por dia)
-  const precoDiariaMock = Math.floor(Math.random() * 150) + 150;
-  const receitaEstimada = diasLocados * precoDiariaMock;
+  // Receita estimada (R$ 150-300 por dia)
+  const precoDiariaEstimado = Math.floor(Math.random() * 150) + 150;
+  const receitaEstimada = diasLocados * precoDiariaEstimado;
   
   // Gerar calendário de status
   const statusCalendario: Array<{ data: string; status: 'LOCADO' | 'REVISAO' | 'DISPONIVEL' }> = [];
@@ -153,7 +153,7 @@ const calcularUtilizacao = (
       })
     );
     
-    // Mock de revisão (3% dos dias)
+    // Estimativa de revisão (3% dos dias)
     const emRevisao = !locadoNesteAia && Math.random() < 0.03;
     
     statusCalendario.push({

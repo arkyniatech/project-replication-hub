@@ -82,7 +82,7 @@ export function ConciliacaoTab() {
       saldoInicialExtrato: parseFloat(saldoInicialExtrato),
       saldoFinalExtrato: parseFloat(saldoFinalExtrato),
       status: 'ABERTA',
-      criadoPor: 'user' // Mock user
+      criadoPor: 'sistema' // Mock user
     });
 
     setCurrentConciliacao(conciliacaoId);
