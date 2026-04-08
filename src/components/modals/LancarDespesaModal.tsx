@@ -35,7 +35,7 @@ export default function LancarDespesaModal({
   const [categoria, setCategoria] = useState('Combustível');
   const [forma, setForma] = useState<'PIX' | 'Cartão' | 'Dinheiro' | 'Transferência'>('PIX');
   const [observacoes, setObservacoes] = useState('');
-  const [anexoMock, setAnexoMock] = useState(false);
+  const [anexoFoto, setAnexoMock] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -104,7 +104,7 @@ export default function LancarDespesaModal({
         categoria,
         forma,
         observacoes,
-        anexoMock,
+        anexoFoto,
         data: hoje,
         hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         usuario: currentUser.nome,
@@ -201,11 +201,11 @@ export default function LancarDespesaModal({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setAnexoMock(!anexoMock)}
+                onClick={() => setAnexoMock(!anexoFoto)}
                 className="w-full"
               >
                 <Camera className="w-4 h-4 mr-2" />
-                {anexoMock ? "Foto anexada" : "Anexar foto"}
+                {anexoFoto ? "Foto anexada" : "Anexar foto"}
               </Button>
             </div>
           </div>

@@ -144,7 +144,7 @@ export function CobrancaUnicaModal({
       return;
     }
 
-    // Mock: Gerar fatura única e boleto/PIX
+    // Gerar fatura única e boleto/PIX
     const numeroFatura = `FAT-${Date.now()}`;
     const titulosSelecionadosData = titulosAbertos.filter(t => titulosSelecionados.includes(t.id));
 

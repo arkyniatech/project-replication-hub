@@ -47,7 +47,7 @@ interface ConfigFinanceiro {
     mostrarNaFatura: boolean;
   };
   faturaPreferencias: {
-    tipoPadrao: "DEMONSTRATIVO" | "FISCAL_MOCK";
+    tipoPadrao: "DEMONSTRATIVO" | "FISCAL";
     vencimentoPadraoDias: number;
     mostrarQrPix: boolean;
     mostrarLinhaBoleto: boolean;
@@ -608,7 +608,7 @@ export function FinanceiroForm() {
                 <Label htmlFor="tipo-padrao">Tipo padrão de Fatura</Label>
                 <Select 
                   value={config.faturaPreferencias.tipoPadrao}
-                  onValueChange={(value: "DEMONSTRATIVO" | "FISCAL_MOCK") => setConfig(prev => ({
+                  onValueChange={(value: "DEMONSTRATIVO" | "FISCAL") => setConfig(prev => ({
                     ...prev,
                     faturaPreferencias: { ...prev.faturaPreferencias, tipoPadrao: value }
                   }))}
@@ -618,7 +618,7 @@ export function FinanceiroForm() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="DEMONSTRATIVO">Sem valor fiscal (demonstrativo)</SelectItem>
-                    <SelectItem value="FISCAL_MOCK">Com valor fiscal</SelectItem>
+                    <SelectItem value="FISCAL">Com valor fiscal</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

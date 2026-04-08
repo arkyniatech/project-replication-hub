@@ -290,7 +290,7 @@ export function EmissaoAvulsaModal({
         acrescimos: totais.acrescimos,
         descontos: totais.descontos,
         valor: totais.total,
-        valorFiscalMock: false,
+        valorFiscal: false,
         formaPreferida: (formaPagamento === 'BOLETO' ? 'Boleto' : formaPagamento) as 'PIX' | 'Boleto' | 'Cartão',
         observacoes,
         dataVencimento: vencimento,

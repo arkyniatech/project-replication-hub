@@ -162,7 +162,7 @@ export default function Relatorios() {
         emissao: f.emissao,
         cliente: f.clientes?.nome || f.clientes?.razao_social || 'Sem cliente',
         contrato: f.contratos?.numero || 'S/N',
-        tipo: f.tipo === 'FISCAL_MOCK' ? 'Fiscal' : 'Demonstrativo',
+        tipo: f.tipo === 'FISCAL' ? 'Fiscal' : 'Demonstrativo',
         forma: f.forma_preferida || 'N/A',
         total: f.total || 0,
       }));
@@ -205,7 +205,7 @@ export default function Relatorios() {
         emissao: f.emissao,
         cliente: f.clientes?.nome || f.clientes?.razao_social || 'Sem cliente',
         contrato: f.contratos?.numero || 'S/N',
-        tipo: f.tipo === 'FISCAL_MOCK' ? 'Fiscal' : 'Demonstrativo',
+        tipo: f.tipo === 'FISCAL' ? 'Fiscal' : 'Demonstrativo',
         forma: f.forma_preferida || 'N/A',
         total: f.total || 0,
       }));

@@ -58,7 +58,7 @@ export interface Ausencia {
   dataFimISO: string;
   obs?: string;
   status: 'ABERTA' | 'APROVADA' | 'RECUSADA';
-  anexoMock?: AnexoMock;
+  anexoFoto?: AnexoMock;
   criadoEm: string;
   criadoPor: string;
 }

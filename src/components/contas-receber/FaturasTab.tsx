@@ -21,7 +21,7 @@ export default function FaturasTab() {
   const [contrato, setContrato] = useState("");
   const [emissao, setEmissao] = useState(new Date().toISOString().split('T')[0]);
   const [vencimento, setVencimento] = useState("");
-  const [valorFiscalMock, setValorFiscalMock] = useState(false);
+  const [valorFiscal, setValorFiscalMock] = useState(false);
   const [formaPreferida, setFormaPreferida] = useState<'Boleto' | 'PIX' | 'Cartão'>('Boleto');
   const [observacoes, setObservacoes] = useState("");
   const [itens, setItens] = useState<ItemFatura[]>([]);
@@ -255,9 +255,9 @@ export default function FaturasTab() {
                         <TableCell>
                           <StatusBadge 
                             status={{
-                              label: fatura.tipo === 'FISCAL_MOCK' ? 'Fiscal' : 'Demonstrativo',
+                              label: fatura.tipo === 'FISCAL' ? 'Fiscal' : 'Demonstrativo',
                               value: fatura.tipo,
-                              color: fatura.tipo === 'FISCAL_MOCK' ? 'info' as const : 'secondary' as const
+                              color: fatura.tipo === 'FISCAL' ? 'info' as const : 'secondary' as const
                             }}
                           />
                         </TableCell>
@@ -354,11 +354,11 @@ export default function FaturasTab() {
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
-                id="valorFiscalMock"
-                checked={valorFiscalMock}
+                id="valorFiscal"
+                checked={valorFiscal}
                 onChange={(e) => setValorFiscalMock(e.target.checked)}
               />
-              <Label htmlFor="valorFiscalMock">Com valor fiscal</Label>
+              <Label htmlFor="valorFiscal">Com valor fiscal</Label>
             </div>
             <div>
               <Label htmlFor="formaPreferida">Forma Preferida</Label>
@@ -545,7 +545,7 @@ export default function FaturasTab() {
                 <p>Sistema de Gestão de Equipamentos</p>
                 <hr className="my-4" />
                 <h3 className="text-xl font-semibold">
-                  {valorFiscalMock ? "FATURA FISCAL (MOCK)" : "DOCUMENTO DE COBRANÇA"}
+                  {valorFiscal ? FATURA FISCAL : "DOCUMENTO DE COBRANÇA"}
                 </h3>
               </div>
 

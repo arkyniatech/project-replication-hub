@@ -203,7 +203,7 @@ export default function EmitirFaturaModal({
         cliente_id: contrato.clienteId,
         contrato_id: contrato.id,
         numero: numeroFatura,
-        tipo: tipoFatura === 'fiscal' ? 'FISCAL_MOCK' : 'DEMONSTRATIVO',
+        tipo: tipoFatura === 'fiscal' ? 'FISCAL' : 'DEMONSTRATIVO',
         emissao: new Date().toISOString(),
         vencimento: new Date(vencimento).toISOString(),
         itens: itens.map(i => ({
