@@ -16,7 +16,7 @@ import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTrian
 import { format, addDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { clienteStorage, equipamentoStorage, contratoStorage } from "@/lib/storage";
+
 import { Cliente, Equipamento, ItemContrato, Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
