@@ -26,7 +26,7 @@ export function CCCategoryMapping({ className }: CCCategoryMappingProps) {
   const [hasChanges, setHasChanges] = useState(false);
 
   // Mock de categorias N2
-  const mockCategorias = [
+  const categoriasLocal = [
     { codigo: 'A5.01', nome: 'Manutenção de Equipamentos' },
     { codigo: 'A5.02', nome: 'Combustíveis e Lubrificantes' },
     { codigo: 'A5.03', nome: 'Material de Consumo' },
@@ -47,7 +47,7 @@ export function CCCategoryMapping({ className }: CCCategoryMappingProps) {
       const configFinanceiro = localStorage.getItem('config.financeiro');
       const ccPadraoMap = configFinanceiro ? JSON.parse(configFinanceiro).ccPadraoPorCategoria || {} : {};
       
-      const mappingsData: CategoryMapping[] = mockCategorias.map(cat => ({
+      const mappingsData: CategoryMapping[] = categoriasLocal.map(cat => ({
         categoriaCodigo: cat.codigo,
         categoriaNome: cat.nome,
         ccId: ccPadraoMap[cat.codigo]
@@ -56,7 +56,7 @@ export function CCCategoryMapping({ className }: CCCategoryMappingProps) {
       setMappings(mappingsData);
     } catch (error) {
       console.error('Erro ao carregar mapeamentos:', error);
-      setMappings(mockCategorias.map(cat => ({
+      setMappings(categoriasLocal.map(cat => ({
         categoriaCodigo: cat.codigo,
         categoriaNome: cat.nome,
         ccId: undefined
