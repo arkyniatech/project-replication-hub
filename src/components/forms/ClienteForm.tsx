@@ -229,12 +229,20 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       return;
     }
 
-    // Validar se tem pelo menos um WhatsApp
-    const hasWhatsApp = contatos.some(c => c.tipo === 'WhatsApp' && c.valor && c.valor.trim() !== '');
-    if (!hasWhatsApp) {
+    // Validar se tem pelo menos um WhatsApp autenticado
+    const whatsAppContato = contatos.find(c => c.tipo === 'WhatsApp' && c.valor && c.valor.trim() !== '');
+    if (!whatsAppContato) {
       toast({
         title: "WhatsApp obrigatório",
         description: "É necessário informar um WhatsApp do cliente.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!whatsAppContato.verificado) {
+      toast({
+        title: "WhatsApp não autenticado",
+        description: "Clique em 'Autenticar' no contato WhatsApp para validar o número antes de salvar.",
         variant: "destructive"
       });
       return;
