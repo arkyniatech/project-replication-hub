@@ -1,78 +1,86 @@
+## Plano: Correções da Avaliação LocaHub (23 itens)
 
-
-## Plano: Fluxo Completo de Onboarding (Master → Admin → Loja → Sub-usuários)
-
-### Problema Atual
-
-1. **AdminUserCreate.tsx** — componente morto, simula criação sem chamar nenhuma API
-2. **LojasForm.tsx** — cria loja mas não vincula o criador em `user_lojas_permitidas`
-3. **Edge Function `create-user`** — só permite roles `admin` e `rh`, ignora `master`; não aceita roles/lojas no body (delega ao frontend, que pode falhar parcialmente)
-4. **Sem fluxo Master → Admin** — Master não tem UI dedicada para criar franqueado (admin) com loja vinculada
-
-### Solução
-
-#### 1. Atualizar Edge Function `create-user`
-
-Aceitar campos opcionais `roles` e `lojas_permitidas` no body. Se fornecidos, inserir diretamente no banco (atomicamente, dentro da mesma transação server-side). Adicionar `master` à lista de roles que podem chamar a função.
-
-```
-Body aceita: { email, password, username, pessoa_id, roles?, lojas_permitidas?, loja_padrao_id?, ... }
-```
-
-Permissão: `master`, `admin`, ou `rh`.
-
-#### 2. Remover `AdminUserCreate.tsx`
-
-Este componente é uma simulação sem funcionalidade real. A tela de criação de usuários já existe funcional em `CriarUsuarioModal.tsx` (chamada a partir de `UsuariosPerfilForm`). Remover o componente e qualquer rota que o referencia.
-
-#### 3. Auto-link na criação de loja (`LojasForm.tsx`)
-
-Após criar a loja com sucesso, inserir automaticamente um registro em `user_lojas_permitidas` vinculando o `auth.uid()` à nova loja. Isso garante que o admin que criou a loja possa vê-la imediatamente.
-
-#### 4. Atualizar `CriarUsuarioModal` — aceitar role `master`
-
-Atualmente a lista `ROLES_DISPONIVEIS` não inclui `master`. Adicionar `master` como opção visível apenas se o usuário logado for master (para que admins não possam criar outros masters).
-
-#### 5. Ajustar RLS da tabela `lojas` para INSERT
-
-Atualmente apenas `admin` pode inserir lojas. Adicionar `master` à policy de INSERT para que o Master possa criar lojas para franqueados.
+São muitos itens (10 bugs + 13 melhorias). Vou organizar em **5 fases entregáveis**. Você aprova esse plano único e eu executo todas as fases em sequência.
 
 ---
 
-### Arquivos Modificados
+### Fase 1 — Bugs críticos de backend (desbloqueiam testes)
 
-| Arquivo | Ação |
-|---------|------|
-| `supabase/functions/create-user/index.ts` | Aceitar `roles` + `lojas_permitidas`, permitir `master` |
-| `src/components/configuracoes/LojasForm.tsx` | Auto-link `user_lojas_permitidas` após criar loja |
-| `src/modules/rh/components/CriarUsuarioModal.tsx` | Adicionar role `master` condicional |
-| `src/components/admin/AdminUserCreate.tsx` | Deletar |
-| Migration SQL | Atualizar policy INSERT em `lojas` para incluir `master` |
+1. **RLS de equipamentos** — política INSERT exige role `vendedor/gestor/admin`. Adicionar `master` e revisar (página 6 do feedback).
+2. **Edge function `whatsapp-verify`** — investigar logs, validar variáveis `UAZAPI_URL/UAZAPI_TOKEN` e corrigir resposta de erro.
+3. **Edge function `whatsapp-send` (envio do contrato)** — mesmo diagnóstico via logs e correção.
+4. **Erro "Erro ao criar contrato" na etapa 7/7** — reproduzir via DB/logs e corrigir (provável RLS/payload em `contratos` ou `contrato_itens`).
+5. **Cadastro de Obra falhando dentro do contrato** — investigar tabela `obras` e fluxo do `SeletorObraModal`.
 
-### Detalhes Técnicos
+### Fase 2 — Novos campos e cadastros base
 
-**Edge Function — mudanças no `create-user`:**
-- Verificar roles do chamador: `['master', 'admin', 'rh']`
-- Após criar user_profile, se `roles` array presente: inserir em `user_roles`
-- Se `lojas_permitidas` array presente: inserir em `user_lojas_permitidas`
-- Retornar `{ success: true, user_id }` como já faz
+6. **Campo "Marca"** em equipamentos: nova tabela `marcas_equipamentos` (RLS: só master/admin cria, todos veem). Adicionar `marca_id` em `equipamentos` e selector no formulário, ao lado de Grupo/Modelo.
+7. **Variações cadastráveis** (Tensão, Combustível, Capacidade, Estado): nova tabela `variacoes_equipamento` com `tipo` enum, gerida pela franqueadora, alimentando os selects de Dados Técnicos.
+8. **Coordenadas GPS em Obras**: adicionar colunas `latitude/longitude` (numeric) em `obras` + campo no formulário com botão "abrir no mapa".
+9. **Data de vencimento padrão por cliente**: adicionar `dia_vencimento_padrao` (int 1-31) em `clientes`, exibir em "Condições & Políticas" e pré-preencher no contrato.
+10. **Negociação pontual no cliente**: adicionar bloco "Negociação personalizada" (jsonb `negociacao_pontual` em `clientes`) — desconto %, prazo, observação — usado automaticamente nas políticas comerciais do contrato.
 
-**LojasForm — auto-link:**
-```ts
-// No onSuccess do createMutation:
-const { data: { user } } = await supabase.auth.getUser();
-if (user && data.id) {
-  await supabase.from('user_lojas_permitidas').insert({
-    user_id: user.id, loja_id: data.id
-  });
-}
-```
+### Fase 3 — UX do cadastro de Cliente
 
-**Migration SQL:**
-```sql
-DROP POLICY IF EXISTS "Admin pode inserir lojas" ON public.lojas;
-CREATE POLICY "Admin e Master podem inserir lojas" ON public.lojas
-  FOR INSERT TO authenticated
-  WITH CHECK (is_master(auth.uid()) OR has_role(auth.uid(), 'admin'));
-```
+11. Remover campo **Responsável** do formulário PF.
+12. Tornar **Data de Nascimento obrigatória** (PF).
+13. Reordenar contatos: **WhatsApp como primeiro/principal** por padrão.
+14. Corrigir dropdown "Tipo de Contato" do primeiro contato (não abre).
+15. Bloquear finalização do cadastro se WhatsApp não foi autenticado (validação obrigatória).
+16. Reformular "Principal": separar em **Telefone Principal**, **WhatsApp Principal** e **Email Principal** (não tudo num único radio).
+17. Condensar layout dos contatos (reduzir espaços vazios, agrupar em cards menores).
 
+### Fase 4 — UX de Equipamentos, Contratos e Geral
+
+18. **Aba Patrimonial em Equipamentos**: corrigir tela branca; mostrar listagem com Grupo, Descrição, Nº Patrimônio e Nº Série.
+19. **Botão Transferir** no detalhe do equipamento: corrigir abertura do modal (atualmente não acontece nada).
+20. **Aviso "loja ativa"**: exibir apenas no login, não a cada navegação. Usar `sessionStorage` para suprimir após primeira exibição.
+21. **Forma de pagamento**: trocar "Cartão" por "Cartão de Débito" / "Cartão de Crédito" separadamente.
+22. **Remover "Li e concordo"** durante elaboração do contrato (assinatura física basta).
+23. **Remover "Assinar Digitalmente" do usuário do sistema** (só cliente assina).
+24. **Confirmação de obra**: garantir que obra criada durante o contrato fique salva no cadastro do cliente (vincular `obras.cliente_id`).
+25. **Barra de ferramentas auto-ocultar** quando não estiver em uso (na página de Contrato).
+
+### Fase 5 — Layout PDF do Contrato
+
+26. **Reformatar PDF do contrato** (`src/utils/contrato-pdf.ts`):
+    - Cabeçalho com mais contraste (faixas de cor entre seções)
+    - Seções claramente separadas: Dados Cliente / Equipamentos / Condições / Assinaturas
+    - Tabela de itens com cabeçalho colorido e linhas zebradas
+    - Espaçamento maior entre blocos
+    - Rodapé com paginação
+
+---
+
+### Detalhes técnicos relevantes
+
+**Migrations SQL necessárias:**
+- `ALTER TABLE equipamentos ADD COLUMN marca_id uuid;` + nova tabela `marcas_equipamentos`
+- Nova tabela `variacoes_equipamento (id, tipo, valor, ativo)` com RLS master/admin
+- `ALTER TABLE obras ADD COLUMN latitude numeric, ADD COLUMN longitude numeric;`
+- `ALTER TABLE clientes ADD COLUMN dia_vencimento_padrao int, ADD COLUMN negociacao_pontual jsonb DEFAULT '{}'::jsonb;`
+- Atualizar policy INSERT de `equipamentos` para incluir `is_master(auth.uid())`
+
+**Edge Functions a investigar/corrigir:**
+- `whatsapp-verify` — logs via `supabase--edge_function_logs`
+- `whatsapp-send` — idem
+- (criar contrato é client-side via Supabase client — investigar payload)
+
+**Arquivos client-side principais:**
+- `src/components/forms/ClienteForm.tsx` (Fase 3)
+- `src/pages/equipamentos/AnalisePatrimonial.tsx`, `EquipamentosLista.tsx` (Fase 4)
+- `src/components/equipamentos/EquipamentoDetalhes.tsx` (botão transferir)
+- `src/components/contratos/SeletorObraModal.tsx` (criar obra)
+- `src/utils/contrato-pdf.ts` (Fase 5)
+- Local do banner de "loja ativa" (provavelmente `AppInitializer.tsx` ou `RhTopBar`)
+
+---
+
+### Observações importantes
+
+- **Volume**: 23 itens é bastante. A execução vai gerar várias migrations e tocar 15-20 arquivos. Provavelmente precisará de 2-3 ciclos de execução.
+- **Bloqueios prováveis**: alguns bugs (whatsapp-verify, criar contrato) podem revelar configuração ausente de env vars ou exigir dados que só você tem.
+- **Ordem importa**: Fase 1 primeiro porque sem ela você não consegue testar o resto.
+- Se preferir, posso começar **só pela Fase 1** e depois você decide se segue. Mas se aprovar tudo, executo as 5 em sequência.
+
+Aprova esse escopo completo? Se quiser remover/adiar algo, me diga antes de aprovar.
