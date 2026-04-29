@@ -325,12 +325,14 @@ export type Database = {
           created_by: string | null
           data_aceite_lgpd: string | null
           data_nascimento: string | null
+          dia_vencimento_padrao: number | null
           endereco: Json | null
           id: string
           inadimplente: boolean | null
           inscricao_estadual: string | null
           isento_ie: boolean | null
           loja_id: string
+          negociacao_pontual: Json | null
           nome: string | null
           nome_fantasia: string | null
           observacoes: string | null
@@ -352,12 +354,14 @@ export type Database = {
           created_by?: string | null
           data_aceite_lgpd?: string | null
           data_nascimento?: string | null
+          dia_vencimento_padrao?: number | null
           endereco?: Json | null
           id?: string
           inadimplente?: boolean | null
           inscricao_estadual?: string | null
           isento_ie?: boolean | null
           loja_id: string
+          negociacao_pontual?: Json | null
           nome?: string | null
           nome_fantasia?: string | null
           observacoes?: string | null
@@ -379,12 +383,14 @@ export type Database = {
           created_by?: string | null
           data_aceite_lgpd?: string | null
           data_nascimento?: string | null
+          dia_vencimento_padrao?: number | null
           endereco?: Json | null
           id?: string
           inadimplente?: boolean | null
           inscricao_estadual?: string | null
           isento_ie?: boolean | null
           loja_id?: string
+          negociacao_pontual?: Json | null
           nome?: string | null
           nome_fantasia?: string | null
           observacoes?: string | null
@@ -836,6 +842,7 @@ export type Database = {
           historico: Json | null
           id: string
           loja_atual_id: string
+          marca_id: string | null
           modelo_id: string
           numero_serie: string | null
           observacoes: string | null
@@ -854,6 +861,7 @@ export type Database = {
           historico?: Json | null
           id?: string
           loja_atual_id: string
+          marca_id?: string | null
           modelo_id: string
           numero_serie?: string | null
           observacoes?: string | null
@@ -872,6 +880,7 @@ export type Database = {
           historico?: Json | null
           id?: string
           loja_atual_id?: string
+          marca_id?: string | null
           modelo_id?: string
           numero_serie?: string | null
           observacoes?: string | null
@@ -894,6 +903,13 @@ export type Database = {
             columns: ["loja_atual_id"]
             isOneToOne: false
             referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipamentos_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "marcas_equipamentos"
             referencedColumns: ["id"]
           },
           {
@@ -1456,6 +1472,33 @@ export type Database = {
         }
         Relationships: []
       }
+      marcas_equipamentos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       modelos_equipamentos: {
         Row: {
           ativo: boolean
@@ -1630,7 +1673,9 @@ export type Database = {
           endereco: Json | null
           id: string
           is_padrao: boolean | null
+          latitude: number | null
           loja_id: string
+          longitude: number | null
           nome: string
           observacoes: string | null
           status: string
@@ -1649,7 +1694,9 @@ export type Database = {
           endereco?: Json | null
           id?: string
           is_padrao?: boolean | null
+          latitude?: number | null
           loja_id: string
+          longitude?: number | null
           nome: string
           observacoes?: string | null
           status?: string
@@ -1668,7 +1715,9 @@ export type Database = {
           endereco?: Json | null
           id?: string
           is_padrao?: boolean | null
+          latitude?: number | null
           loja_id?: string
+          longitude?: number | null
           nome?: string
           observacoes?: string | null
           status?: string
@@ -2347,6 +2396,36 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      variacoes_equipamento: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          ordem: number
+          tipo: string
+          updated_at: string
+          valor: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          tipo: string
+          updated_at?: string
+          valor: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          tipo?: string
+          updated_at?: string
+          valor?: string
         }
         Relationships: []
       }

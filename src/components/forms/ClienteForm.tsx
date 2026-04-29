@@ -60,8 +60,8 @@ interface ClienteFormProps {
 export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormProps) {
   const [tipo, setTipo] = useState<'PF' | 'PJ'>(cliente?.tipo || 'PF');
   const [contatos, setContatos] = useState<Contato[]>(cliente?.contatos || [
-    { id: '1', tipo: 'Telefone', valor: '', principal: true, verificado: false },
-    { id: '2', tipo: 'WhatsApp', valor: '', principal: false, verificado: false },
+    { id: '1', tipo: 'WhatsApp', valor: '', principal: true, verificado: false },
+    { id: '2', tipo: 'Telefone', valor: '', principal: false, verificado: false },
     { id: '3', tipo: 'Email', valor: '', principal: false, verificado: false }
   ]);
   const [anexos, setAnexos] = useState<Anexo[]>(cliente?.anexos || []);
@@ -229,12 +229,20 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       return;
     }
 
-    // Validar se tem pelo menos um WhatsApp
-    const hasWhatsApp = contatos.some(c => c.tipo === 'WhatsApp' && c.valor && c.valor.trim() !== '');
-    if (!hasWhatsApp) {
+    // Validar se tem pelo menos um WhatsApp autenticado
+    const whatsAppContato = contatos.find(c => c.tipo === 'WhatsApp' && c.valor && c.valor.trim() !== '');
+    if (!whatsAppContato) {
       toast({
         title: "WhatsApp obrigatório",
         description: "É necessário informar um WhatsApp do cliente.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!whatsAppContato.verificado) {
+      toast({
+        title: "WhatsApp não autenticado",
+        description: "Clique em 'Autenticar' no contato WhatsApp para validar o número antes de salvar.",
         variant: "destructive"
       });
       return;
@@ -562,24 +570,17 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
                   </div>
 
                   <div>
-                    <Label htmlFor="dataNascimento">Data de Nascimento</Label>
+                    <Label htmlFor="dataNascimento">Data de Nascimento *</Label>
                     <Input
                       id="dataNascimento"
                       type="date"
                       max={new Date().toISOString().split('T')[0]}
-                      {...register('dataNascimento')}
+                      {...register('dataNascimento', { required: tipo === 'PF' ? 'Data de Nascimento é obrigatória' : false })}
                       className="shadow-input border-input-border"
                     />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="responsavel">Responsável</Label>
-                    <Input
-                      id="responsavel"
-                      placeholder="Nome do responsável (opcional)"
-                      {...register('responsavel')}
-                      className="shadow-input border-input-border"
-                    />
+                    {errors.dataNascimento && (
+                      <p className="text-sm text-destructive mt-1">{errors.dataNascimento.message as string}</p>
+                    )}
                   </div>
                 </>
               ) : (
@@ -683,16 +684,13 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
                             onValueChange={(value: 'Telefone' | 'WhatsApp' | 'Email') => 
                               updateContato(contato.id, 'tipo', value)
                             }
-                            disabled={index < 2}
                           >
                             <SelectTrigger className="shadow-input border-input-border">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Telefone">
-                                {index === 0 ? 'Telefone (Recados)' : 'Telefone'}
-                              </SelectItem>
                               <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                              <SelectItem value="Telefone">Telefone</SelectItem>
                               <SelectItem value="Email">E-mail</SelectItem>
                             </SelectContent>
                           </Select>
@@ -759,8 +757,8 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
 
                       {isRequired && (
                         <p className="text-xs text-muted-foreground">
-                          {index === 0 && '📞 Telefone principal para contato com o cliente'}
-                          {index === 1 && '💬 WhatsApp para comunicação rápida e autenticação'}
+                          {index === 0 && '💬 WhatsApp principal — obrigatório autenticar antes de salvar'}
+                          {index === 1 && '📞 Telefone para recados / contato alternativo'}
                         </p>
                       )}
                     </div>
