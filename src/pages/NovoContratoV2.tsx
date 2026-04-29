@@ -1016,13 +1016,18 @@ export default function NovoContratoV2() {
       }
 
       navigate('/contratos');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao finalizar contrato:', error);
+      // Extrair informações detalhadas do erro do Supabase/Postgres
+      const code = error?.code ? ` [${error.code}]` : '';
+      const detalhes = error?.details || error?.hint || '';
+      const baseMsg = error?.message || (typeof error === 'string' ? error : 'Ocorreu um erro ao salvar o contrato');
+      const description = [baseMsg + code, detalhes].filter(Boolean).join(' — ');
       toast({
         title: "Erro ao criar contrato",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao salvar o contrato",
+        description,
         variant: "destructive",
-        duration: 5000
+        duration: 8000
       });
     }
   };
