@@ -420,6 +420,47 @@ export function SeletorObraModal({
                   />
                 </div>
               </div>
+
+              {/* GPS / Coordenadas */}
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Coordenadas (opcional)</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCapturarGps}
+                      disabled={capturandoGps}
+                    >
+                      {capturandoGps ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <MapPin className="h-3 w-3 mr-1" />}
+                      Capturar GPS
+                    </Button>
+                    {(novaObra.latitude && novaObra.longitude) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${novaObra.latitude},${novaObra.longitude}`, '_blank')}
+                      >
+                        Abrir no Maps
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Latitude"
+                    value={novaObra.latitude}
+                    onChange={(e) => setNovaObra(prev => ({ ...prev, latitude: e.target.value }))}
+                  />
+                  <Input
+                    placeholder="Longitude"
+                    value={novaObra.longitude}
+                    onChange={(e) => setNovaObra(prev => ({ ...prev, longitude: e.target.value }))}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-2 pt-4">
