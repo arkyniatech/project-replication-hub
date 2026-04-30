@@ -130,6 +130,17 @@ export default function NovoEquipamento() {
   // Hooks do Supabase
   const { grupos } = useSupabaseGrupos();
   const { lojas } = useSupabaseLojas();
+  const [marcas, setMarcas] = useState<Array<{ id: string; nome: string }>>([]);
+  useEffect(() => {
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      supabase
+        .from("marcas_equipamentos")
+        .select("id,nome")
+        .eq("ativo", true)
+        .order("nome")
+        .then(({ data }) => setMarcas((data as any) || []));
+    });
+  }, []);
   const {
     createEquipamento,
     updateEquipamento,
