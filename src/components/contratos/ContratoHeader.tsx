@@ -2,7 +2,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Download, FileSignature, MessageCircle, FileText, Eye } from "lucide-react";
+import { Download, MessageCircle, FileText, Eye } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ContratoHeaderProps {
   statusContrato: 'ATIVO' | 'ENCERRADO';
@@ -13,7 +15,7 @@ interface ContratoHeaderProps {
   onContratoPDF: () => void;
   onVerContrato: () => void;
   onEntregaPDF: () => void;
-  onAssinar: () => void;
+  onAssinar?: () => void; // mantido como opcional para compat (não renderiza mais botão)
   onWhatsApp: () => void;
 }
 
@@ -26,9 +28,38 @@ export function ContratoHeader({
   onContratoPDF,
   onVerContrato,
   onEntregaPDF,
-  onAssinar,
   onWhatsApp
 }: ContratoHeaderProps) {
+  const isMobile = useIsMobile();
+  const [toolbarVisible, setToolbarVisible] = useState(true);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-hide da toolbar após 3s de inatividade (apenas desktop)
+  useEffect(() => {
+    if (isMobile) {
+      setToolbarVisible(true);
+      return;
+    }
+
+    const showAndScheduleHide = () => {
+      setToolbarVisible(true);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => setToolbarVisible(false), 3000);
+    };
+
+    showAndScheduleHide();
+    window.addEventListener('mousemove', showAndScheduleHide);
+    window.addEventListener('scroll', showAndScheduleHide, { passive: true });
+    window.addEventListener('keydown', showAndScheduleHide);
+
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      window.removeEventListener('mousemove', showAndScheduleHide);
+      window.removeEventListener('scroll', showAndScheduleHide);
+      window.removeEventListener('keydown', showAndScheduleHide);
+    };
+  }, [isMobile]);
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -66,9 +97,14 @@ export function ContratoHeader({
         </Card>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div
+        className={`flex items-center gap-2 transition-opacity duration-300 ${
+          toolbarVisible ? 'opacity-100' : 'opacity-20 hover:opacity-100'
+        }`}
+        onMouseEnter={() => setToolbarVisible(true)}
+      >
         <TooltipProvider>
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid grid-cols-4 gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -118,8 +154,6 @@ export function ContratoHeader({
                 <p>Baixar entrega/devolução</p>
               </TooltipContent>
             </Tooltip>
-
-            {/* Botão "Assinar digitalmente" removido — apenas envio para cliente assinar */}
 
             <Tooltip>
               <TooltipTrigger asChild>
