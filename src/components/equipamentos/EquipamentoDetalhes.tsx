@@ -597,6 +597,12 @@ export default function EquipamentoDetalhes() {
         open={showTransferenciaModal}
         onOpenChange={setShowTransferenciaModal}
       />
+
+      {/* Modal Nova Transferência (a partir do detalhe do equipamento) */}
+      <NovaTransferenciaModal
+        open={showNovaTransferencia}
+        onOpenChange={setShowNovaTransferencia}
+      />
     </div>
   );
 }
