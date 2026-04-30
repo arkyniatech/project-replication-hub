@@ -37,7 +37,9 @@ export default function WhatsAppVerificationModal({
       });
 
       if (error || data?.error) {
-        throw new Error(data?.error || error?.message || 'Erro ao enviar código');
+        const err: any = new Error(data?.error || error?.message || 'Erro ao enviar código');
+        err.code = data?.code;
+        throw err;
       }
 
       setStep('verify');
@@ -46,11 +48,32 @@ export default function WhatsAppVerificationModal({
         description: `Um código de verificação foi enviado para ${phoneNumber} via WhatsApp.`,
       });
     } catch (err: any) {
-      toast({
-        title: "Erro ao enviar código",
-        description: err.message || "Tente novamente.",
-        variant: "destructive",
-      });
+      if (err.code === 'WHATSAPP_NOT_CONNECTED') {
+        toast({
+          title: "WhatsApp da loja desconectado",
+          description: err.message,
+          variant: "destructive",
+          action: (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                navigate('/configuracoes?tab=whatsapp');
+              }}
+            >
+              <Settings className="h-3 w-3 mr-1" />
+              Configurar
+            </Button>
+          ) as any,
+        });
+      } else {
+        toast({
+          title: "Erro ao enviar código",
+          description: err.message || "Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
