@@ -184,13 +184,15 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
     setIsDirty(true);
   };
 
-  // Adicionar novo contato
+  // Adicionar novo contato (Principal automático se for o primeiro do mesmo tipo)
   const addContato = () => {
+    const tipo: 'Telefone' | 'WhatsApp' | 'Email' = 'Telefone';
+    const jaTemDoTipo = contatos.some(c => c.tipo === tipo);
     const newContato: Contato = {
       id: Date.now().toString(),
-      tipo: 'Telefone',
+      tipo,
       valor: '',
-      principal: contatos.length === 0
+      principal: !jaTemDoTipo
     };
     setContatos([...contatos, newContato]);
     setIsDirty(true);
@@ -204,18 +206,35 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
 
   // Atualizar contato
   const updateContato = (id: string, field: keyof Contato, value: any) => {
-    setContatos(contatos.map(c => 
-      c.id === id ? { ...c, [field]: value } : c
-    ));
+    setContatos(prev => {
+      const next = prev.map(c => (c.id === id ? { ...c, [field]: value } : c));
+      // Se mudou o TIPO, reequilibrar Principal por canal
+      if (field === 'tipo') {
+        const novoTipo = value as 'Telefone' | 'WhatsApp' | 'Email';
+        const haPrincipalNoTipo = next.some(c => c.tipo === novoTipo && c.principal);
+        if (!haPrincipalNoTipo) {
+          // Marca o primeiro do novo tipo como principal
+          const idxFirst = next.findIndex(c => c.tipo === novoTipo);
+          if (idxFirst >= 0) next[idxFirst] = { ...next[idxFirst], principal: true };
+        }
+      }
+      return next;
+    });
     setIsDirty(true);
   };
 
-  // Definir contato principal
+  // Definir contato principal — agora ESCOPADO POR TIPO (telefone/whatsapp/email independentes)
   const setPrincipal = (id: string) => {
-    setContatos(contatos.map(c => ({
-      ...c,
-      principal: c.id === id
-    })));
+    const target = contatos.find(c => c.id === id);
+    if (!target) return;
+    setContatos(contatos.map(c => {
+      // Mesmo tipo do alvo: só o alvo fica principal; outros do mesmo tipo desmarcam
+      if (c.tipo === target.tipo) {
+        return { ...c, principal: c.id === id };
+      }
+      // Tipos diferentes: preserva o que estava
+      return c;
+    }));
     setIsDirty(true);
   };
 
@@ -680,118 +699,102 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
             </div>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {contatos.map((contato, index) => {
                 const isRequired = index < 2; // Telefone e WhatsApp obrigatórios
                 const isWhatsApp = contato.tipo === 'WhatsApp';
                 const isVerified = contato.verificado;
-                
+                const principalLabel =
+                  contato.tipo === 'WhatsApp' ? 'WhatsApp principal' :
+                  contato.tipo === 'Email' ? 'E-mail principal' :
+                  'Telefone principal';
+
                 return (
-                  <div 
-                    key={contato.id} 
-                    className={`flex items-start gap-3 p-3 border rounded-md transition-colors ${
-                      isRequired 
-                        ? 'border-primary/50 bg-primary/5' 
+                  <div
+                    key={contato.id}
+                    className={`flex items-center gap-2 px-2.5 py-2 border rounded-md transition-colors ${
+                      isRequired
+                        ? 'border-primary/40 bg-primary/5'
                         : 'border-border'
                     }`}
                   >
-                    <div className="flex-1 space-y-2">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <Label className="flex items-center gap-1">
-                            Tipo de Contato {isRequired && <span className="text-destructive">*</span>}
-                          </Label>
-                          <Select
-                            value={contato.tipo}
-                            onValueChange={(value: 'Telefone' | 'WhatsApp' | 'Email') => 
-                              updateContato(contato.id, 'tipo', value)
-                            }
-                          >
-                            <SelectTrigger className="shadow-input border-input-border">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                              <SelectItem value="Telefone">Telefone</SelectItem>
-                              <SelectItem value="Email">E-mail</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <Label className="flex items-center gap-1">
-                            {contato.tipo === 'Email' ? 'E-mail' :
-                             contato.tipo === 'WhatsApp' ? 'WhatsApp' : 'Telefone'}
-                            {isRequired && <span className="text-destructive">*</span>}
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                              value={contato.valor}
-                              onChange={(e) => {
-                                let value = e.target.value;
-                                if (contato.tipo === 'Telefone' || contato.tipo === 'WhatsApp') {
-                                  value = formatPhone(value);
-                                }
-                                updateContato(contato.id, 'valor', value);
-                              }}
-                              placeholder={
-                                contato.tipo === 'Email' ? 'email@exemplo.com' :
-                                contato.tipo === 'Telefone' ? '(11) 1234-5678' : '(11) 12345-6789'
-                              }
-                              className="shadow-input border-input-border"
-                            />
-                            {isWhatsApp && contato.valor && (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant={isVerified ? "outline" : "default"}
-                                onClick={() => setVerifyingWhatsApp(contato.id)}
-                                className="shrink-0"
-                                title="Autenticar WhatsApp"
-                              >
-                                <Shield className="w-4 h-4 mr-1" />
-                                {isVerified ? 'Verificado' : 'Autenticar'}
-                              </Button>
-                            )}
-                          </div>
-                          {isWhatsApp && isVerified && (
-                            <Badge variant="default" className="mt-1 bg-green-600 hover:bg-green-700">
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              WhatsApp Autenticado
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex items-center space-x-2 pt-6">
-                          <input
-                            type="radio"
-                            id={`principal-${contato.id}`}
-                            name="contato-principal"
-                            checked={contato.principal}
-                            onChange={() => setPrincipal(contato.id)}
-                            className="w-4 h-4"
-                          />
-                          <Label htmlFor={`principal-${contato.id}`} className="text-sm">
-                            Principal
-                          </Label>
-                        </div>
-                      </div>
-
-                      {isRequired && (
-                        <p className="text-xs text-muted-foreground">
-                          {index === 0 && '💬 WhatsApp principal — obrigatório autenticar antes de salvar'}
-                          {index === 1 && '📞 Telefone para recados / contato alternativo'}
-                        </p>
-                      )}
+                    {/* Tipo: largura fixa */}
+                    <div className="w-[150px] shrink-0">
+                      <Select
+                        value={contato.tipo}
+                        onValueChange={(value: 'Telefone' | 'WhatsApp' | 'Email') =>
+                          updateContato(contato.id, 'tipo', value)
+                        }
+                      >
+                        <SelectTrigger className="shadow-input border-input-border h-9">
+                          <SelectValue placeholder="Tipo" />
+                        </SelectTrigger>
+                        <SelectContent position="popper" sideOffset={4} className="z-[200]">
+                          <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                          <SelectItem value="Telefone">Telefone (Recados)</SelectItem>
+                          <SelectItem value="Email">E-mail</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    
+
+                    {/* Valor: ocupa o resto */}
+                    <div className="flex-1 min-w-0">
+                      <Input
+                        value={contato.valor}
+                        onChange={(e) => {
+                          let value = e.target.value;
+                          if (contato.tipo === 'Telefone' || contato.tipo === 'WhatsApp') {
+                            value = formatPhone(value);
+                          }
+                          updateContato(contato.id, 'valor', value);
+                        }}
+                        placeholder={
+                          contato.tipo === 'Email' ? 'email@exemplo.com' :
+                          contato.tipo === 'Telefone' ? '(11) 1234-5678' : '(11) 12345-6789'
+                        }
+                        className="shadow-input border-input-border h-9"
+                      />
+                    </div>
+
+                    {/* Autenticar (só WhatsApp) */}
+                    {isWhatsApp && contato.valor && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={isVerified ? "outline" : "default"}
+                        onClick={() => setVerifyingWhatsApp(contato.id)}
+                        className="shrink-0 h-9"
+                        title="Autenticar WhatsApp"
+                      >
+                        <Shield className="w-4 h-4 mr-1" />
+                        {isVerified ? 'Verificado' : 'Autenticar'}
+                      </Button>
+                    )}
+
+                    {/* Principal (escopado por tipo) */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Checkbox
+                        id={`principal-${contato.id}`}
+                        checked={!!contato.principal}
+                        onCheckedChange={() => setPrincipal(contato.id)}
+                      />
+                      <Label
+                        htmlFor={`principal-${contato.id}`}
+                        className="text-xs cursor-pointer whitespace-nowrap"
+                        title={principalLabel}
+                      >
+                        Principal
+                      </Label>
+                    </div>
+
+                    {/* Remover (só extras) */}
                     {!isRequired && contatos.length > 3 && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => removeContato(contato.id)}
-                        className="text-destructive hover:text-destructive mt-6"
+                        className="text-destructive hover:text-destructive h-9 w-9 shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
