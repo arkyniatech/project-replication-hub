@@ -32,6 +32,7 @@ import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { useRbac } from '@/hooks/useRbac';
 import { StatusEquipamento, TimelineEventEquipamento } from '@/types/equipamentos';
 import { DetalheTransferenciaModal } from '@/components/transferencias/DetalheTransferenciaModal';
+import { NovaTransferenciaModal } from '@/components/transferencias/NovaTransferenciaModal';
 import { TimelineEventDetails } from '@/components/equipamentos/TimelineEventDetails';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
