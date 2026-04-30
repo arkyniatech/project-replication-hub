@@ -77,6 +77,7 @@ export default function EquipamentoDetalhes() {
   const { modelos } = useSupabaseModelos();
   
   const [showTransferenciaModal, setShowTransferenciaModal] = useState(false);
+  const [showNovaTransferencia, setShowNovaTransferencia] = useState(false);
   const [selectedTransferencia, setSelectedTransferencia] = useState<any>(null);
   
   // Active tab from URL params
