@@ -119,22 +119,7 @@ export function ContratoHeader({
               </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-9 h-9 p-0"
-                  onClick={onAssinar}
-                  aria-label="Assinar digitalmente"
-                >
-                  <FileSignature className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Assinar digitalmente</p>
-              </TooltipContent>
-            </Tooltip>
+            {/* Botão "Assinar digitalmente" removido — apenas envio para cliente assinar */}
 
             <Tooltip>
               <TooltipTrigger asChild>
