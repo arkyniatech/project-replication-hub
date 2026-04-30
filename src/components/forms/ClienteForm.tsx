@@ -71,6 +71,18 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
   const [politicaComercial, setPoliticaComercial] = useState<'P0' | 'P1' | 'P2' | undefined>(cliente?.politicaComercial);
   const [aplicarPoliticaAuto, setAplicarPoliticaAuto] = useState(cliente?.aplicarPoliticaAuto ?? true);
   const [verifyingWhatsApp, setVerifyingWhatsApp] = useState<string | null>(null);
+  // Dia de vencimento padrão (1-31, opcional) — pré-preenche o vencimento ao montar contratos
+  const [diaVencimentoPadrao, setDiaVencimentoPadrao] = useState<string>(
+    (cliente as any)?.diaVencimentoPadrao?.toString() || ''
+  );
+  // Negociação pontual: desconto fixo, prazo extra e observação que se aplicam automaticamente
+  const [negociacaoPontual, setNegociacaoPontual] = useState<{
+    descontoPercent: string;
+    prazoExtraDias: string;
+    observacao: string;
+  }>(
+    (cliente as any)?.negociacaoPontual || { descontoPercent: '', prazoExtraDias: '', observacao: '' }
+  );
 
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -314,6 +326,14 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       lgpdAceito,
       politicaComercial,
       aplicarPoliticaAuto,
+      diaVencimentoPadrao: diaVencimentoPadrao ? Number(diaVencimentoPadrao) : null,
+      negociacaoPontual: (negociacaoPontual.descontoPercent || negociacaoPontual.prazoExtraDias || negociacaoPontual.observacao)
+        ? {
+            descontoPercent: negociacaoPontual.descontoPercent ? Number(negociacaoPontual.descontoPercent) : 0,
+            prazoExtraDias: negociacaoPontual.prazoExtraDias ? Number(negociacaoPontual.prazoExtraDias) : 0,
+            observacao: negociacaoPontual.observacao || ''
+          }
+        : null,
       auditoria: {
         criadoPor: 'Usuário Admin', // Mock
         criadoEm: cliente?.auditoria?.criadoEm || agora,
