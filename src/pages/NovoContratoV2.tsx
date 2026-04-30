@@ -2161,7 +2161,7 @@ export default function NovoContratoV2() {
               <div>
                 <h4 className="font-semibold text-primary mb-2">Pagamento</h4>
                 <div className="space-y-1 text-sm">
-                  <p><strong>Forma:</strong> {contrato.pagamento.forma === 'BOLETO' ? 'Boleto Bancário' : contrato.pagamento.forma === 'PIX' ? 'PIX' : contrato.pagamento.forma === 'CARTAO' ? 'Cartão' : 'Dinheiro'}</p>
+                  <p><strong>Forma:</strong> {({BOLETO:'Boleto Bancário',PIX:'PIX',CARTAO_DEBITO:'Cartão de Débito',CARTAO_CREDITO:'Cartão de Crédito',DINHEIRO:'Dinheiro'} as any)[contrato.pagamento.forma] || contrato.pagamento.forma}</p>
                   <p><strong>Vencimento:</strong> {formatarDataISO(contrato.pagamento.vencimentoISO)}</p>
                   {contrato.pagamento.cobrancaUnica && <p className="text-primary"><strong>Cobrança única habilitada</strong></p>}
                   {contrato.taxaDeslocamento?.aplicar && (
