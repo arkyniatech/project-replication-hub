@@ -1,74 +1,57 @@
-## Plano: Conclusão dos feedbacks restantes (16 itens)
+## Revisão do arquivo `Avaliacao_e_teste_do_LocaHub_22042026-2.docx`
 
-Status atual: ✅ 6 itens prontos (RLS equipamentos, erro 7/7 com diagnóstico, marcas, variações, aba patrimonial resiliente, infra de transferências). Restam **16 itens** divididos em 5 blocos.
+Cruzei cada observação do documento com o estado atual do código. Resumo:
 
----
+### Já implementado (✅)
+- RLS de equipamentos corrigido (pág. 6)
+- Marcas + variações cadastráveis só pela franqueadora (pág. 4 e 5)
+- Aba Patrimonial resiliente (pág. 3)
+- GPS em Obras: colunas + captura no `SeletorObraModal` (pág. 16)
+- Erro amigável quando WhatsApp da loja está desconectado (pág. 2 e 11)
+- Forma de pagamento separada em Cartão Débito/Crédito (pág. 18)
+- PDF do contrato com layout institucional (pág. 20–21)
+- "Li e concordo" removido do wizard (pág. 17)
+- Modal de transferência abre a partir do detalhe do equipamento (pág. 8)
 
-### Bloco A — Cadastro de Cliente PF (itens 11-17)
+### ❌ Pendente — o que ainda falta
 
-Arquivo principal: `src/components/forms/ClienteForm.tsx`
+**Bloco A — Cliente PF (a maior parte do que ficou pra trás)**
+1. **Remover campo "Responsável"** do formulário PF — ainda aparece em `ClienteForm.tsx` (linhas 88, 328) e na UI da pág. 1.
+2. **Data de Nascimento obrigatória (PF)** — não há validação; ainda é opcional.
+3. **Bloquear submit sem WhatsApp verificado** — só existe o texto de aviso "obrigatório autenticar"; nada bloqueia o `onSubmit` se o WhatsApp principal não estiver verificado.
+4. **Corrigir dropdown "Tipo de Contato" do 1º contato** que não abre (pág. 1) — precisa investigar o `Select` do primeiro card.
+5. **Separar "Principal" por canal** (telefone principal, whatsapp principal, email principal) — hoje é um único radio que mistura os 3 (pág. 2).
+6. **Condensar layout dos cards de contato** — muito espaço vazio entre cards (pág. 2).
+7. **`dia_vencimento_padrao` no cadastro do cliente** + usar como default no Step 5 do contrato (pág. 3).
+8. **`negociacao_pontual` no cadastro** + aplicar automático nas políticas comerciais do contrato (pág. 14).
 
-1. **Remover campo Responsável** do formulário PF.
-2. **Data de Nascimento obrigatória** (PF) — adicionar validação zod e marcador visual.
-3. **WhatsApp como contato principal** por padrão — primeiro contato pré-criado já com `tipo='whatsapp'` e `principal=true`.
-4. **Corrigir dropdown "Tipo de Contato"** do primeiro contato (provável bug de `Select` com value vazio — investigar e corrigir).
-5. **Bloquear finalização sem WhatsApp verificado** — adicionar flag `whatsapp_verificado` no estado do contato e impedir submit se principal=whatsapp e !verificado.
-6. **Separar "Principal" em três campos** — `telefone_principal_id`, `whatsapp_principal_id`, `email_principal_id` (jsonb em `clientes.contato_principal`); cada contato ganha seleção independente.
-7. **Condensar layout dos contatos** — cards menores, grid 2 colunas em md+, remover paddings excessivos.
+**Bloco B — Contrato**
+9. **Remover botão "Assinar Digitalmente"** do `ContratoHeader.tsx` (linhas 122–137) — pág. 11 diz que não faz sentido o usuário do sistema assinar.
+10. **Auto-ocultar a barra de ferramentas do contrato** após inatividade do mouse (pág. 23).
 
-### Bloco B — UX do Contrato (itens 21-25)
-
-Arquivos: `src/pages/NovoContratoV2.tsx`, steps em `src/components/contratos/wizard/`, `SeletorObraModal.tsx`.
-
-8. **Forma de pagamento**: substituir item "Cartão" por **"Cartão de Débito"** e **"Cartão de Crédito"** separados nos selects do contrato e telas financeiras que reusam o enum.
-9. **Remover "Li e concordo"** durante elaboração do contrato (Step 4/5 — checkbox de termos).
-10. **Remover botão "Assinar Digitalmente"** do usuário do sistema na tela de contrato (manter apenas envio para o cliente assinar).
-11. **Vincular obra criada no contrato ao cliente** — em `SeletorObraModal`, quando criar nova obra, gravar `obras.cliente_id` com o cliente selecionado no contrato (já existe coluna; só garantir que está sendo populada).
-12. **Toolbar auto-ocultar** na página do contrato — barra de ações fica fixa e some após 3s de inatividade do mouse, reaparece em hover/scroll.
-
-### Bloco C — Cliente DB + Obras GPS + Transferir (itens 8, 9, 10, 19)
-
-13. **`dia_vencimento_padrao` em clientes** (coluna já existe) — expor no `ClienteForm` aba "Condições & Políticas" e usar como default no contrato (Step 5).
-14. **`negociacao_pontual` jsonb em clientes** (coluna já existe) — bloco no form com desconto %, prazo extra, observação; aplicar automaticamente ao montar políticas comerciais do contrato.
-15. **GPS em Obras**: adicionar colunas `latitude numeric, longitude numeric` em `obras` (migration). No form de obra: campos numéricos + botão "Abrir no Google Maps" e "Capturar coordenadas atuais" (geolocation API).
-16. **Modal Transferir Equipamento**: criar `src/components/equipamentos/TransferirEquipamentoModal.tsx` consumindo as tabelas `transferencias`/`transferencia_itens` já criadas. Botão "Transferir" no detalhe do equipamento abre modal → seleciona loja destino, motivo, observações → grava transferência PENDENTE.
-
-### Bloco D — PDF do Contrato (item 26)
-
-Arquivo: `src/utils/contrato-pdf.ts`
-
-17. **Refatorar layout**:
-    - Cabeçalho com faixa colorida (cor primária da marca) e logo
-    - Seções claramente separadas: Dados do Cliente / Equipamentos / Condições / Assinaturas — cada uma com título em faixa colorida
-    - Tabela de itens com header colorido, linhas zebradas, bordas suaves
-    - Espaçamento generoso entre blocos
-    - Rodapé com paginação ("Página X de Y") e nº do contrato
-
-### Bloco E — WhatsApp UX (itens 2, 3)
-
-18. **Mensagens de erro amigáveis** quando instância da loja não está conectada:
-    - Em `whatsapp-verify` e `whatsapp-send`: detectar 401/instância desconectada e retornar `{ error: "WhatsApp da loja não está conectado. Acesse Configurações → WhatsApp para conectar." }`
-    - No frontend (form de cliente / envio de contrato): exibir esse texto em toast com botão "Configurar agora" que leva para Configurações.
+**Outros**
+11. **Toast "Loja ativa" aparecendo toda hora** (pág. 7) — em `AppShell.tsx` (linhas 60–69) o `useEffect` dispara em qualquer remontagem do shell. Precisa disparar **só uma vez por sessão** (ex.: ref + sessionStorage flag) ou só quando o usuário **trocar** de loja manualmente.
+12. **Vincular obra criada no wizard ao `cliente_id`** (pág. 8 — pergunta do usuário) — confirmar e garantir que `obras.cliente_id` é populado quando a obra é criada via `SeletorObraModal` dentro do contrato.
 
 ---
 
-### Migrations necessárias
+### Plano de execução (uma rodada)
 
-```sql
-ALTER TABLE obras ADD COLUMN latitude numeric, ADD COLUMN longitude numeric;
--- (dia_vencimento_padrao e negociacao_pontual já existem em clientes)
--- (transferencias/transferencia_itens já existem)
-```
+Ordem: **Item 11 (toast) → Bloco A (1–8) → Bloco B (9–10) → Item 12 (validação)**.
 
-### Ordem de execução
+**Arquivos que serão tocados:**
+- `src/components/layout/AppShell.tsx` — toast da loja só na 1ª seleção da sessão.
+- `src/components/forms/ClienteForm.tsx` — remover Responsável; tornar DOB obrigatória (PF); 3 selects "principal" independentes (telefone/whatsapp/email); validação bloqueante de WhatsApp verificado; condensar grid (md:grid-cols-2, paddings menores); investigar/consertar Select do 1º contato (provavelmente value vazio); novos campos `dia_vencimento_padrao` e `negociacao_pontual` na aba Condições & Políticas.
+- `src/pages/NovoContratoV2.tsx` (Step 5) — pré-preencher vencimento com `dia_vencimento_padrao` do cliente; aplicar `negociacao_pontual` ao montar política.
+- `src/components/contratos/ContratoHeader.tsx` — remover botão "Assinar digitalmente"; envolver toolbar em wrapper com auto-hide (mousemove/scroll resetam timer de 3s; sempre visível em touch/mobile).
+- `src/pages/ContratoDetalhes.tsx` — remover handler `handleAssinarDigitalmente` e prop relacionada se ficar órfã.
+- `src/components/contratos/SeletorObraModal.tsx` — confirmar que ao criar obra grava `cliente_id` do contrato em curso (se faltar, adicionar).
 
-A → C (DB primeiro) → B → D → E. Sem perguntas intermediárias.
+**Migrations:** nenhuma nova (`dia_vencimento_padrao` e `negociacao_pontual` já existem em `clientes`; `obras.cliente_id` já existe).
 
-### Riscos / observações
+**Riscos**
+- A separação de "Principal" em 3 canais muda o shape persistido em `contatos[]` → manter compat lendo o legado (`principal: true` continua válido para o canal correspondente).
+- Auto-hide da toolbar no viewport mobile (402px) deve permanecer **sempre visível** para evitar UX ruim em touch.
+- Bloquear submit sem WhatsApp verificado pode travar cadastros legados → aplicar a validação só para clientes **novos** (sem `id`).
 
-- O Bloco A toca um arquivo grande (`ClienteForm.tsx`); pode quebrar campos não relacionados — vou rodar QA visual depois.
-- A separação "Cartão Débito/Crédito" pode afetar relatórios financeiros existentes que filtram por `forma_pagamento='Cartão'`. Vou manter compat lendo os dois.
-- O auto-hide da toolbar precisa de teste em mobile (viewport 402px atual) — vou garantir que em touch ela permaneça visível.
-- WhatsApp UX: não vou tentar "consertar" instâncias desconectadas, só melhorar a comunicação do erro (a conexão é manual via QR Code já implementado).
-
-Aprova?
+Aprova pra eu executar tudo de uma vez?

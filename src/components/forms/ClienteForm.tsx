@@ -71,6 +71,18 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
   const [politicaComercial, setPoliticaComercial] = useState<'P0' | 'P1' | 'P2' | undefined>(cliente?.politicaComercial);
   const [aplicarPoliticaAuto, setAplicarPoliticaAuto] = useState(cliente?.aplicarPoliticaAuto ?? true);
   const [verifyingWhatsApp, setVerifyingWhatsApp] = useState<string | null>(null);
+  // Dia de vencimento padrão (1-31, opcional) — pré-preenche o vencimento ao montar contratos
+  const [diaVencimentoPadrao, setDiaVencimentoPadrao] = useState<string>(
+    (cliente as any)?.diaVencimentoPadrao?.toString() || ''
+  );
+  // Negociação pontual: desconto fixo, prazo extra e observação que se aplicam automaticamente
+  const [negociacaoPontual, setNegociacaoPontual] = useState<{
+    descontoPercent: string;
+    prazoExtraDias: string;
+    observacao: string;
+  }>(
+    (cliente as any)?.negociacaoPontual || { descontoPercent: '', prazoExtraDias: '', observacao: '' }
+  );
 
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -85,7 +97,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       documento: cliente?.documento || '',
       rg: cliente?.rg || '',
       dataNascimento: cliente?.dataNascimento || '',
-      responsavel: cliente?.responsavel || '',
+      // campo "responsavel" removido — não tinha utilidade prática
       inscricaoEstadual: cliente?.inscricaoEstadual || '',
       endereco: {
         cep: cliente?.endereco?.cep || '',
@@ -314,6 +326,17 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       lgpdAceito,
       politicaComercial,
       aplicarPoliticaAuto,
+      // Campos novos (existem no Supabase; tipo Cliente é legado)
+      ...(({
+        diaVencimentoPadrao: diaVencimentoPadrao ? Number(diaVencimentoPadrao) : null,
+        negociacaoPontual: (negociacaoPontual.descontoPercent || negociacaoPontual.prazoExtraDias || negociacaoPontual.observacao)
+          ? {
+              descontoPercent: negociacaoPontual.descontoPercent ? Number(negociacaoPontual.descontoPercent) : 0,
+              prazoExtraDias: negociacaoPontual.prazoExtraDias ? Number(negociacaoPontual.prazoExtraDias) : 0,
+              observacao: negociacaoPontual.observacao || ''
+            }
+          : null,
+      }) as any),
       auditoria: {
         criadoPor: 'Usuário Admin', // Mock
         criadoEm: cliente?.auditoria?.criadoEm || agora,
@@ -324,8 +347,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
         nome: data.nomeRazao,
         cpf: data.documento,
         rg: data.rg,
-        dataNascimento: data.dataNascimento,
-        responsavel: data.responsavel
+        dataNascimento: data.dataNascimento
       } : {
         razaoSocial: data.nomeRazao,
         nomeFantasia: data.nomeFantasia,
@@ -658,7 +680,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
             </div>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-4">
+            <div className="space-y-2">
               {contatos.map((contato, index) => {
                 const isRequired = index < 2; // Telefone e WhatsApp obrigatórios
                 const isWhatsApp = contato.tipo === 'WhatsApp';
@@ -667,14 +689,14 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
                 return (
                   <div 
                     key={contato.id} 
-                    className={`flex items-start gap-4 p-4 border rounded-lg transition-colors ${
+                    className={`flex items-start gap-3 p-3 border rounded-md transition-colors ${
                       isRequired 
                         ? 'border-primary/50 bg-primary/5' 
                         : 'border-border'
                     }`}
                   >
-                    <div className="flex-1 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                           <Label className="flex items-center gap-1">
                             Tipo de Contato {isRequired && <span className="text-destructive">*</span>}
@@ -995,6 +1017,96 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
                       </ul>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Dia de vencimento padrão acordado com o cliente */}
+              <div className="p-4 bg-muted/30 rounded-lg border space-y-3">
+                <div>
+                  <Label htmlFor="diaVencPadrao" className="text-sm font-medium">
+                    Dia de vencimento padrão (1–31)
+                  </Label>
+                  <Input
+                    id="diaVencPadrao"
+                    type="number"
+                    min={1}
+                    max={31}
+                    placeholder="Ex.: 10"
+                    value={diaVencimentoPadrao}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const num = Number(v);
+                      if (v === '' || (num >= 1 && num <= 31)) {
+                        setDiaVencimentoPadrao(v);
+                        setIsDirty(true);
+                      }
+                    }}
+                    className="shadow-input border-input-border max-w-[120px]"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Quando preenchido, novos contratos deste cliente já trarão este dia como vencimento padrão.
+                  </p>
+                </div>
+              </div>
+
+              {/* Negociação pontual — exceções comerciais específicas do cliente */}
+              <div className="p-4 bg-muted/30 rounded-lg border space-y-3">
+                <div className="flex items-start gap-2">
+                  <DollarSign className="w-4 h-4 mt-1 text-primary" />
+                  <div>
+                    <Label className="text-sm font-medium">Negociação pontual</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Configurações específicas deste cliente que serão aplicadas automaticamente nos contratos, sem depender da memória do vendedor.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="negDesconto" className="text-xs">Desconto adicional (%)</Label>
+                    <Input
+                      id="negDesconto"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.5"
+                      placeholder="Ex.: 5"
+                      value={negociacaoPontual.descontoPercent}
+                      onChange={(e) => {
+                        setNegociacaoPontual({ ...negociacaoPontual, descontoPercent: e.target.value });
+                        setIsDirty(true);
+                      }}
+                      className="shadow-input border-input-border"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="negPrazo" className="text-xs">Prazo extra (dias)</Label>
+                    <Input
+                      id="negPrazo"
+                      type="number"
+                      min={0}
+                      placeholder="Ex.: 7"
+                      value={negociacaoPontual.prazoExtraDias}
+                      onChange={(e) => {
+                        setNegociacaoPontual({ ...negociacaoPontual, prazoExtraDias: e.target.value });
+                        setIsDirty(true);
+                      }}
+                      className="shadow-input border-input-border"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="negObs" className="text-xs">Observação</Label>
+                  <Textarea
+                    id="negObs"
+                    rows={2}
+                    placeholder="Ex.: Cliente VIP — sempre confirmar entrega com 24h de antecedência"
+                    value={negociacaoPontual.observacao}
+                    onChange={(e) => {
+                      setNegociacaoPontual({ ...negociacaoPontual, observacao: e.target.value });
+                      setIsDirty(true);
+                    }}
+                    className="shadow-input border-input-border"
+                  />
                 </div>
               </div>
             </div>
