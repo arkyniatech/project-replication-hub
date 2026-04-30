@@ -206,9 +206,20 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
 
   // Atualizar contato
   const updateContato = (id: string, field: keyof Contato, value: any) => {
-    setContatos(contatos.map(c => 
-      c.id === id ? { ...c, [field]: value } : c
-    ));
+    setContatos(prev => {
+      const next = prev.map(c => (c.id === id ? { ...c, [field]: value } : c));
+      // Se mudou o TIPO, reequilibrar Principal por canal
+      if (field === 'tipo') {
+        const novoTipo = value as 'Telefone' | 'WhatsApp' | 'Email';
+        const haPrincipalNoTipo = next.some(c => c.tipo === novoTipo && c.principal);
+        if (!haPrincipalNoTipo) {
+          // Marca o primeiro do novo tipo como principal
+          const idxFirst = next.findIndex(c => c.tipo === novoTipo);
+          if (idxFirst >= 0) next[idxFirst] = { ...next[idxFirst], principal: true };
+        }
+      }
+      return next;
+    });
     setIsDirty(true);
   };
 
