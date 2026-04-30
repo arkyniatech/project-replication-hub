@@ -19,7 +19,7 @@ const CATEGORIAS = [
 ];
 
 interface Marca { id: string; nome: string; ativo: boolean; }
-interface Variacao { id: string; categoria: string; valor: string; ordem: number; ativo: boolean; }
+interface Variacao { id: string; tipo: string; valor: string; ordem: number; ativo: boolean; }
 
 export function MarcasVariacoesForm() {
   const { toast } = useToast();
@@ -77,7 +77,7 @@ export function MarcasVariacoesForm() {
   };
 
   // ----- Variações -----
-  const variacoesCat = variacoes.filter((v) => v.categoria === categoriaAtiva);
+  const variacoesCat = variacoes.filter((v) => v.tipo === categoriaAtiva);
 
   const adicionarVariacao = async () => {
     const valor = novoValor.trim();
@@ -85,7 +85,7 @@ export function MarcasVariacoesForm() {
     const ordem = (variacoesCat[variacoesCat.length - 1]?.ordem || 0) + 1;
     const { error } = await supabase
       .from("variacoes_equipamento")
-      .insert({ categoria: categoriaAtiva, valor, ordem });
+      .insert({ tipo: categoriaAtiva, valor, ordem });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     setNovoValor("");
     carregar();
