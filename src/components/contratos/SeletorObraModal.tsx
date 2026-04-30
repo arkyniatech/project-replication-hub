@@ -142,7 +142,7 @@ export function SeletorObraModal({
       return;
     }
 
-    const obraData = {
+    const obraData: any = {
       loja_id: lojaAtual.id,
       cliente_id: clienteId,
       nome: novaObra.apelido,
@@ -158,6 +158,8 @@ export function SeletorObraModal({
       status: 'ATIVA',
       ativo: true
     };
+    if (novaObra.latitude) obraData.latitude = parseFloat(novaObra.latitude);
+    if (novaObra.longitude) obraData.longitude = parseFloat(novaObra.longitude);
 
     createObra.mutate(obraData, {
       onSuccess: (obra) => {
