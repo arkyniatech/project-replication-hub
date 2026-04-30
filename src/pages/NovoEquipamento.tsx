@@ -438,6 +438,7 @@ export default function NovoEquipamento() {
           tipo: formData.tipoControle, // Já está padronizado como SERIALIZADO/SALDO
           modelo_id: formData.modeloId,
           grupo_id: formData.grupoId,
+          marca_id: formData.marcaId || null,
           numero_serie: formData.numeroSerie || null,
           valor_indenizacao: parseMoneyBR(formData.valorIndenizacao),
           loja_atual_id: formData.lojaId,
