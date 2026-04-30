@@ -636,6 +636,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contrato_itens_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos_depreciacao"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contrato_itens_grupo_id_fkey"
             columns: ["grupo_id"]
             isOneToOne: false
@@ -834,10 +841,13 @@ export type Database = {
       }
       equipamentos: {
         Row: {
+          ano_fabricacao: number | null
           ativo: boolean
           codigo_interno: string
+          condicao: string | null
           created_at: string
           created_by: string | null
+          data_aquisicao: string | null
           grupo_id: string
           historico: Json | null
           id: string
@@ -850,13 +860,18 @@ export type Database = {
           status_global: string
           tipo: string
           updated_at: string
+          valor_aquisicao: number | null
           valor_indenizacao: number
+          vida_util_meses: number | null
         }
         Insert: {
+          ano_fabricacao?: number | null
           ativo?: boolean
           codigo_interno: string
+          condicao?: string | null
           created_at?: string
           created_by?: string | null
+          data_aquisicao?: string | null
           grupo_id: string
           historico?: Json | null
           id?: string
@@ -869,13 +884,18 @@ export type Database = {
           status_global?: string
           tipo: string
           updated_at?: string
+          valor_aquisicao?: number | null
           valor_indenizacao?: number
+          vida_util_meses?: number | null
         }
         Update: {
+          ano_fabricacao?: number | null
           ativo?: boolean
           codigo_interno?: string
+          condicao?: string | null
           created_at?: string
           created_by?: string | null
+          data_aquisicao?: string | null
           grupo_id?: string
           historico?: Json | null
           id?: string
@@ -888,7 +908,9 @@ export type Database = {
           status_global?: string
           tipo?: string
           updated_at?: string
+          valor_aquisicao?: number | null
           valor_indenizacao?: number
+          vida_util_meses?: number | null
         }
         Relationships: [
           {
@@ -1162,6 +1184,13 @@ export type Database = {
             columns: ["equipamento_id"]
             isOneToOne: false
             referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "horimetro_leituras_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos_depreciacao"
             referencedColumns: ["id"]
           },
         ]
@@ -1834,6 +1863,13 @@ export type Database = {
             referencedRelation: "equipamentos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ordens_servico_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos_depreciacao"
+            referencedColumns: ["id"]
+          },
         ]
       }
       parcelas_pagar: {
@@ -2322,6 +2358,165 @@ export type Database = {
           },
         ]
       }
+      transferencia_itens: {
+        Row: {
+          codigo_interno: string | null
+          created_at: string
+          descricao: string | null
+          grupo_id: string | null
+          id: string
+          modelo_id: string | null
+          quantidade: number
+          serie: string | null
+          tipo: string
+          transferencia_id: string
+        }
+        Insert: {
+          codigo_interno?: string | null
+          created_at?: string
+          descricao?: string | null
+          grupo_id?: string | null
+          id?: string
+          modelo_id?: string | null
+          quantidade?: number
+          serie?: string | null
+          tipo: string
+          transferencia_id: string
+        }
+        Update: {
+          codigo_interno?: string | null
+          created_at?: string
+          descricao?: string | null
+          grupo_id?: string | null
+          id?: string
+          modelo_id?: string | null
+          quantidade?: number
+          serie?: string | null
+          tipo?: string
+          transferencia_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transferencia_itens_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_equipamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferencia_itens_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "modelos_equipamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferencia_itens_transferencia_id_fkey"
+            columns: ["transferencia_id"]
+            isOneToOne: false
+            referencedRelation: "transferencias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transferencia_logs: {
+        Row: {
+          acao: string
+          created_at: string
+          detalhe: string | null
+          id: string
+          por_usuario_id: string | null
+          por_usuario_nome: string | null
+          transferencia_id: string
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          detalhe?: string | null
+          id?: string
+          por_usuario_id?: string | null
+          por_usuario_nome?: string | null
+          transferencia_id: string
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          detalhe?: string | null
+          id?: string
+          por_usuario_id?: string | null
+          por_usuario_nome?: string | null
+          transferencia_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transferencia_logs_transferencia_id_fkey"
+            columns: ["transferencia_id"]
+            isOneToOne: false
+            referencedRelation: "transferencias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transferencias: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          destino_loja_id: string
+          id: string
+          motorista: string | null
+          numero: number
+          observacoes: string | null
+          origem_loja_id: string
+          recusa: Json | null
+          status: string
+          updated_at: string
+          veiculo: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          destino_loja_id: string
+          id?: string
+          motorista?: string | null
+          numero: number
+          observacoes?: string | null
+          origem_loja_id: string
+          recusa?: Json | null
+          status?: string
+          updated_at?: string
+          veiculo?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          destino_loja_id?: string
+          id?: string
+          motorista?: string | null
+          numero?: number
+          observacoes?: string | null
+          origem_loja_id?: string
+          recusa?: Json | null
+          status?: string
+          updated_at?: string
+          veiculo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transferencias_destino_loja_id_fkey"
+            columns: ["destino_loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferencias_origem_loja_id_fkey"
+            columns: ["origem_loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_lojas_permitidas: {
         Row: {
           loja_id: string
@@ -2499,7 +2694,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      equipamentos_depreciacao: {
+        Row: {
+          codigo_interno: string | null
+          data_aquisicao: string | null
+          depreciacao_acumulada: number | null
+          depreciacao_mensal: number | null
+          grupo_nome: string | null
+          id: string | null
+          meses_uso: number | null
+          modelo_nome: string | null
+          percentual_depreciado: number | null
+          valor_aquisicao: number | null
+          valor_contabil: number | null
+          valor_residual: number | null
+          vida_util_meses: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       gerar_codigo_fornecedor: { Args: never; Returns: string }

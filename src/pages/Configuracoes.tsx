@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, Building2, Users, Hash, Globe, FileText, Settings, DollarSign, Zap, Archive, Bell, Percent } from "lucide-react";
+import { Shield, Building2, Users, Hash, Globe, FileText, Settings, DollarSign, Zap, Archive, Bell, Percent, Tag } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -17,6 +17,7 @@ import { FinanceiroForm } from "@/components/configuracoes/FinanceiroForm";
 import { PoliticasComerciais } from "@/components/configuracoes/PoliticasComerciais";
 import { AvisosForm } from "@/components/configuracoes/AvisosForm";
 import { IntegracoesForm } from "@/components/configuracoes/IntegracoesForm";
+import { MarcasVariacoesForm } from "@/components/configuracoes/MarcasVariacoesForm";
 import { toast } from "sonner";
 import { APP_CONFIG } from "@/config/app";
 
@@ -57,7 +58,7 @@ export default function Configuracoes() {
 
   const handleTabChange = (value: string) => {
     // Allow implemented tabs: organizacao, seguranca, lojas, usuarios, numeracao, layout, parametros, financeiro, politicas, avisos, integracoes
-    if (!['organizacao', 'seguranca', 'lojas', 'usuarios', 'numeracao', 'layout', 'parametros', 'financeiro', 'politicas', 'avisos', 'integracoes'].includes(value)) {
+    if (!['organizacao', 'seguranca', 'lojas', 'usuarios', 'numeracao', 'layout', 'parametros', 'financeiro', 'politicas', 'avisos', 'integracoes', 'marcas'].includes(value)) {
       toast.info("Funcionalidade em desenvolvimento", {
         description: "Esta seção estará disponível nas próximas etapas."
       });
@@ -176,6 +177,13 @@ export default function Configuracoes() {
               <Zap className="w-4 h-4" />
               <span className="hidden sm:inline">Integrações</span>
             </TabsTrigger>
+            <TabsTrigger 
+              value="marcas" 
+              className="flex flex-col items-center gap-1 p-3 text-xs"
+            >
+              <Tag className="w-4 h-4" />
+              <span className="hidden sm:inline">Marcas/Variações</span>
+            </TabsTrigger>
             {placeholderSections.map((section) => (
               <TabsTrigger 
                 key={section.value}
@@ -231,6 +239,10 @@ export default function Configuracoes() {
 
           <TabsContent value="integracoes" className="space-y-6">
             <IntegracoesForm />
+          </TabsContent>
+
+          <TabsContent value="marcas" className="space-y-6">
+            <MarcasVariacoesForm />
           </TabsContent>
 
           {/* Placeholders */}

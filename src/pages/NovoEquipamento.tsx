@@ -52,6 +52,7 @@ interface FormData {
   codigo: string;
   grupoId: string;
   modeloId: string;
+  marcaId: string;
   nome: string;
   numeroSerie: string;
   valorIndenizacao: string;
@@ -96,6 +97,7 @@ export default function NovoEquipamento() {
     codigo: '',
     grupoId: '',
     modeloId: '',
+    marcaId: '',
     nome: '',
     numeroSerie: '',
     valorIndenizacao: '',
@@ -128,6 +130,17 @@ export default function NovoEquipamento() {
   // Hooks do Supabase
   const { grupos } = useSupabaseGrupos();
   const { lojas } = useSupabaseLojas();
+  const [marcas, setMarcas] = useState<Array<{ id: string; nome: string }>>([]);
+  useEffect(() => {
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      supabase
+        .from("marcas_equipamentos")
+        .select("id,nome")
+        .eq("ativo", true)
+        .order("nome")
+        .then(({ data }) => setMarcas((data as any) || []));
+    });
+  }, []);
   const {
     createEquipamento,
     updateEquipamento,
@@ -197,6 +210,7 @@ export default function NovoEquipamento() {
         codigo: equipamentoExistente.codigo_interno || '',
         grupoId: equipamentoExistente.grupo_id || '',
         modeloId: equipamentoExistente.modelo_id || '',
+        marcaId: (equipamentoExistente as any).marca_id || '',
         nome: modelo?.nome_comercial || '',
         numeroSerie: equipamentoExistente.numero_serie || '',
         valorIndenizacao: formatMoney(equipamentoExistente.valor_indenizacao || 0),
@@ -424,6 +438,7 @@ export default function NovoEquipamento() {
           tipo: formData.tipoControle, // Já está padronizado como SERIALIZADO/SALDO
           modelo_id: formData.modeloId,
           grupo_id: formData.grupoId,
+          marca_id: formData.marcaId || null,
           numero_serie: formData.numeroSerie || null,
           valor_indenizacao: parseMoneyBR(formData.valorIndenizacao),
           loja_atual_id: formData.lojaId,
@@ -592,6 +607,23 @@ export default function NovoEquipamento() {
                   {errors.modeloId && (
                     <p className="text-sm text-destructive mt-1">{errors.modeloId}</p>
                   )}
+                </div>
+
+                <div>
+                  <Label htmlFor="marcaId">Marca</Label>
+                  <Select
+                    value={formData.marcaId}
+                    onValueChange={(value) => handleInputChange('marcaId', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={marcas.length ? "Selecione uma marca" : "Cadastre marcas em Configurações > Marcas/Variações"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {marcas.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>

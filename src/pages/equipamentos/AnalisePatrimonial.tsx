@@ -55,18 +55,22 @@ export default function AnalisePatrimonial() {
   const [statusFilter, setStatusFilter] = useState<"todos" | "ativo" | "totalmente_depreciado">("todos");
 
   // Query para buscar dados de depreciação
-  const { data: depreciacaoData = [], isLoading } = useQuery({
+  const { data: depreciacaoData = [], isLoading, error: depError } = useQuery({
     queryKey: ["equipamentos-depreciacao", lojaAtual?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("equipamentos_depreciacao")
+        .from("equipamentos_depreciacao" as any)
         .select("*")
         .order("percentual_depreciado", { ascending: false });
 
-      if (error) throw error;
-      return (data || []) as DepreciacaoEquipamento[];
+      if (error) {
+        console.warn("[AnalisePatrimonial] view ausente ou sem permissão:", error);
+        return [] as DepreciacaoEquipamento[];
+      }
+      return ((data || []) as unknown) as DepreciacaoEquipamento[];
     },
     enabled: !!lojaAtual?.id,
+    retry: false,
   });
 
   // KPIs calculados
