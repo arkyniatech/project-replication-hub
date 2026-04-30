@@ -184,7 +184,9 @@ export function SeletorObraModal({
           complemento: '',
           bairro: '',
           cidade: '',
-          uf: ''
+          uf: '',
+          latitude: '',
+          longitude: ''
         });
       }
     });
