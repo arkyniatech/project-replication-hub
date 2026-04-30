@@ -103,7 +103,16 @@ Deno.serve(async (req) => {
     if (!uazapiResponse.ok) {
       const errorText = await uazapiResponse.text();
       console.error('uazapi error:', errorText);
-      return new Response(JSON.stringify({ error: 'Erro ao enviar mensagem WhatsApp' }), {
+      if (uazapiResponse.status === 401 || /invalid token/i.test(errorText)) {
+        return new Response(JSON.stringify({
+          error: 'O WhatsApp desta loja foi desconectado. Acesse Configurações → WhatsApp para reconectar.',
+          code: 'WHATSAPP_NOT_CONNECTED',
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'Erro ao enviar mensagem WhatsApp. Tente novamente em instantes.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
