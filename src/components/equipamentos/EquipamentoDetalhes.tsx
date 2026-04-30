@@ -447,7 +447,7 @@ export default function EquipamentoDetalhes() {
             </Button>
           )}
           {equipamento.status_global === 'DISPONIVEL' && can('equipamentos:edit') && (
-            <Button onClick={() => navigate(`/equipamentos/transferir/${id}`)}>
+            <Button onClick={() => setShowNovaTransferencia(true)}>
               <ArrowRightLeft className="h-4 w-4 mr-2" />
               Transferir
             </Button>
