@@ -689,14 +689,14 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
                 return (
                   <div 
                     key={contato.id} 
-                    className={`flex items-start gap-4 p-4 border rounded-lg transition-colors ${
+                    className={`flex items-start gap-3 p-3 border rounded-md transition-colors ${
                       isRequired 
                         ? 'border-primary/50 bg-primary/5' 
                         : 'border-border'
                     }`}
                   >
-                    <div className="flex-1 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
                           <Label className="flex items-center gap-1">
                             Tipo de Contato {isRequired && <span className="text-destructive">*</span>}
