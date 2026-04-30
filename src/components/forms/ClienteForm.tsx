@@ -680,7 +680,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
             </div>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-4">
+            <div className="space-y-2">
               {contatos.map((contato, index) => {
                 const isRequired = index < 2; // Telefone e WhatsApp obrigatórios
                 const isWhatsApp = contato.tipo === 'WhatsApp';
