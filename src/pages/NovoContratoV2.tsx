@@ -66,7 +66,7 @@ interface ContratoRascunho {
     observacoes?: string;
   };
   pagamento: {
-    forma: 'BOLETO' | 'PIX' | 'CARTAO' | 'DINHEIRO';
+    forma: 'BOLETO' | 'PIX' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'DINHEIRO';
     vencimentoISO: string;
     cobrancaUnica: boolean;
   };
