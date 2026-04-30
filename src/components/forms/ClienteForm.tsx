@@ -184,13 +184,15 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
     setIsDirty(true);
   };
 
-  // Adicionar novo contato
+  // Adicionar novo contato (Principal automático se for o primeiro do mesmo tipo)
   const addContato = () => {
+    const tipo: 'Telefone' | 'WhatsApp' | 'Email' = 'Telefone';
+    const jaTemDoTipo = contatos.some(c => c.tipo === tipo);
     const newContato: Contato = {
       id: Date.now().toString(),
-      tipo: 'Telefone',
+      tipo,
       valor: '',
-      principal: contatos.length === 0
+      principal: !jaTemDoTipo
     };
     setContatos([...contatos, newContato]);
     setIsDirty(true);
