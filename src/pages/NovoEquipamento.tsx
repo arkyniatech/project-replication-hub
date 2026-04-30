@@ -199,6 +199,7 @@ export default function NovoEquipamento() {
         codigo: equipamentoExistente.codigo_interno || '',
         grupoId: equipamentoExistente.grupo_id || '',
         modeloId: equipamentoExistente.modelo_id || '',
+        marcaId: (equipamentoExistente as any).marca_id || '',
         nome: modelo?.nome_comercial || '',
         numeroSerie: equipamentoExistente.numero_serie || '',
         valorIndenizacao: formatMoney(equipamentoExistente.valor_indenizacao || 0),
