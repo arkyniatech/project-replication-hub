@@ -210,12 +210,18 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
     setIsDirty(true);
   };
 
-  // Definir contato principal
+  // Definir contato principal — agora ESCOPADO POR TIPO (telefone/whatsapp/email independentes)
   const setPrincipal = (id: string) => {
-    setContatos(contatos.map(c => ({
-      ...c,
-      principal: c.id === id
-    })));
+    const target = contatos.find(c => c.id === id);
+    if (!target) return;
+    setContatos(contatos.map(c => {
+      // Mesmo tipo do alvo: só o alvo fica principal; outros do mesmo tipo desmarcam
+      if (c.tipo === target.tipo) {
+        return { ...c, principal: c.id === id };
+      }
+      // Tipos diferentes: preserva o que estava
+      return c;
+    }));
     setIsDirty(true);
   };
 
