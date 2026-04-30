@@ -27,6 +27,7 @@ export default function WhatsAppVerificationModal({
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSendCode = async () => {
     setLoading(true);
