@@ -58,7 +58,7 @@ export function AppShell() {
   }, [lojasPermitidas, lojaAtual, loading, selecionarLoja]);
 
   // Mostrar toast quando loja for trocada (não em toda remontagem do shell)
-  const lastNotifiedLojaRef = React.useRef<string | null>(null);
+  const lastNotifiedLojaRef = useRef<string | null>(null);
   useEffect(() => {
     if (!lojaAtual) return;
     const sessionKey = 'locahub:loja-toast-shown';
