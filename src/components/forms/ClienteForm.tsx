@@ -326,14 +326,17 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       lgpdAceito,
       politicaComercial,
       aplicarPoliticaAuto,
-      diaVencimentoPadrao: diaVencimentoPadrao ? Number(diaVencimentoPadrao) : null,
-      negociacaoPontual: (negociacaoPontual.descontoPercent || negociacaoPontual.prazoExtraDias || negociacaoPontual.observacao)
-        ? {
-            descontoPercent: negociacaoPontual.descontoPercent ? Number(negociacaoPontual.descontoPercent) : 0,
-            prazoExtraDias: negociacaoPontual.prazoExtraDias ? Number(negociacaoPontual.prazoExtraDias) : 0,
-            observacao: negociacaoPontual.observacao || ''
-          }
-        : null,
+      // Campos novos (existem no Supabase; tipo Cliente é legado)
+      ...(({
+        diaVencimentoPadrao: diaVencimentoPadrao ? Number(diaVencimentoPadrao) : null,
+        negociacaoPontual: (negociacaoPontual.descontoPercent || negociacaoPontual.prazoExtraDias || negociacaoPontual.observacao)
+          ? {
+              descontoPercent: negociacaoPontual.descontoPercent ? Number(negociacaoPontual.descontoPercent) : 0,
+              prazoExtraDias: negociacaoPontual.prazoExtraDias ? Number(negociacaoPontual.prazoExtraDias) : 0,
+              observacao: negociacaoPontual.observacao || ''
+            }
+          : null,
+      }) as any),
       auditoria: {
         criadoPor: 'Usuário Admin', // Mock
         criadoEm: cliente?.auditoria?.criadoEm || agora,
