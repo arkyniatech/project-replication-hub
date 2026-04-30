@@ -41,8 +41,35 @@ export function SeletorObraModal({
     complemento: '',
     bairro: '',
     cidade: '',
-    uf: ''
+    uf: '',
+    latitude: '' as string,
+    longitude: '' as string
   });
+  const [capturandoGps, setCapturandoGps] = useState(false);
+
+  const handleCapturarGps = () => {
+    if (!navigator.geolocation) {
+      toast({ title: 'GPS não disponível neste dispositivo', variant: 'destructive' });
+      return;
+    }
+    setCapturandoGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setNovaObra(prev => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6)
+        }));
+        toast({ title: 'Coordenadas capturadas', description: `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}` });
+        setCapturandoGps(false);
+      },
+      (err) => {
+        toast({ title: 'Não foi possível capturar GPS', description: err.message, variant: 'destructive' });
+        setCapturandoGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   useEffect(() => {
     if (open && clienteId && obrasSupabase.length > 0) {
