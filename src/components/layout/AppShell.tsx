@@ -57,15 +57,22 @@ export function AppShell() {
     }
   }, [lojasPermitidas, lojaAtual, loading, selecionarLoja]);
 
-  // Mostrar toast quando loja for selecionada
+  // Mostrar toast quando loja for trocada (não em toda remontagem do shell)
+  const lastNotifiedLojaRef = React.useRef<string | null>(null);
   useEffect(() => {
-    if (lojaAtual) {
-      toast({
-        title: "Loja ativa",
-        description: `Acessando: ${lojaAtual.nome} (${lojaAtual.codigo})`,
-        duration: 2000
-      });
-    }
+    if (!lojaAtual) return;
+    const sessionKey = 'locahub:loja-toast-shown';
+    const shownThisSession = sessionStorage.getItem(sessionKey);
+    // Só mostra se: (a) primeira vez na sessão, OU (b) usuário trocou de loja durante a sessão
+    if (shownThisSession === lojaAtual.id) return;
+    if (lastNotifiedLojaRef.current === lojaAtual.id) return;
+    lastNotifiedLojaRef.current = lojaAtual.id;
+    sessionStorage.setItem(sessionKey, lojaAtual.id);
+    toast({
+      title: "Loja ativa",
+      description: `Acessando: ${lojaAtual.nome} (${lojaAtual.codigo})`,
+      duration: 2000
+    });
   }, [lojaAtual?.id]);
 
   // Aguardar carregamento das lojas
