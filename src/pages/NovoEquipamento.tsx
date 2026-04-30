@@ -52,6 +52,7 @@ interface FormData {
   codigo: string;
   grupoId: string;
   modeloId: string;
+  marcaId: string;
   nome: string;
   numeroSerie: string;
   valorIndenizacao: string;
@@ -96,6 +97,7 @@ export default function NovoEquipamento() {
     codigo: '',
     grupoId: '',
     modeloId: '',
+    marcaId: '',
     nome: '',
     numeroSerie: '',
     valorIndenizacao: '',
