@@ -72,7 +72,13 @@ export function supabaseClienteToLegacy(supaCliente: SupabaseCliente): Cliente {
     lgpdAceito: supaCliente.aceite_lgpd || false,
     createdAt: supaCliente.created_at,
     updatedAt: supaCliente.updated_at,
-    
+
+    // Campos novos lidos do banco (não fazem parte do tipo Cliente legado)
+    ...({
+      diaVencimentoPadrao: (supaCliente as any).dia_vencimento_padrao ?? null,
+      negociacaoPontual: (supaCliente as any).negociacao_pontual ?? null,
+    } as any),
+
     auditoria: {
       criadoPor: supaCliente.created_by || 'sistema',
       criadoEm: supaCliente.created_at,
@@ -113,6 +119,9 @@ export function legacyClienteToSupabase(cliente: Cliente): Database['public']['T
     aceite_lgpd: cliente.lgpdAceito || false,
     data_aceite_lgpd: cliente.lgpdAceito ? new Date().toISOString() : null,
     contato_principal_id: cliente.contatos.find(c => c.principal)?.id || null,
+    // Campos novos: dia de vencimento padrão e negociação pontual
+    dia_vencimento_padrao: (cliente as any).diaVencimentoPadrao ?? null,
+    negociacao_pontual: (cliente as any).negociacaoPontual ?? null,
     ativo: true,
   };
 }
