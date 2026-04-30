@@ -610,6 +610,23 @@ export default function NovoEquipamento() {
                 </div>
 
                 <div>
+                  <Label htmlFor="marcaId">Marca</Label>
+                  <Select
+                    value={formData.marcaId}
+                    onValueChange={(value) => handleInputChange('marcaId', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={marcas.length ? "Selecione uma marca" : "Cadastre marcas em Configurações > Marcas/Variações"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {marcas.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <Label htmlFor="codigo" className="flex items-center gap-2">
                     Código Interno (Gerado Automaticamente)
                     <Badge variant="outline" className="text-xs">
