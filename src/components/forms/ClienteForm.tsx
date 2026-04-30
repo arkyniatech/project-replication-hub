@@ -85,7 +85,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       documento: cliente?.documento || '',
       rg: cliente?.rg || '',
       dataNascimento: cliente?.dataNascimento || '',
-      responsavel: cliente?.responsavel || '',
+      // campo "responsavel" removido — não tinha utilidade prática
       inscricaoEstadual: cliente?.inscricaoEstadual || '',
       endereco: {
         cep: cliente?.endereco?.cep || '',
@@ -324,8 +324,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
         nome: data.nomeRazao,
         cpf: data.documento,
         rg: data.rg,
-        dataNascimento: data.dataNascimento,
-        responsavel: data.responsavel
+        dataNascimento: data.dataNascimento
       } : {
         razaoSocial: data.nomeRazao,
         nomeFantasia: data.nomeFantasia,
