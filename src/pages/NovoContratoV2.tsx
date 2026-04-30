@@ -66,7 +66,7 @@ interface ContratoRascunho {
     observacoes?: string;
   };
   pagamento: {
-    forma: 'BOLETO' | 'PIX' | 'CARTAO' | 'DINHEIRO';
+    forma: 'BOLETO' | 'PIX' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'DINHEIRO';
     vencimentoISO: string;
     cobrancaUnica: boolean;
   };
@@ -1844,7 +1844,7 @@ export default function NovoContratoV2() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Forma de Pagamento</Label>
-            <Select value={contrato.pagamento.forma} onValueChange={(value: 'BOLETO' | 'PIX' | 'CARTAO' | 'DINHEIRO') => {
+            <Select value={contrato.pagamento.forma} onValueChange={(value: 'BOLETO' | 'PIX' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'DINHEIRO') => {
             setContrato(prev => ({
               ...prev,
               pagamento: {
@@ -1860,7 +1860,8 @@ export default function NovoContratoV2() {
               <SelectContent>
                 <SelectItem value="BOLETO">Boleto Bancário</SelectItem>
                 <SelectItem value="PIX">PIX</SelectItem>
-                <SelectItem value="CARTAO">Cartão</SelectItem>
+                <SelectItem value="CARTAO_DEBITO">Cartão de Débito</SelectItem>
+                <SelectItem value="CARTAO_CREDITO">Cartão de Crédito</SelectItem>
                 <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
               </SelectContent>
             </Select>
@@ -2160,7 +2161,7 @@ export default function NovoContratoV2() {
               <div>
                 <h4 className="font-semibold text-primary mb-2">Pagamento</h4>
                 <div className="space-y-1 text-sm">
-                  <p><strong>Forma:</strong> {contrato.pagamento.forma === 'BOLETO' ? 'Boleto Bancário' : contrato.pagamento.forma === 'PIX' ? 'PIX' : contrato.pagamento.forma === 'CARTAO' ? 'Cartão' : 'Dinheiro'}</p>
+                  <p><strong>Forma:</strong> {({BOLETO:'Boleto Bancário',PIX:'PIX',CARTAO_DEBITO:'Cartão de Débito',CARTAO_CREDITO:'Cartão de Crédito',DINHEIRO:'Dinheiro'} as any)[contrato.pagamento.forma] || contrato.pagamento.forma}</p>
                   <p><strong>Vencimento:</strong> {formatarDataISO(contrato.pagamento.vencimentoISO)}</p>
                   {contrato.pagamento.cobrancaUnica && <p className="text-primary"><strong>Cobrança única habilitada</strong></p>}
                   {contrato.taxaDeslocamento?.aplicar && (
