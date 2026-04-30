@@ -32,6 +32,7 @@ import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { useRbac } from '@/hooks/useRbac';
 import { StatusEquipamento, TimelineEventEquipamento } from '@/types/equipamentos';
 import { DetalheTransferenciaModal } from '@/components/transferencias/DetalheTransferenciaModal';
+import { NovaTransferenciaModal } from '@/components/transferencias/NovaTransferenciaModal';
 import { TimelineEventDetails } from '@/components/equipamentos/TimelineEventDetails';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -76,6 +77,7 @@ export default function EquipamentoDetalhes() {
   const { modelos } = useSupabaseModelos();
   
   const [showTransferenciaModal, setShowTransferenciaModal] = useState(false);
+  const [showNovaTransferencia, setShowNovaTransferencia] = useState(false);
   const [selectedTransferencia, setSelectedTransferencia] = useState<any>(null);
   
   // Active tab from URL params
@@ -445,7 +447,7 @@ export default function EquipamentoDetalhes() {
             </Button>
           )}
           {equipamento.status_global === 'DISPONIVEL' && can('equipamentos:edit') && (
-            <Button onClick={() => navigate(`/equipamentos/transferir/${id}`)}>
+            <Button onClick={() => setShowNovaTransferencia(true)}>
               <ArrowRightLeft className="h-4 w-4 mr-2" />
               Transferir
             </Button>
@@ -594,6 +596,12 @@ export default function EquipamentoDetalhes() {
         transferenciaId={selectedTransferencia?.id}
         open={showTransferenciaModal}
         onOpenChange={setShowTransferenciaModal}
+      />
+
+      {/* Modal Nova Transferência (a partir do detalhe do equipamento) */}
+      <NovaTransferenciaModal
+        open={showNovaTransferencia}
+        onOpenChange={setShowNovaTransferencia}
       />
     </div>
   );

@@ -41,8 +41,35 @@ export function SeletorObraModal({
     complemento: '',
     bairro: '',
     cidade: '',
-    uf: ''
+    uf: '',
+    latitude: '' as string,
+    longitude: '' as string
   });
+  const [capturandoGps, setCapturandoGps] = useState(false);
+
+  const handleCapturarGps = () => {
+    if (!navigator.geolocation) {
+      toast({ title: 'GPS não disponível neste dispositivo', variant: 'destructive' });
+      return;
+    }
+    setCapturandoGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setNovaObra(prev => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6)
+        }));
+        toast({ title: 'Coordenadas capturadas', description: `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}` });
+        setCapturandoGps(false);
+      },
+      (err) => {
+        toast({ title: 'Não foi possível capturar GPS', description: err.message, variant: 'destructive' });
+        setCapturandoGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   useEffect(() => {
     if (open && clienteId && obrasSupabase.length > 0) {
@@ -115,7 +142,7 @@ export function SeletorObraModal({
       return;
     }
 
-    const obraData = {
+    const obraData: any = {
       loja_id: lojaAtual.id,
       cliente_id: clienteId,
       nome: novaObra.apelido,
@@ -131,6 +158,8 @@ export function SeletorObraModal({
       status: 'ATIVA',
       ativo: true
     };
+    if (novaObra.latitude) obraData.latitude = parseFloat(novaObra.latitude);
+    if (novaObra.longitude) obraData.longitude = parseFloat(novaObra.longitude);
 
     createObra.mutate(obraData, {
       onSuccess: (obra) => {
@@ -157,7 +186,9 @@ export function SeletorObraModal({
           complemento: '',
           bairro: '',
           cidade: '',
-          uf: ''
+          uf: '',
+          latitude: '',
+          longitude: ''
         });
       }
     });
@@ -386,6 +417,47 @@ export function SeletorObraModal({
                     maxLength={2}
                     value={novaObra.uf}
                     onChange={(e) => setNovaObra(prev => ({ ...prev, uf: e.target.value.toUpperCase() }))}
+                  />
+                </div>
+              </div>
+
+              {/* GPS / Coordenadas */}
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Coordenadas (opcional)</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCapturarGps}
+                      disabled={capturandoGps}
+                    >
+                      {capturandoGps ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <MapPin className="h-3 w-3 mr-1" />}
+                      Capturar GPS
+                    </Button>
+                    {(novaObra.latitude && novaObra.longitude) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${novaObra.latitude},${novaObra.longitude}`, '_blank')}
+                      >
+                        Abrir no Maps
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Latitude"
+                    value={novaObra.latitude}
+                    onChange={(e) => setNovaObra(prev => ({ ...prev, latitude: e.target.value }))}
+                  />
+                  <Input
+                    placeholder="Longitude"
+                    value={novaObra.longitude}
+                    onChange={(e) => setNovaObra(prev => ({ ...prev, longitude: e.target.value }))}
                   />
                 </div>
               </div>

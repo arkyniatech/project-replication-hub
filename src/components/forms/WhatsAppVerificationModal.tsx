@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Loader2, Shield, Smartphone } from "lucide-react";
+import { CheckCircle2, Loader2, Settings, Shield, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,6 +27,7 @@ export default function WhatsAppVerificationModal({
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSendCode = async () => {
     setLoading(true);
@@ -35,7 +37,9 @@ export default function WhatsAppVerificationModal({
       });
 
       if (error || data?.error) {
-        throw new Error(data?.error || error?.message || 'Erro ao enviar código');
+        const err: any = new Error(data?.error || error?.message || 'Erro ao enviar código');
+        err.code = data?.code;
+        throw err;
       }
 
       setStep('verify');
@@ -44,11 +48,32 @@ export default function WhatsAppVerificationModal({
         description: `Um código de verificação foi enviado para ${phoneNumber} via WhatsApp.`,
       });
     } catch (err: any) {
-      toast({
-        title: "Erro ao enviar código",
-        description: err.message || "Tente novamente.",
-        variant: "destructive",
-      });
+      if (err.code === 'WHATSAPP_NOT_CONNECTED') {
+        toast({
+          title: "WhatsApp da loja desconectado",
+          description: err.message,
+          variant: "destructive",
+          action: (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                navigate('/configuracoes?tab=whatsapp');
+              }}
+            >
+              <Settings className="h-3 w-3 mr-1" />
+              Configurar
+            </Button>
+          ) as any,
+        });
+      } else {
+        toast({
+          title: "Erro ao enviar código",
+          description: err.message || "Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
