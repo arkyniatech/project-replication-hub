@@ -1844,7 +1844,7 @@ export default function NovoContratoV2() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Forma de Pagamento</Label>
-            <Select value={contrato.pagamento.forma} onValueChange={(value: 'BOLETO' | 'PIX' | 'CARTAO' | 'DINHEIRO') => {
+            <Select value={contrato.pagamento.forma} onValueChange={(value: 'BOLETO' | 'PIX' | 'CARTAO_DEBITO' | 'CARTAO_CREDITO' | 'DINHEIRO') => {
             setContrato(prev => ({
               ...prev,
               pagamento: {
@@ -1860,7 +1860,8 @@ export default function NovoContratoV2() {
               <SelectContent>
                 <SelectItem value="BOLETO">Boleto Bancário</SelectItem>
                 <SelectItem value="PIX">PIX</SelectItem>
-                <SelectItem value="CARTAO">Cartão</SelectItem>
+                <SelectItem value="CARTAO_DEBITO">Cartão de Débito</SelectItem>
+                <SelectItem value="CARTAO_CREDITO">Cartão de Crédito</SelectItem>
                 <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
               </SelectContent>
             </Select>
