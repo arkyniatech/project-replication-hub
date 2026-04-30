@@ -462,11 +462,28 @@ export default function NovoContratoV2() {
       });
       return;
     }
+    // Aplicar dia de vencimento padrão acordado com este cliente, se houver
+    const diaVenc = (cliente as any).diaVencimentoPadrao;
+    let vencimentoISO: string | undefined;
+    if (diaVenc && diaVenc >= 1 && diaVenc <= 31) {
+      const hoje = new Date();
+      const tentativa = new Date(hoje.getFullYear(), hoje.getMonth(), diaVenc);
+      if (tentativa <= hoje) tentativa.setMonth(tentativa.getMonth() + 1);
+      vencimentoISO = tentativa.toISOString().split('T')[0];
+    }
     setContrato(prev => ({
       ...prev,
       clienteId: cliente.id,
-      cliente
+      cliente,
+      ...(vencimentoISO ? { pagamento: { ...prev.pagamento, vencimentoISO } } : {})
     }));
+    if (vencimentoISO) {
+      toast({
+        title: 'Vencimento sugerido',
+        description: `Aplicado dia ${diaVenc} acordado no cadastro do cliente.`,
+        duration: 2000
+      });
+    }
     setHasChanges(true);
     setSearchCliente('');
   };
