@@ -30,6 +30,8 @@ import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
 import { GrupoForm } from "@/components/equipamentos/GrupoForm";
 import { ModeloForm } from "@/components/equipamentos/ModeloForm";
 import { HistoricoPrecos } from "@/components/equipamentos/HistoricoPrecos";
+import { MarcasVariacoesForm } from "@/components/configuracoes/MarcasVariacoesForm";
+
 
 export default function CatalogoGruposModelos() {
   const navigate = useNavigate();
@@ -140,10 +142,12 @@ export default function CatalogoGruposModelos() {
       <Card>
         <CardHeader className="pb-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="grupos">Grupos</TabsTrigger>
               <TabsTrigger value="modelos">Modelos</TabsTrigger>
+              <TabsTrigger value="marcas">Marcas & Variações</TabsTrigger>
             </TabsList>
+
           </Tabs>
         </CardHeader>
 
@@ -359,8 +363,14 @@ export default function CatalogoGruposModelos() {
                 </table>
               </div>
             </TabsContent>
+
+            {/* Tab: Marcas & Variações */}
+            <TabsContent value="marcas" className="space-y-4">
+              <MarcasVariacoesForm />
+            </TabsContent>
           </Tabs>
         </CardContent>
+
       </Card>
 
       {/* Modals */}

@@ -270,7 +270,9 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       });
       return;
     }
-    if (!whatsAppContato.verificado) {
+    // Verificação de WhatsApp opcional via env (desabilitada na fase de testes).
+    const requireWhatsAppVerification = import.meta.env.VITE_REQUIRE_WHATSAPP_VERIFICATION === 'true';
+    if (requireWhatsAppVerification && !whatsAppContato.verificado) {
       toast({
         title: "WhatsApp não autenticado",
         description: "Clique em 'Autenticar' no contato WhatsApp para validar o número antes de salvar.",
@@ -278,6 +280,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       });
       return;
     }
+
 
     // Validar documento
     if (tipo === 'PF' && !validateCPF(data.documento)) {

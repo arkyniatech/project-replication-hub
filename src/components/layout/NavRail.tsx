@@ -30,9 +30,11 @@ interface NavRailProps {
   isExpanded: boolean;
   isPinned: boolean;
   onMouseEnter: () => void;
+  onMouseLeave: () => void;
   onToggleExpand: () => void;
   onTogglePin: () => void;
 }
+
 
 // Principal
 const principalItems = [
@@ -63,9 +65,11 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
   isExpanded,
   isPinned,
   onMouseEnter,
+  onMouseLeave,
   onToggleExpand,
   onTogglePin
 }, ref) => {
+
   const location = useLocation();
   const { can } = useRbac();
 
@@ -163,9 +167,11 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
         "transition-all ease-out",
         "[transition-duration:var(--nav-transition-duration,200ms)]"
       )}
-      
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       aria-label="Navegação principal"
     >
+
       {/* Header */}
       <div className="h-16 flex items-center justify-center border-b border-border">
         <img 

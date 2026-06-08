@@ -148,10 +148,16 @@ interface ComprasState {
   getCotacoesDePedidoDePecas: () => Cotacao[];
 }
 
-let contadorReq = 1;
-let contadorCot = 1;
-let contadorPo = 1;
-let contadorRec = 1;
+// Próximo número sequencial derivado dos registros existentes (persistidos).
+// Evita reset de contadores em memória ao recarregar a página.
+function proximoNumero(prefixo: string, lista: Array<{ numero?: string }>): string {
+  const max = lista.reduce((acc, item) => {
+    const n = parseInt(String(item.numero || '').replace(`${prefixo}-`, ''), 10);
+    return Number.isFinite(n) && n > acc ? n : acc;
+  }, 0);
+  return `${prefixo}-${String(max + 1).padStart(6, '0')}`;
+}
+
 
 export const useComprasStore = create<ComprasState>()(
   persist(
@@ -165,7 +171,7 @@ export const useComprasStore = create<ComprasState>()(
       // Actions
       criarRequisicao: (data) => {
         const id = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const numero = `REQ-${String(contadorReq++).padStart(6, '0')}`;
+        const numero = proximoNumero('REQ', get().requisicoes);
         
         const requisicao: Requisicao = {
           ...data,
@@ -215,7 +221,7 @@ export const useComprasStore = create<ComprasState>()(
 
       criarCotacao: (data) => {
         const id = `cot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const numero = `COT-${String(contadorCot++).padStart(6, '0')}`;
+        const numero = proximoNumero('COT', get().cotacoes);
         
         const cotacao: Cotacao = {
           ...data,
@@ -275,7 +281,7 @@ export const useComprasStore = create<ComprasState>()(
           );
 
           const poId = `po_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          const numero = `PO-${String(contadorPo++).padStart(6, '0')}`;
+          const numero = proximoNumero('PO', get().pedidosCompra);
 
           const po: PedidoCompra = {
             id: poId,
@@ -325,7 +331,7 @@ export const useComprasStore = create<ComprasState>()(
 
       registrarRecebimento: (data) => {
         const id = `rec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const numero = `REC-${String(contadorRec++).padStart(6, '0')}`;
+        const numero = proximoNumero('REC', get().recebimentos);
         
         const recebimento: Recebimento = {
           ...data,

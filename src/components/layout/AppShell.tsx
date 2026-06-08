@@ -91,10 +91,12 @@ export function AppShell() {
         ref={railRef}
         isExpanded={isExpanded}
         isPinned={isPinned}
-        onMouseEnter={() => {}}
-        onToggleExpand={expandPanel}
+        onMouseEnter={onMouseEnterRail}
+        onMouseLeave={onMouseLeavePanel}
+        onToggleExpand={togglePin}
         onTogglePin={togglePin}
       />
+
 
       {/* Overlay Panel - Appears over content */}
       <NavOverlayPanel

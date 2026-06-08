@@ -114,10 +114,11 @@ export default function Requisicoes() {
   };
 
   const handleAddItem = () => {
-    if (!newItem.sku || !newItem.descricao) {
-      toast.error('Preencha SKU e descrição do item');
+    if (!newItem.descricao.trim()) {
+      toast.error('Informe a descrição do item');
       return;
     }
+
 
     const item: ItemRequisicao = {
       id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -267,28 +268,31 @@ export default function Requisicoes() {
                   {/* Add new item */}
                   <Card>
                     <CardContent className="pt-4">
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                        <div>
-                          <Label htmlFor="sku">SKU *</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div className="md:col-span-3">
+                          <Label htmlFor="sku">SKU</Label>
                           <Input
                             id="sku"
                             value={newItem.sku}
                             onChange={(e) => setNewItem(prev => ({ ...prev, sku: e.target.value }))}
-                            placeholder="Ex: PEC001"
+                            placeholder="Opcional"
                           />
                         </div>
                         
-                        <div>
+                        <div className="md:col-span-9">
                           <Label htmlFor="descricao">Descrição *</Label>
-                          <Input
+                          <Textarea
                             id="descricao"
                             value={newItem.descricao}
                             onChange={(e) => setNewItem(prev => ({ ...prev, descricao: e.target.value }))}
-                            placeholder="Descrição do item"
+                            placeholder="Descrição completa do item"
+                            rows={2}
+                            className="resize-y"
                           />
                         </div>
+
                         
-                        <div>
+                        <div className="md:col-span-3">
                           <Label htmlFor="unidade">Unidade</Label>
                           <Select 
                             value={newItem.unidade} 
@@ -308,7 +312,7 @@ export default function Requisicoes() {
                           </Select>
                         </div>
                         
-                        <div>
+                        <div className="md:col-span-3">
                           <Label htmlFor="quantidade">Quantidade</Label>
                           <Input
                             id="quantidade"
@@ -319,11 +323,12 @@ export default function Requisicoes() {
                           />
                         </div>
                         
-                        <div className="flex items-end">
+                        <div className="md:col-span-6 flex items-end">
                           <Button type="button" onClick={handleAddItem}>
                             Adicionar
                           </Button>
                         </div>
+
                       </div>
                     </CardContent>
                   </Card>

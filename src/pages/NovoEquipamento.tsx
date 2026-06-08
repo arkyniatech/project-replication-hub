@@ -616,7 +616,7 @@ export default function NovoEquipamento() {
                     onValueChange={(value) => handleInputChange('marcaId', value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={marcas.length ? "Selecione uma marca" : "Cadastre marcas em Configurações > Marcas/Variações"} />
+                      <SelectValue placeholder={marcas.length ? "Selecione uma marca" : "Cadastre marcas em Equipamentos > Catálogo > Marcas & Variações"} />
                     </SelectTrigger>
                     <SelectContent>
                       {marcas.map((m) => (
