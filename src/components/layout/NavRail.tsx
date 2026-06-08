@@ -65,9 +65,11 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
   isExpanded,
   isPinned,
   onMouseEnter,
+  onMouseLeave,
   onToggleExpand,
   onTogglePin
 }, ref) => {
+
   const location = useLocation();
   const { can } = useRbac();
 
