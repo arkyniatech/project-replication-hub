@@ -148,10 +148,16 @@ interface ComprasState {
   getCotacoesDePedidoDePecas: () => Cotacao[];
 }
 
-let contadorReq = 1;
-let contadorCot = 1;
-let contadorPo = 1;
-let contadorRec = 1;
+// Próximo número sequencial derivado dos registros existentes (persistidos).
+// Evita reset de contadores em memória ao recarregar a página.
+function proximoNumero(prefixo: string, lista: Array<{ numero?: string }>): string {
+  const max = lista.reduce((acc, item) => {
+    const n = parseInt(String(item.numero || '').replace(`${prefixo}-`, ''), 10);
+    return Number.isFinite(n) && n > acc ? n : acc;
+  }, 0);
+  return `${prefixo}-${String(max + 1).padStart(6, '0')}`;
+}
+
 
 export const useComprasStore = create<ComprasState>()(
   persist(
