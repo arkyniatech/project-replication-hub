@@ -171,7 +171,7 @@ export const useComprasStore = create<ComprasState>()(
       // Actions
       criarRequisicao: (data) => {
         const id = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const numero = `REQ-${String(contadorReq++).padStart(6, '0')}`;
+        const numero = proximoNumero('REQ', get().requisicoes);
         
         const requisicao: Requisicao = {
           ...data,
