@@ -30,6 +30,8 @@ import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
 import { GrupoForm } from "@/components/equipamentos/GrupoForm";
 import { ModeloForm } from "@/components/equipamentos/ModeloForm";
 import { HistoricoPrecos } from "@/components/equipamentos/HistoricoPrecos";
+import { MarcasVariacoesForm } from "@/components/configuracoes/MarcasVariacoesForm";
+
 
 export default function CatalogoGruposModelos() {
   const navigate = useNavigate();
