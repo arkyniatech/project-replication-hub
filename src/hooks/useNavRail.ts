@@ -95,9 +95,14 @@ export function useNavRail({ railRef, panelRef }: UseNavRailProps = {}): UseNavR
     }
   }, [isPinned, expandPanel, startInactivityTimer]);
 
+  // Expansão por hover — NÃO fixa, apenas mostra o painel temporariamente
   const onMouseEnterRail = useCallback(() => {
-    expandPanel();
-  }, [expandPanel]);
+    clearMouseLeaveTimer();
+    clearInactivityTimer();
+    setIsExpanded(true);
+    setLastInteractionAt(Date.now());
+  }, [clearMouseLeaveTimer, clearInactivityTimer]);
+
 
   const onMouseLeavePanel = useCallback(() => {
     clearMouseLeaveTimer();
