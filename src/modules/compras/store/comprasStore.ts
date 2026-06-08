@@ -281,7 +281,7 @@ export const useComprasStore = create<ComprasState>()(
           );
 
           const poId = `po_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          const numero = `PO-${String(contadorPo++).padStart(6, '0')}`;
+          const numero = proximoNumero('PO', get().pedidosCompra);
 
           const po: PedidoCompra = {
             id: poId,
