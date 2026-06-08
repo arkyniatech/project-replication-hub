@@ -394,10 +394,12 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
                   id="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="primeironome.sobrenome"
+                  placeholder="nome@dominio.com.br ou primeironome.sobrenome"
                   required
                 />
-                <p className="text-xs text-muted-foreground">Será usado: {email}@locacaoerp.com</p>
+                <p className="text-xs text-muted-foreground">
+                  Será usado: {email.trim() ? montarEmailFinal(email) : `usuario@${DOMINIO_PADRAO}`}
+                </p>
               </div>
 
               <div className="space-y-2">
