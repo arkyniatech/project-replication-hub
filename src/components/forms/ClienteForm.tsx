@@ -272,7 +272,6 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       return;
     }
     // Verificação de WhatsApp opcional via env (desabilitada na fase de testes).
-    const requireWhatsAppVerification = import.meta.env.VITE_REQUIRE_WHATSAPP_VERIFICATION === 'true';
     if (requireWhatsAppVerification && !whatsAppContato.verificado) {
       toast({
         title: "WhatsApp não autenticado",
