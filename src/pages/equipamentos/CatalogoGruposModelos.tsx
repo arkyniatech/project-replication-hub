@@ -363,8 +363,14 @@ export default function CatalogoGruposModelos() {
                 </table>
               </div>
             </TabsContent>
+
+            {/* Tab: Marcas & Variações */}
+            <TabsContent value="marcas" className="space-y-4">
+              <MarcasVariacoesForm />
+            </TabsContent>
           </Tabs>
         </CardContent>
+
       </Card>
 
       {/* Modals */}
