@@ -71,6 +71,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
   const [politicaComercial, setPoliticaComercial] = useState<'P0' | 'P1' | 'P2' | undefined>(cliente?.politicaComercial);
   const [aplicarPoliticaAuto, setAplicarPoliticaAuto] = useState(cliente?.aplicarPoliticaAuto ?? true);
   const [verifyingWhatsApp, setVerifyingWhatsApp] = useState<string | null>(null);
+  const requireWhatsAppVerification = import.meta.env.VITE_REQUIRE_WHATSAPP_VERIFICATION === 'true';
   // Dia de vencimento padrão (1-31, opcional) — pré-preenche o vencimento ao montar contratos
   const [diaVencimentoPadrao, setDiaVencimentoPadrao] = useState<string>(
     (cliente as any)?.diaVencimentoPadrao?.toString() || ''
@@ -271,7 +272,6 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       return;
     }
     // Verificação de WhatsApp opcional via env (desabilitada na fase de testes).
-    const requireWhatsAppVerification = import.meta.env.VITE_REQUIRE_WHATSAPP_VERIFICATION === 'true';
     if (requireWhatsAppVerification && !whatsAppContato.verificado) {
       toast({
         title: "WhatsApp não autenticado",
@@ -550,22 +550,24 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       </div>
 
       <Accordion type="multiple" defaultValue={["cliente", "contatos", "endereco", "outros"]} className="space-y-4">
-        {/* Modal de Verificação WhatsApp */}
-        <WhatsAppVerificationModal
-          open={verifyingWhatsApp !== null}
-          onOpenChange={(open) => !open && setVerifyingWhatsApp(null)}
-          phoneNumber={contatos.find(c => c.id === verifyingWhatsApp)?.valor || ''}
-          lojaId={lojaAtual?.id}
-          onVerified={() => {
-            if (verifyingWhatsApp) {
-              updateContato(verifyingWhatsApp, 'verificado', true);
-              toast({
-                title: "WhatsApp verificado!",
-                description: "O número foi autenticado com sucesso.",
-              });
-            }
-          }}
-        />
+        {/* Modal de Verificação WhatsApp (apenas quando exigido via env) */}
+        {requireWhatsAppVerification && (
+          <WhatsAppVerificationModal
+            open={verifyingWhatsApp !== null}
+            onOpenChange={(open) => !open && setVerifyingWhatsApp(null)}
+            phoneNumber={contatos.find(c => c.id === verifyingWhatsApp)?.valor || ''}
+            lojaId={lojaAtual?.id}
+            onVerified={() => {
+              if (verifyingWhatsApp) {
+                updateContato(verifyingWhatsApp, 'verificado', true);
+                toast({
+                  title: "WhatsApp verificado!",
+                  description: "O número foi autenticado com sucesso.",
+                });
+              }
+            }}
+          />
+        )}
         {/* Seção Cliente */}
         <AccordionItem value="cliente">
           <AccordionTrigger className="text-lg font-semibold">
@@ -759,8 +761,8 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
                       />
                     </div>
 
-                    {/* Autenticar (só WhatsApp) */}
-                    {isWhatsApp && contato.valor && (
+                    {/* Autenticar (só WhatsApp, apenas se exigido via env) */}
+                    {requireWhatsAppVerification && isWhatsApp && contato.valor && (
                       <Button
                         type="button"
                         size="sm"
