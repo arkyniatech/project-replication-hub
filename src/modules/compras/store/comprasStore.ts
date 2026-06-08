@@ -221,7 +221,7 @@ export const useComprasStore = create<ComprasState>()(
 
       criarCotacao: (data) => {
         const id = `cot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const numero = `COT-${String(contadorCot++).padStart(6, '0')}`;
+        const numero = proximoNumero('COT', get().cotacoes);
         
         const cotacao: Cotacao = {
           ...data,
