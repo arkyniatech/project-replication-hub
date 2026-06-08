@@ -114,10 +114,11 @@ export default function Requisicoes() {
   };
 
   const handleAddItem = () => {
-    if (!newItem.sku || !newItem.descricao) {
-      toast.error('Preencha SKU e descrição do item');
+    if (!newItem.descricao.trim()) {
+      toast.error('Informe a descrição do item');
       return;
     }
+
 
     const item: ItemRequisicao = {
       id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
