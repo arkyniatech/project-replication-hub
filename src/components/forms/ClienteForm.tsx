@@ -762,8 +762,8 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
                       />
                     </div>
 
-                    {/* Autenticar (só WhatsApp) */}
-                    {isWhatsApp && contato.valor && (
+                    {/* Autenticar (só WhatsApp, apenas se exigido via env) */}
+                    {requireWhatsAppVerification && isWhatsApp && contato.valor && (
                       <Button
                         type="button"
                         size="sm"
