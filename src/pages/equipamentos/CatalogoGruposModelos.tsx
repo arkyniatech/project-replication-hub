@@ -142,10 +142,12 @@ export default function CatalogoGruposModelos() {
       <Card>
         <CardHeader className="pb-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="grupos">Grupos</TabsTrigger>
               <TabsTrigger value="modelos">Modelos</TabsTrigger>
+              <TabsTrigger value="marcas">Marcas & Variações</TabsTrigger>
             </TabsList>
+
           </Tabs>
         </CardHeader>
 
