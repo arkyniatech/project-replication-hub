@@ -551,22 +551,24 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       </div>
 
       <Accordion type="multiple" defaultValue={["cliente", "contatos", "endereco", "outros"]} className="space-y-4">
-        {/* Modal de Verificação WhatsApp */}
-        <WhatsAppVerificationModal
-          open={verifyingWhatsApp !== null}
-          onOpenChange={(open) => !open && setVerifyingWhatsApp(null)}
-          phoneNumber={contatos.find(c => c.id === verifyingWhatsApp)?.valor || ''}
-          lojaId={lojaAtual?.id}
-          onVerified={() => {
-            if (verifyingWhatsApp) {
-              updateContato(verifyingWhatsApp, 'verificado', true);
-              toast({
-                title: "WhatsApp verificado!",
-                description: "O número foi autenticado com sucesso.",
-              });
-            }
-          }}
-        />
+        {/* Modal de Verificação WhatsApp (apenas quando exigido via env) */}
+        {requireWhatsAppVerification && (
+          <WhatsAppVerificationModal
+            open={verifyingWhatsApp !== null}
+            onOpenChange={(open) => !open && setVerifyingWhatsApp(null)}
+            phoneNumber={contatos.find(c => c.id === verifyingWhatsApp)?.valor || ''}
+            lojaId={lojaAtual?.id}
+            onVerified={() => {
+              if (verifyingWhatsApp) {
+                updateContato(verifyingWhatsApp, 'verificado', true);
+                toast({
+                  title: "WhatsApp verificado!",
+                  description: "O número foi autenticado com sucesso.",
+                });
+              }
+            }}
+          />
+        )}
         {/* Seção Cliente */}
         <AccordionItem value="cliente">
           <AccordionTrigger className="text-lg font-semibold">
