@@ -1,43 +1,52 @@
-## Opção B — Permitir e-mail completo no cadastro de usuário
+## Correções dos 5 chamados do cliente
 
-Alterar o `CriarUsuarioModal.tsx` para aceitar o e-mail **completo** digitado pelo RH/Admin, mantendo retrocompatibilidade quando ele digitar só o "primeironome.sobrenome".
+Vou tratar cada chamado de forma isolada, sem mexer em escopo não pedido.
 
-### Comportamento
+### #1 — Menu lateral não expande no hover
 
-1. Campo "E-mail" passa a aceitar:
-   - **E-mail completo** (contém `@`): usa exatamente o que foi digitado (ex.: `aguasdelindoia@locaacao.com.br`).
-   - **Só o usuário** (sem `@`): aplica o domínio padrão `@locacaoerp.com` (comportamento atual, sem quebrar nada).
+**Sintoma:** o `NavRail` (menu lateral recolhido) está "quebrado" — não expande quando o mouse passa por cima.
 
-2. Validação client-side antes de enviar:
-   - Trim + lowercase no valor final.
-   - Regex de e-mail (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) → toast "E-mail inválido" se falhar.
-   - Bloqueia duplo `@` (ex.: `nome@x.com` + sufixo) já naturalmente por não concatenar mais quando houver `@`.
+**Investigação:** `src/components/layout/NavRail.tsx`, `NavOverlayPanel.tsx`, `useNavRail.ts`, `AppShell.tsx`. Provavelmente o handler `onMouseEnter`/`onMouseLeave` está perdendo o estado ou o `NavOverlayPanel` não está sendo montado, ou um `z-index` está cobrindo.
 
-3. UI:
-   - Placeholder muda para `nome@dominio.com.br ou primeironome.sobrenome`.
-   - Texto auxiliar dinâmico:
-     - Se contém `@`: mostra "Será usado: `{email}`".
-     - Se não: mostra "Será usado: `{email}@locacaoerp.com`".
+**Correção:** restaurar a expansão por hover (com pequeno delay anti-flicker), garantir que o painel overlay fique acima do conteúdo e fechar ao sair com `onMouseLeave`. Persistência em localStorage mantida.
 
-4. Log de auditoria (`logAction USER_CREATED`) registra o e-mail final efetivamente enviado.
+### #2 — Combo de Cargos piscando em RH/Pessoas
 
-### Arquivos alterados
+**Sintoma:** Listagem de cargos no formulário de Pessoa pisca e itens do final ficam difíceis de clicar ao rolar.
 
-- `src/modules/rh/components/CriarUsuarioModal.tsx`
-  - Adicionar helper `montarEmailFinal(input)` que retorna o e-mail completo.
-  - Trocar as duas ocorrências de ``${email}@locacaoerp.com`` (linhas ~192 e ~210) pelo resultado de `montarEmailFinal`.
-  - Atualizar legenda (linha ~385) para a versão dinâmica.
-  - Atualizar placeholder do `Input` de e-mail.
-  - Adicionar validação de formato antes do `supabase.functions.invoke('create-user', ...)`.
+**Investigação:** `src/modules/rh/components/PessoaForm.tsx` (campo "cargo"). Sintoma típico de `Select` do shadcn dentro de `Dialog`/`Sheet` com `modal` ou `pointer-events` conflitando, ou um `Combobox` (`Command`) com lista grande sem `max-height` + `overflow`.
+
+**Correção:** dar `max-height` + `overflow-y-auto` ao `CommandList`/`SelectContent`, remover re-renders desnecessários (estabilizar a lista de cargos com `useMemo`), e garantir `position="popper"` + `sideOffset` para não competir com o Dialog.
+
+### #3 — Cadastro de Marca de Equipamento
+
+**Sintoma:** ao cadastrar equipamento, pede uma Marca, mas não há tela para cadastrá-la. A tabela `marcas_equipamentos` já existe no banco.
+
+**Correção:** adicionar uma seção **"Marcas"** dentro de `src/pages/equipamentos/CatalogoGruposModelos.tsx` (mesmo padrão dos grupos/modelos): listagem + botão "Nova Marca" + modal de criação/edição/exclusão. Hook novo `useSupabaseMarcas` (CRUD simples em `marcas_equipamentos`). Sem alterar a etapa de marca em `NovoEquipamento.tsx`, apenas garantir que o seletor já existente consulte a lista atualizada.
+
+### #4 — Desabilitar verificação de telefone no cadastro de cliente
+
+**Sintoma:** no cadastro de cliente o sistema envia código WhatsApp para confirmar o telefone — cliente quer desativar temporariamente.
+
+**Investigação:** preciso localizar o ponto exato (provavelmente em `src/components/clientes/*` ou em um `ClienteForm`/modal — vou procurar `whatsapp-verify`/"código"/"verificação").
+
+**Correção:** adicionar uma flag `VITE_CLIENTE_PHONE_VERIFICATION` (default `false`) e curto-circuitar o fluxo: o telefone é gravado direto como "não verificado", sem disparar `whatsapp-verify`, sem modal de código. Nenhuma migração no banco — o campo de verificação existente permanece, só não é exigido.
+
+### #5 — Compras/Requisições
+
+**Sintoma:** no formulário de Requisição (`src/pages/compras/Requisicoes.tsx`):
+1. SKU obrigatório → remover obrigatoriedade;
+2. Campo "Descrição" pequeno → trocar `<Input>` por `<Textarea>` com altura maior e largura cheia;
+3. Numeração não sequencial → corrigir geração para usar `useNumeracao`/sequência persistida (mesmo padrão dos contratos).
+
+**Correção:** ajustar validação (zod) tirando `.min(1)` do `sku`, aumentar a coluna do campo descrição, e trocar a geração de número pela sequência `REQ` persistida em `sequencias`/`useNumeracao`. Compras é módulo local (legacy), então a numeração pode ficar em store local com `nextval` consistente entre sessões via Supabase `sequencias`.
+
+### Ordem de execução
+
+Vou abrir em sequência, cada chamado em sua leva de edições, sem misturar arquivos. Confirmo cada um antes de seguir caso a investigação mostre algo fora do esperado (por exemplo, ponto exato da verificação WhatsApp em #4).
 
 ### Fora de escopo
 
-- Sem mudanças na edge function `create-user` (ela já valida o e-mail no Supabase Auth).
-- Sem mudanças no fluxo de senha, roles, lojas ou 2FA.
-- Sem migrar usuários já criados.
-
-### Teste manual depois
-
-- Criar usuário com `aguasdelindoia@locaacao.com.br` → deve gravar exatamente esse e-mail.
-- Criar usuário digitando só `joao.silva` → deve virar `joao.silva@locacaoerp.com`.
-- Digitar `foo@bar` (inválido) → toast de erro, sem chamada à edge function.
+- Não vou redesenhar telas;
+- Não vou mexer em RLS, autenticação ou outras integrações além do `whatsapp-verify` para o chamado #4;
+- Sem alterações no edge function `create-user` (já corrigido na rodada anterior).
