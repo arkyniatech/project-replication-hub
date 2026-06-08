@@ -199,13 +199,14 @@ export function PessoaForm({ pessoa, onSave, onCancel }: PessoaFormProps) {
                 <SelectTrigger className={errors.cargo ? 'border-destructive' : ''}>
                   <SelectValue placeholder="Selecione o cargo" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" sideOffset={4} className="max-h-[260px] overflow-y-auto">
                   {cargos.map((cargo) => (
                     <SelectItem key={cargo} value={cargo}>
                       {cargo}
                     </SelectItem>
                   ))}
                 </SelectContent>
+
               </Select>
               {errors.cargo && <p className="text-sm text-destructive">{errors.cargo}</p>}
             </div>
