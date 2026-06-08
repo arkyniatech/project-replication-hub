@@ -58,6 +58,16 @@ function gerarSenhaSegura(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+const DOMINIO_PADRAO = 'locacaoerp.com';
+
+function montarEmailFinal(input: string): string {
+  const valor = input.trim().toLowerCase();
+  if (!valor) return '';
+  return valor.includes('@') ? valor : `${valor}@${DOMINIO_PADRAO}`;
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioModalProps) {
   const { toast } = useToast();
   const { createProfile } = useSupabaseUserProfiles();
