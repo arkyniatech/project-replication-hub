@@ -331,7 +331,7 @@ export const useComprasStore = create<ComprasState>()(
 
       registrarRecebimento: (data) => {
         const id = `rec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const numero = `REC-${String(contadorRec++).padStart(6, '0')}`;
+        const numero = proximoNumero('REC', get().recebimentos);
         
         const recebimento: Recebimento = {
           ...data,
