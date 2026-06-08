@@ -292,7 +292,7 @@ export default function Requisicoes() {
                         </div>
 
                         
-                        <div>
+                        <div className="md:col-span-3">
                           <Label htmlFor="unidade">Unidade</Label>
                           <Select 
                             value={newItem.unidade} 
@@ -312,7 +312,7 @@ export default function Requisicoes() {
                           </Select>
                         </div>
                         
-                        <div>
+                        <div className="md:col-span-3">
                           <Label htmlFor="quantidade">Quantidade</Label>
                           <Input
                             id="quantidade"
@@ -323,11 +323,12 @@ export default function Requisicoes() {
                           />
                         </div>
                         
-                        <div className="flex items-end">
+                        <div className="md:col-span-6 flex items-end">
                           <Button type="button" onClick={handleAddItem}>
                             Adicionar
                           </Button>
                         </div>
+
                       </div>
                     </CardContent>
                   </Card>
