@@ -153,6 +153,11 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       toast({ title: 'Erro', description: 'E-mail é obrigatório', variant: 'destructive' });
       return;
     }
+    const emailFinal = montarEmailFinal(email);
+    if (!EMAIL_REGEX.test(emailFinal)) {
+      toast({ title: 'Erro', description: 'E-mail inválido', variant: 'destructive' });
+      return;
+    }
     if (!username.trim()) {
       toast({ title: 'Erro', description: 'Username é obrigatório', variant: 'destructive' });
       return;
