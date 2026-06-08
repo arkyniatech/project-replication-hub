@@ -283,7 +283,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       // 5. Log de auditoria
       await logAction('USER_CREATED', {
         userId,
-        email: `${email}@locacaoerp.com`,
+        email: emailFinal,
         pessoaId: pessoa.id,
         roles: rolesSelecionadas,
         lojas: lojasSelecionadas,
