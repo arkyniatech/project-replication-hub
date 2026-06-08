@@ -204,7 +204,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       // 1. Criar usuário via Edge Function (mantém admin logado!)
       const { data: functionData, error: functionError } = await supabase.functions.invoke('create-user', {
         body: {
-          email: `${email}@locacaoerp.com`,
+          email: emailFinal,
           password: senhaGerada,
           username: username,
           pessoa_id: pessoa.id,
