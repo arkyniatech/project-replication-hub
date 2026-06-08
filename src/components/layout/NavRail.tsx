@@ -30,9 +30,11 @@ interface NavRailProps {
   isExpanded: boolean;
   isPinned: boolean;
   onMouseEnter: () => void;
+  onMouseLeave: () => void;
   onToggleExpand: () => void;
   onTogglePin: () => void;
 }
+
 
 // Principal
 const principalItems = [
