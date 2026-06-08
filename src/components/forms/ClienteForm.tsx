@@ -71,6 +71,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
   const [politicaComercial, setPoliticaComercial] = useState<'P0' | 'P1' | 'P2' | undefined>(cliente?.politicaComercial);
   const [aplicarPoliticaAuto, setAplicarPoliticaAuto] = useState(cliente?.aplicarPoliticaAuto ?? true);
   const [verifyingWhatsApp, setVerifyingWhatsApp] = useState<string | null>(null);
+  const requireWhatsAppVerification = import.meta.env.VITE_REQUIRE_WHATSAPP_VERIFICATION === 'true';
   // Dia de vencimento padrão (1-31, opcional) — pré-preenche o vencimento ao montar contratos
   const [diaVencimentoPadrao, setDiaVencimentoPadrao] = useState<string>(
     (cliente as any)?.diaVencimentoPadrao?.toString() || ''
