@@ -268,26 +268,29 @@ export default function Requisicoes() {
                   {/* Add new item */}
                   <Card>
                     <CardContent className="pt-4">
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                        <div>
-                          <Label htmlFor="sku">SKU *</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div className="md:col-span-3">
+                          <Label htmlFor="sku">SKU</Label>
                           <Input
                             id="sku"
                             value={newItem.sku}
                             onChange={(e) => setNewItem(prev => ({ ...prev, sku: e.target.value }))}
-                            placeholder="Ex: PEC001"
+                            placeholder="Opcional"
                           />
                         </div>
                         
-                        <div>
+                        <div className="md:col-span-9">
                           <Label htmlFor="descricao">Descrição *</Label>
-                          <Input
+                          <Textarea
                             id="descricao"
                             value={newItem.descricao}
                             onChange={(e) => setNewItem(prev => ({ ...prev, descricao: e.target.value }))}
-                            placeholder="Descrição do item"
+                            placeholder="Descrição completa do item"
+                            rows={2}
+                            className="resize-y"
                           />
                         </div>
+
                         
                         <div>
                           <Label htmlFor="unidade">Unidade</Label>
