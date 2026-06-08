@@ -58,6 +58,16 @@ function gerarSenhaSegura(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+const DOMINIO_PADRAO = 'locacaoerp.com';
+
+function montarEmailFinal(input: string): string {
+  const valor = input.trim().toLowerCase();
+  if (!valor) return '';
+  return valor.includes('@') ? valor : `${valor}@${DOMINIO_PADRAO}`;
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioModalProps) {
   const { toast } = useToast();
   const { createProfile } = useSupabaseUserProfiles();
@@ -143,6 +153,11 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       toast({ title: 'Erro', description: 'E-mail é obrigatório', variant: 'destructive' });
       return;
     }
+    const emailFinal = montarEmailFinal(email);
+    if (!EMAIL_REGEX.test(emailFinal)) {
+      toast({ title: 'Erro', description: 'E-mail inválido', variant: 'destructive' });
+      return;
+    }
     if (!username.trim()) {
       toast({ title: 'Erro', description: 'Username é obrigatório', variant: 'destructive' });
       return;
@@ -189,7 +204,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       // 1. Criar usuário via Edge Function (mantém admin logado!)
       const { data: functionData, error: functionError } = await supabase.functions.invoke('create-user', {
         body: {
-          email: `${email}@locacaoerp.com`,
+          email: emailFinal,
           password: senhaGerada,
           username: username,
           pessoa_id: pessoa.id,
@@ -268,7 +283,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       // 5. Log de auditoria
       await logAction('USER_CREATED', {
         userId,
-        email: `${email}@locacaoerp.com`,
+        email: emailFinal,
         pessoaId: pessoa.id,
         roles: rolesSelecionadas,
         lojas: lojasSelecionadas,
@@ -379,10 +394,12 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
                   id="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="primeironome.sobrenome"
+                  placeholder="nome@dominio.com.br ou primeironome.sobrenome"
                   required
                 />
-                <p className="text-xs text-muted-foreground">Será usado: {email}@locacaoerp.com</p>
+                <p className="text-xs text-muted-foreground">
+                  Será usado: {email.trim() ? montarEmailFinal(email) : `usuario@${DOMINIO_PADRAO}`}
+                </p>
               </div>
 
               <div className="space-y-2">

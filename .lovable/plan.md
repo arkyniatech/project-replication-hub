@@ -1,53 +1,43 @@
-## Objetivo
+## Opção B — Permitir e-mail completo no cadastro de usuário
 
-Entregar ao cliente um **template CSV** para importar equipamentos em massa, com layout alinhado à tabela `equipamentos` do Supabase, e a documentação de como preencher cada coluna.
+Alterar o `CriarUsuarioModal.tsx` para aceitar o e-mail **completo** digitado pelo RH/Admin, mantendo retrocompatibilidade quando ele digitar só o "primeironome.sobrenome".
 
-## Etapa 1 — Entregáveis imediatos (sem mexer no código)
+### Comportamento
 
-Gerar 2 arquivos em `/mnt/documents/`:
+1. Campo "E-mail" passa a aceitar:
+   - **E-mail completo** (contém `@`): usa exatamente o que foi digitado (ex.: `aguasdelindoia@locaacao.com.br`).
+   - **Só o usuário** (sem `@`): aplica o domínio padrão `@locacaoerp.com` (comportamento atual, sem quebrar nada).
 
-1. **`equipamentos_template.csv`** — cabeçalho + 3 linhas de exemplo (1 SERIALIZADO + 1 SALDO + 1 com saldos em múltiplas lojas).
-2. **`equipamentos_layout.md`** — guia de preenchimento (descrição de cada coluna, valores aceitos, obrigatoriedade, exemplos), incluindo:
-   - Lista das **lojas** existentes (nome → usado no CSV)
-   - Lista dos **grupos** existentes
-   - Lista dos **modelos** existentes
-   - Como referenciar marca (opcional)
-   - Regras de tipo (`SERIALIZADO` exige `numero_serie`; `SALDO` exige `quantidade` + `loja`)
+2. Validação client-side antes de enviar:
+   - Trim + lowercase no valor final.
+   - Regex de e-mail (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) → toast "E-mail inválido" se falhar.
+   - Bloqueia duplo `@` (ex.: `nome@x.com` + sufixo) já naturalmente por não concatenar mais quando houver `@`.
 
-### Layout proposto do CSV (separador `;`, encoding UTF-8 BOM)
+3. UI:
+   - Placeholder muda para `nome@dominio.com.br ou primeironome.sobrenome`.
+   - Texto auxiliar dinâmico:
+     - Se contém `@`: mostra "Será usado: `{email}`".
+     - Se não: mostra "Será usado: `{email}@locacaoerp.com`".
 
-| Coluna | Obrigatório | Descrição | Exemplo |
-|---|---|---|---|
-| `codigo_interno` | Sim | Código único do equipamento | `BET015` |
-| `tipo` | Sim | `SERIALIZADO` ou `SALDO` | `SERIALIZADO` |
-| `grupo` | Sim | Nome do grupo (deve existir) | `Betoneiras` |
-| `modelo` | Sim | Nome comercial do modelo (deve existir no grupo) | `Betoneira 400L` |
-| `marca` | Não | Nome da marca | `CSM` |
-| `loja` | Sim | Nome da loja onde está/abrigado o saldo | `Ouro Fino` |
-| `numero_serie` | Cond. | Obrigatório se `tipo=SERIALIZADO` | `SN-2024-001` |
-| `quantidade` | Cond. | Obrigatório se `tipo=SALDO` | `10` |
-| `valor_indenizacao` | Sim | Decimal com vírgula | `1500,00` |
-| `valor_aquisicao` | Não | Decimal com vírgula | `1200,00` |
-| `data_aquisicao` | Não | `DD/MM/AAAA` | `15/03/2024` |
-| `ano_fabricacao` | Não | Ano (4 dígitos) | `2024` |
-| `vida_util_meses` | Não | Inteiro (default 60) | `60` |
-| `condicao` | Não | `NOVO`, `BOM`, `REGULAR`, `RUIM` (default `BOM`) | `BOM` |
-| `status_global` | Não | Default `DISPONIVEL` | `DISPONIVEL` |
-| `observacoes` | Não | Texto livre | `Comprado em leilão` |
+4. Log de auditoria (`logAction USER_CREATED`) registra o e-mail final efetivamente enviado.
 
-## Etapa 2 — (Opcional) Tela de importação no app
+### Arquivos alterados
 
-Se aprovar, depois construo:
+- `src/modules/rh/components/CriarUsuarioModal.tsx`
+  - Adicionar helper `montarEmailFinal(input)` que retorna o e-mail completo.
+  - Trocar as duas ocorrências de ``${email}@locacaoerp.com`` (linhas ~192 e ~210) pelo resultado de `montarEmailFinal`.
+  - Atualizar legenda (linha ~385) para a versão dinâmica.
+  - Atualizar placeholder do `Input` de e-mail.
+  - Adicionar validação de formato antes do `supabase.functions.invoke('create-user', ...)`.
 
-- Botão **"Importar CSV"** em `src/pages/equipamentos/EquipamentosLista.tsx`
-- Modal com:
-  - Upload do arquivo
-  - Pré-validação linha-a-linha (resolve nomes de loja/grupo/modelo → IDs)
-  - Tabela mostrando **válidas / com erro** antes de confirmar
-  - Insert em lote no Supabase (com `created_by = auth.uid()`)
-  - Geração de evento `CRIACAO` no histórico de cada equipamento
-- Botão "Baixar template" no próprio modal
+### Fora de escopo
 
-## Próximo passo agora
+- Sem mudanças na edge function `create-user` (ela já valida o e-mail no Supabase Auth).
+- Sem mudanças no fluxo de senha, roles, lojas ou 2FA.
+- Sem migrar usuários já criados.
 
-Aprove e eu já gero o `.csv` e o `.md` em `/mnt/documents/` para você enviar ao cliente. Depois conversamos se quer também a tela de importação.
+### Teste manual depois
+
+- Criar usuário com `aguasdelindoia@locaacao.com.br` → deve gravar exatamente esse e-mail.
+- Criar usuário digitando só `joao.silva` → deve virar `joao.silva@locacaoerp.com`.
+- Digitar `foo@bar` (inválido) → toast de erro, sem chamada à edge function.
