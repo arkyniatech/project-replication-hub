@@ -212,6 +212,13 @@ export function ContratoResumoPreview({
               <div className="space-y-1">
                 <p><strong>Data:</strong> {new Date(contrato.entrega.data).toLocaleDateString('pt-BR')}</p>
                 <p><strong>Período:</strong> {contrato.entrega.janela === 'MANHA' ? 'Manhã' : 'Tarde'}</p>
+                {enderecoEntrega && (
+                  <p className="text-sm">
+                    <strong>Local:</strong>{' '}
+                    {[enderecoEntrega.logradouro, enderecoEntrega.numero, enderecoEntrega.bairro, enderecoEntrega.cidade ? `${enderecoEntrega.cidade}/${enderecoEntrega.uf || ''}` : '']
+                      .filter(Boolean).join(', ')}
+                  </p>
+                )}
                 {contrato.entrega.observacoes && (
                   <p className="text-sm text-muted-foreground">{contrato.entrega.observacoes}</p>
                 )}
