@@ -134,7 +134,7 @@ export function ContratoResumoPreview({
 
     setEnviando(true);
     try {
-      const pdfBase64 = gerarContratoPDFBase64(contrato);
+      const pdfBase64 = gerarContratoPDFBase64(buildPdfData());
 
       const { data, error } = await supabase.functions.invoke('zapsign-enviar', {
         body: {
