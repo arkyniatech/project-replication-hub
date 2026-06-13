@@ -21,6 +21,7 @@ import { Cliente, Equipamento, ItemContrato, Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { validarBloqueioCliente, precoTabela, reservarItens, liberarReserva, verificarDisponibilidade, gerarOSEntrega, gerarTitulosFechamento, agruparCobrancaCliente, autoIncrementContrato } from "@/lib/contratos-v2-utils";
+import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
 import { aplicarPolitica, ResultadoPolitica } from "@/services/politicasEngine";
 import { ClienteBlockedModal } from "@/components/contratos/ClienteBlockedModal";
 import { AssistenteHorarios } from "@/components/contratos/AssistenteHorarios";
