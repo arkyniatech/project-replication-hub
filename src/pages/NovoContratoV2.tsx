@@ -2103,12 +2103,12 @@ export default function NovoContratoV2() {
         </div>
 
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-          <h4 className="font-semibold mb-2 text-primary">Envio para Assinatura Digital</h4>
+          <h4 className="font-semibold mb-2 text-primary">Finalização do Contrato</h4>
           <ul className="text-sm space-y-1 text-muted-foreground">
-            <li>• Ao clicar em <strong>"Enviar para Assinatura"</strong> abaixo, o contrato será salvo e enviado via ZapSign</li>
-            <li>• O cliente receberá o link de assinatura por <strong>e-mail</strong> e <strong>WhatsApp</strong> automaticamente</li>
-            <li>• O status do contrato será atualizado para "Pendente de Assinatura"</li>
-            <li>• Você pode acompanhar o status na lista de contratos</li>
+            <li>• <strong>Enviar para Assinatura</strong>: salva o contrato e envia para o cliente assinar via ZapSign (e-mail e WhatsApp).</li>
+            <li>• <strong>Salvar e Baixar PDF</strong>: salva o contrato e baixa o PDF para enviar manualmente (ex: WhatsApp).</li>
+            <li>• <strong>Salvar e Imprimir</strong>: salva o contrato e abre o PDF pronto para impressão (assinatura presencial).</li>
+            <li>• Em todos os casos o contrato é salvo e fica disponível na lista de contratos.</li>
           </ul>
         </div>
 
