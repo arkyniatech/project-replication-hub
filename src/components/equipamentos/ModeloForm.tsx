@@ -276,10 +276,24 @@ export function ModeloForm({ open, onOpenChange, modeloId, onSuccess }: ModeloFo
         },
       };
 
+      // Gerar prefixo_codigo único combinando grupo + slug do nome comercial.
+      // Isso evita colisão com o constraint UNIQUE quando há mais de um modelo no mesmo grupo.
+      const grupoSlug = data.grupoId.replace(/-/g, '').substring(0, 3).toUpperCase();
+      const nomeSlug = data.nomeComercial
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .substring(0, 6)
+        .toUpperCase();
+      // Em edição mantemos o prefixo original pra não quebrar códigos de equipamento já gerados
+      const prefixoCodigo = isEditing && modelo?.prefixo_codigo
+        ? modelo.prefixo_codigo
+        : `${grupoSlug}${nomeSlug}${Date.now().toString(36).slice(-3).toUpperCase()}`;
+
       const modeloData = {
         grupo_id: data.grupoId,
         nome_comercial: data.nomeComercial,
-        prefixo_codigo: data.grupoId.substring(0, 3).toUpperCase(), // Generate prefix from grupo
+        prefixo_codigo: prefixoCodigo,
         tabela_por_loja: precos,
         especificacoes: especificacoes,
         ativo: true,

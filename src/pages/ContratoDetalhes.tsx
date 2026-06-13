@@ -27,6 +27,7 @@ import ConfirmarRetiradaModal from "@/components/modals/ConfirmarRetiradaModal";
 import EmitirFaturaModal from "@/components/modals/EmitirFaturaModal";
 import { parseISO, differenceInCalendarDays, startOfDay, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
 import { useEffect } from "react";
 import { gerarContratoPDFBase64, downloadContratoPDF } from "@/utils/contrato-pdf";
 import { ContratoResumoPreview } from "@/components/contratos/ContratoResumoPreview";
@@ -102,8 +103,17 @@ export default function ContratoDetalhes() {
         observacoes: item.observacoes,
         equipamento: item.equipamento_id ? {
           id: item.equipamento_id,
-          nome: item.equipamentos?.codigo_interno || `Equipamento ${item.equipamento_id}`,
-          codigo: item.equipamentos?.codigo_interno || '',
+          nome: formatCodigoExibicao({
+            numero_serie: item.equipamentos?.numero_serie,
+            codigo_interno: item.equipamentos?.codigo_interno,
+            grupo_nome: item.grupos_equipamentos?.nome,
+          }) || item.equipamentos?.codigo_interno || `Equipamento ${item.equipamento_id}`,
+          codigo: formatCodigoExibicao({
+            numero_serie: item.equipamentos?.numero_serie,
+            codigo_interno: item.equipamentos?.codigo_interno,
+            grupo_nome: item.grupos_equipamentos?.nome,
+          }) || item.equipamentos?.codigo_interno || '',
+          codigoInterno: item.equipamentos?.codigo_interno || '',
           serie: item.equipamentos?.numero_serie || '',
         } : null,
         modelo: item.modelos_equipamentos ? {
@@ -736,7 +746,10 @@ export default function ContratoDetalhes() {
           <ItensList
             itens={itensContrato}
             onDevolver={contrato.status === 'ATIVO' ? (itemIds) => handleDevolucaoParcial(itemIds) : undefined}
-            onSubstituir={(itemId) => toast({ title: `Iniciando substituição do item ${itemId}...` })}
+            onSubstituir={(itemId) => {
+              setItemParaSubstituir(itemId);
+              setShowSubstituicaoModal(true);
+            }}
             onRenovar={contrato.status === 'ATIVO' ? (itemIds) => handleRenovarItens(itemIds) : undefined}
           />
 

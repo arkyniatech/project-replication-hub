@@ -103,7 +103,11 @@ export function useSupabaseModelos(grupoId?: string) {
     },
     onError: (error: any) => {
       console.error('Erro ao criar modelo:', error);
-      toast.error(error.message || 'Erro ao criar modelo');
+      if (error?.code === '23505') {
+        toast.error('Já existe um modelo com este código. Tente novamente.');
+      } else {
+        toast.error(error.message || 'Erro ao criar modelo');
+      }
     },
   });
 

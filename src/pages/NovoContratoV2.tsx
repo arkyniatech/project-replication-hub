@@ -21,6 +21,7 @@ import { Cliente, Equipamento, ItemContrato, Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { validarBloqueioCliente, precoTabela, reservarItens, liberarReserva, verificarDisponibilidade, gerarOSEntrega, gerarTitulosFechamento, agruparCobrancaCliente, autoIncrementContrato } from "@/lib/contratos-v2-utils";
+import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
 import { aplicarPolitica, ResultadoPolitica } from "@/services/politicasEngine";
 import { ClienteBlockedModal } from "@/components/contratos/ClienteBlockedModal";
 import { AssistenteHorarios } from "@/components/contratos/AssistenteHorarios";
@@ -274,9 +275,16 @@ export default function NovoContratoV2() {
         console.log('[DEBUG] Equipamento:', eq.codigo_interno, 'Saldo:', saldoLoja, 'Qtd disponível:', qtdDisponivel);
       }
       
+      const codigoExibicao = formatCodigoExibicao({
+        numero_serie: eq.numero_serie,
+        codigo_interno: eq.codigo_interno,
+        grupo_nome: eq.grupos_equipamentos?.nome,
+      });
+
       return {
         id: eq.id,
-        codigo: eq.codigo_interno,
+        codigo: codigoExibicao || eq.codigo_interno,
+        codigoInterno: eq.codigo_interno,
         nome: `${eq.modelos_equipamentos?.nome_comercial || 'Equipamento'} ${eq.numero_serie || ''}`.trim(),
         descricao: eq.modelos_equipamentos?.nome_comercial || 'Equipamento',
         numeroSerie: eq.numero_serie || undefined,
@@ -666,6 +674,10 @@ export default function NovoContratoV2() {
       } else if (campo === 'quantidade') {
         item.quantidade = parseInt(valor) || 1;
         console.log('🔢 Nova quantidade:', item.quantidade);
+      } else if (campo === 'valorUnitario') {
+        const novo = typeof valor === 'number' ? valor : parseFloat(String(valor).replace(',', '.')) || 0;
+        item.valorUnitario = Math.max(0, novo);
+        console.log('💰 Valor unitário editado manualmente:', item.valorUnitario);
       }
       item.subtotal = item.quantidade * item.valorUnitario;
       novosItens[index] = item;
@@ -920,7 +932,49 @@ export default function NovoContratoV2() {
         // Não bloquear a criação do contrato por erro na logística
       }
 
-      // Gerar títulos
+      // Gerar título no Supabase (Contas a Receber)
+      try {
+        const valorFreteTitulo = contrato.taxaDeslocamento?.aplicar
+          ? (contrato.taxaDeslocamento.valor || 0)
+          : 0;
+        const subtotalItensTitulo = contrato.itens.reduce((s, i) => s + (i.subtotal || 0), 0);
+        const valorTituloFinal = (valorTotalCalculado && valorTotalCalculado > 0)
+          ? valorTotalCalculado
+          : subtotalItensTitulo + valorFreteTitulo;
+
+        const vencimentoIso = contrato.pagamento?.vencimentoISO || new Date().toISOString();
+
+        const tituloRow = {
+          numero: `${numeroContrato}/1`,
+          loja_id: contrato.lojaId,
+          cliente_id: contrato.clienteId,
+          contrato_id: contratoSupabase.id,
+          categoria: 'LOCACAO',
+          subcategoria: contrato.pagamento?.forma || null,
+          vencimento: vencimentoIso,
+          valor: valorTituloFinal,
+          saldo: valorTituloFinal,
+          pago: 0,
+          status: 'ABERTO',
+          origem: 'CONTRATO',
+          forma: contrato.pagamento?.forma || null,
+          observacoes: `Locação - Contrato ${numeroContrato}`,
+        };
+
+        const { error: tituloError } = await supabase
+          .from('titulos')
+          .insert(tituloRow);
+
+        if (tituloError) {
+          console.error('[FINALIZACAO] Erro ao gerar título de Contas a Receber:', tituloError);
+        } else {
+          console.log('✅ Título gerado em Contas a Receber:', tituloRow.numero, '— R$', valorTituloFinal);
+        }
+      } catch (errTitulo) {
+        console.error('[FINALIZACAO] Falha ao gerar título no Supabase:', errTitulo);
+      }
+
+      // Backup local (compat)
       gerarTitulosFechamento(novoContrato as any);
 
       // Aplicar taxa de deslocamento se habilitada
@@ -1325,12 +1379,15 @@ export default function NovoContratoV2() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Valor Unit.</Label>
-                      <div className="text-lg font-semibold">
-                        R$ {item.valorUnitario.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2
-                  })}
-                      </div>
+                      <Label>Valor Unit. (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.valorUnitario}
+                        onChange={e => atualizarItem(index, 'valorUnitario', e.target.value)}
+                        className="font-semibold"
+                      />
                     </div>
                     <div>
                       <Label>Subtotal</Label>

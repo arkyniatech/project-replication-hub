@@ -36,6 +36,31 @@ export function parseMoneyBR(value: string): number {
   return parseFloat(cleaned) || 0;
 }
 
+// Gera código amigável de exibição: prefixo do grupo + número de série
+// Exemplo: grupo "Containers" + S/N "081" → "CT-081"
+export function formatCodigoExibicao(
+  equipamento: { numero_serie?: string | null; codigo_interno?: string | null; grupos_equipamentos?: { nome?: string } | null; grupo_nome?: string | null } | null | undefined
+): string {
+  if (!equipamento) return '';
+  const sn = (equipamento.numero_serie || '').trim();
+  const grupoNome = equipamento.grupos_equipamentos?.nome || equipamento.grupo_nome || '';
+
+  if (!sn) {
+    // Fallback: código interno antigo
+    return equipamento.codigo_interno || '';
+  }
+
+  // Prefixo: primeiras 2 letras significativas do grupo (sem acentos)
+  const prefixo = grupoNome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z]/g, '')
+    .substring(0, 2)
+    .toUpperCase();
+
+  return prefixo ? `${prefixo}-${sn}` : sn;
+}
+
 // Formatar código com padding
 export function padCodigo(n: number, min: number = 3): string {
   return String(n).padStart(min, '0');

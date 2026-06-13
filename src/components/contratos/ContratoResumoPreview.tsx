@@ -9,6 +9,7 @@ import { gerarContratoPDFBase64, downloadContratoPDF } from "@/utils/contrato-pd
 import { supabase } from "@/integrations/supabase/client";
 
 interface ContratoRascunho {
+  numero?: string;
   cliente: {
     nomeRazao: string;
     documento: string;
@@ -16,6 +17,7 @@ interface ContratoRascunho {
     email?: string;
     telefone?: string;
   };
+  obra?: { endereco?: any };
   itens: Array<{
     equipamento: {
       nome: string;
@@ -30,11 +32,14 @@ interface ContratoRascunho {
     data: string;
     janela: string;
     observacoes?: string;
+    endereco?: any;
+    clienteRetiraEDevolve?: boolean;
   };
   pagamento: {
     forma: string;
     vencimentoISO: string;
   };
+  taxaDeslocamento?: { aplicar?: boolean; valor?: number };
   valorTotal: number;
   contratoId?: string;
 }
@@ -67,36 +72,53 @@ export function ContratoResumoPreview({
   const { toast } = useToast();
   const [enviando, setEnviando] = useState(false);
 
+  // Calcula valores derivados
+  const subtotalItens = (contrato.itens || []).reduce((acc, it) => acc + (it.subtotal || 0), 0);
+  const valorFrete = contrato.entrega?.clienteRetiraEDevolve
+    ? 0
+    : (contrato.taxaDeslocamento?.aplicar ? (contrato.taxaDeslocamento?.valor || 0) : 0);
+  const totalCalculado = subtotalItens + valorFrete;
+
+  // Endereço de entrega: obra → entrega.endereco → cliente
+  const enderecoEntrega =
+    contrato.obra?.endereco ||
+    contrato.entrega?.endereco ||
+    contrato.cliente?.endereco;
+
+  const buildPdfData = () => ({
+    numero: contrato.numero,
+    cliente: {
+      nomeRazao: contrato.cliente.nomeRazao || '',
+      documento: contrato.cliente.documento || '',
+      endereco: contrato.cliente.endereco,
+    },
+    enderecoEntrega,
+    itens: (contrato.itens || []).map(item => ({
+      equipamento: {
+        nome: item.equipamento?.nome || '',
+        codigo: item.equipamento?.codigo || '',
+      },
+      quantidade: item.quantidade || 1,
+      periodoEscolhido: item.periodoEscolhido || '',
+      valorUnitario: item.valorUnitario || 0,
+      subtotal: item.subtotal || 0,
+    })),
+    entrega: {
+      data: contrato.entrega?.data || new Date().toISOString(),
+      janela: contrato.entrega?.janela || 'MANHA',
+      observacoes: contrato.entrega?.observacoes,
+    },
+    pagamento: {
+      forma: contrato.pagamento?.forma || '',
+      vencimentoISO: contrato.pagamento?.vencimentoISO || new Date().toISOString(),
+    },
+    valorFrete,
+    valorTotal: totalCalculado,
+  });
+
   const handleBaixarPDF = () => {
     try {
-      const pdfData = {
-        cliente: {
-          nomeRazao: contrato.cliente.nomeRazao || '',
-          documento: contrato.cliente.documento || '',
-          endereco: contrato.cliente.endereco,
-        },
-        itens: (contrato.itens || []).map(item => ({
-          equipamento: {
-            nome: item.equipamento?.nome || '',
-            codigo: item.equipamento?.codigo || '',
-          },
-          quantidade: item.quantidade || 1,
-          periodoEscolhido: item.periodoEscolhido || '',
-          valorUnitario: item.valorUnitario || 0,
-          subtotal: item.subtotal || 0,
-        })),
-        entrega: {
-          data: contrato.entrega?.data || new Date().toISOString(),
-          janela: contrato.entrega?.janela || 'MANHA',
-          observacoes: contrato.entrega?.observacoes,
-        },
-        pagamento: {
-          forma: contrato.pagamento?.forma || '',
-          vencimentoISO: contrato.pagamento?.vencimentoISO || new Date().toISOString(),
-        },
-        valorTotal: contrato.valorTotal || 0,
-      };
-      downloadContratoPDF(pdfData, `contrato-${(contrato.cliente.nomeRazao || 'cliente').replace(/\s+/g, '-')}.pdf`);
+      downloadContratoPDF(buildPdfData(), `contrato-${(contrato.cliente.nomeRazao || 'cliente').replace(/\s+/g, '-')}.pdf`);
       toast({ title: "PDF gerado com sucesso!" });
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
@@ -112,7 +134,7 @@ export function ContratoResumoPreview({
 
     setEnviando(true);
     try {
-      const pdfBase64 = gerarContratoPDFBase64(contrato);
+      const pdfBase64 = gerarContratoPDFBase64(buildPdfData());
 
       const { data, error } = await supabase.functions.invoke('zapsign-enviar', {
         body: {
@@ -190,6 +212,13 @@ export function ContratoResumoPreview({
               <div className="space-y-1">
                 <p><strong>Data:</strong> {new Date(contrato.entrega.data).toLocaleDateString('pt-BR')}</p>
                 <p><strong>Período:</strong> {contrato.entrega.janela === 'MANHA' ? 'Manhã' : 'Tarde'}</p>
+                {enderecoEntrega && (
+                  <p className="text-sm">
+                    <strong>Local:</strong>{' '}
+                    {[enderecoEntrega.logradouro, enderecoEntrega.numero, enderecoEntrega.bairro, enderecoEntrega.cidade ? `${enderecoEntrega.cidade}/${enderecoEntrega.uf || ''}` : '']
+                      .filter(Boolean).join(', ')}
+                  </p>
+                )}
                 {contrato.entrega.observacoes && (
                   <p className="text-sm text-muted-foreground">{contrato.entrega.observacoes}</p>
                 )}
@@ -234,10 +263,18 @@ export function ContratoResumoPreview({
                   ))}
                 </tbody>
                 <tfoot className="bg-primary/10">
+                  {valorFrete > 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-3 text-right italic text-muted-foreground">Taxa de Entrega / Frete:</td>
+                      <td className="p-3 text-right">
+                        R$ {valorFrete.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
                   <tr>
                     <td colSpan={4} className="p-3 font-semibold text-right">Total Geral:</td>
                     <td className="p-3 font-bold text-right text-primary">
-                      R$ {contrato.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {totalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 </tfoot>
