@@ -134,11 +134,15 @@ export default function EquipamentosLista() {
       filtered = filtered.filter((equipamento) => {
         const grupo = grupos.find(g => g.id === equipamento.grupo_id);
         const modelo = modelos.find(m => m.id === equipamento.modelo_id);
-        
+        const codigoExibicao = formatCodigoExibicao({ ...equipamento, grupo_nome: grupo?.nome });
+        const term = searchTerm.toLowerCase();
+
         return (
-          equipamento.codigo_interno?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (modelo?.nome_comercial || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (grupo?.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
+          equipamento.codigo_interno?.toLowerCase().includes(term) ||
+          codigoExibicao.toLowerCase().includes(term) ||
+          (equipamento.numero_serie || '').toLowerCase().includes(term) ||
+          (modelo?.nome_comercial || '').toLowerCase().includes(term) ||
+          (grupo?.nome || '').toLowerCase().includes(term)
         );
       });
     }
