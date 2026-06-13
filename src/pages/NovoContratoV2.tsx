@@ -1783,7 +1783,7 @@ export default function NovoContratoV2() {
           ) : null;
         })()}
         
-        <div>
+        {!contrato.entrega.clienteRetiraEDevolve && <div>
           <Label className="text-base font-medium">Confirmações de Entrega</Label>
           <p className="text-sm text-muted-foreground mb-3">
             Marque as confirmações realizadas com o cliente:
@@ -1807,7 +1807,7 @@ export default function NovoContratoV2() {
                 </Label>
               </div>)}
           </div>
-        </div>
+        </div>}
 
         <div>
           <Label>Observações sobre Entrega</Label>
