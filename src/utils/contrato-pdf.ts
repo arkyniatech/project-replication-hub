@@ -175,8 +175,15 @@ export function gerarContratoPDF(contrato: ContratoPDFData): jsPDF {
   sectionTitle(doc, 'ENTREGA', margin, y, pageWidth, margin);
   y += 5;
 
+  // Resolve endereço de entrega: prioridade enderecoEntrega → cliente.endereco
+  const endEntrega = contrato.enderecoEntrega || contrato.cliente.endereco;
+  const endEntregaStr = endEntrega
+    ? [endEntrega.logradouro, endEntrega.numero, endEntrega.bairro, endEntrega.cidade ? `${endEntrega.cidade}/${endEntrega.uf || ''}` : '']
+        .filter(Boolean).join(', ')
+    : '';
+
   doc.setFillColor(...COLOR_ZEBRA);
-  const entregaBoxH = contrato.entrega.observacoes ? 18 : 12;
+  const entregaBoxH = (contrato.entrega.observacoes ? 6 : 0) + (endEntregaStr ? 6 : 0) + 12;
   doc.roundedRect(margin, y, pageWidth - 2 * margin, entregaBoxH, 1.5, 1.5, 'F');
 
   doc.setFontSize(10);
@@ -190,11 +197,21 @@ export function gerarContratoPDF(contrato: ContratoPDFData): jsPDF {
   doc.setFont('helvetica', 'bold');
   doc.text(contrato.entrega.janela === 'MANHA' ? 'Manhã' : 'Tarde', margin + 86, y + 7);
 
-  if (contrato.entrega.observacoes) {
+  let yLocal = y + 7;
+  if (endEntregaStr) {
+    yLocal += 6;
     doc.setFont('helvetica', 'normal');
-    doc.text('Obs:', margin + 4, y + 14);
+    doc.text('Local de entrega:', margin + 4, yLocal);
     doc.setFont('helvetica', 'bold');
-    doc.text(contrato.entrega.observacoes, margin + 14, y + 14, { maxWidth: pageWidth - 2 * margin - 18 });
+    doc.text(endEntregaStr, margin + 38, yLocal, { maxWidth: pageWidth - 2 * margin - 42 });
+  }
+
+  if (contrato.entrega.observacoes) {
+    yLocal += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.text('Obs:', margin + 4, yLocal);
+    doc.setFont('helvetica', 'bold');
+    doc.text(contrato.entrega.observacoes, margin + 14, yLocal, { maxWidth: pageWidth - 2 * margin - 18 });
   }
   y += entregaBoxH + 8;
 
@@ -202,19 +219,36 @@ export function gerarContratoPDF(contrato: ContratoPDFData): jsPDF {
   sectionTitle(doc, 'EQUIPAMENTOS LOCADOS', margin, y, pageWidth, margin);
   y += 3;
 
+  // Calcula total real: soma subtotais + frete
+  const subtotalItens = contrato.itens.reduce((acc, it) => acc + (it.subtotal || 0), 0);
+  const valorFrete = contrato.valorFrete || 0;
+  const totalReal = subtotalItens + valorFrete;
+  // Sobrescreve valorTotal vindo zerado
+  const totalParaExibir = contrato.valorTotal && contrato.valorTotal > 0 ? contrato.valorTotal : totalReal;
+
+  const corpo: any[][] = contrato.itens.map(item => [
+    item.equipamento.nome,
+    item.equipamento.codigo,
+    String(item.quantidade),
+    formatarPeriodo(item.periodoEscolhido),
+    formatarMoeda(item.valorUnitario),
+    formatarMoeda(item.subtotal),
+  ]);
+
+  // Linha de frete (se houver)
+  if (valorFrete > 0) {
+    corpo.push([
+      { content: 'Taxa de Entrega / Frete', colSpan: 5, styles: { halign: 'right', fontStyle: 'italic' } },
+      formatarMoeda(valorFrete),
+    ] as any);
+  }
+
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
     head: [['Equipamento', 'Código', 'Qtd', 'Período', 'Valor Unit.', 'Subtotal']],
-    body: contrato.itens.map(item => [
-      item.equipamento.nome,
-      item.equipamento.codigo,
-      String(item.quantidade),
-      formatarPeriodo(item.periodoEscolhido),
-      formatarMoeda(item.valorUnitario),
-      formatarMoeda(item.subtotal),
-    ]),
-    foot: [['', '', '', '', 'Total Geral:', formatarMoeda(contrato.valorTotal)]],
+    body: corpo,
+    foot: [['', '', '', '', 'Total Geral:', formatarMoeda(totalParaExibir)]],
     styles: { fontSize: 9, cellPadding: 3, lineColor: [220, 225, 232], lineWidth: 0.2 },
     headStyles: {
       fillColor: COLOR_HEADER_BG,
