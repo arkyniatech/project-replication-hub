@@ -322,7 +322,7 @@ export default function EquipamentosLista() {
                             {modelo?.nome_comercial || 'Modelo não encontrado'}
                           </h3>
                           <Badge variant="outline" className="text-xs font-mono">
-                            {equipamento.codigo_interno}
+                            {formatCodigoExibicao({ ...equipamento, grupo_nome: grupo?.nome }) || equipamento.codigo_interno}
                           </Badge>
                           <Badge className={STATUS_COLORS[equipamento.status_global as StatusEquipamento]}>
                             {STATUS_LABELS[equipamento.status_global as StatusEquipamento]}
