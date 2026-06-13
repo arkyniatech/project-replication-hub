@@ -103,8 +103,17 @@ export default function ContratoDetalhes() {
         observacoes: item.observacoes,
         equipamento: item.equipamento_id ? {
           id: item.equipamento_id,
-          nome: item.equipamentos?.codigo_interno || `Equipamento ${item.equipamento_id}`,
-          codigo: item.equipamentos?.codigo_interno || '',
+          nome: formatCodigoExibicao({
+            numero_serie: item.equipamentos?.numero_serie,
+            codigo_interno: item.equipamentos?.codigo_interno,
+            grupo_nome: item.grupos_equipamentos?.nome,
+          }) || item.equipamentos?.codigo_interno || `Equipamento ${item.equipamento_id}`,
+          codigo: formatCodigoExibicao({
+            numero_serie: item.equipamentos?.numero_serie,
+            codigo_interno: item.equipamentos?.codigo_interno,
+            grupo_nome: item.grupos_equipamentos?.nome,
+          }) || item.equipamentos?.codigo_interno || '',
+          codigoInterno: item.equipamentos?.codigo_interno || '',
           serie: item.equipamentos?.numero_serie || '',
         } : null,
         modelo: item.modelos_equipamentos ? {
