@@ -1337,12 +1337,15 @@ export default function NovoContratoV2() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Valor Unit.</Label>
-                      <div className="text-lg font-semibold">
-                        R$ {item.valorUnitario.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2
-                  })}
-                      </div>
+                      <Label>Valor Unit. (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.valorUnitario}
+                        onChange={e => atualizarItem(index, 'valorUnitario', e.target.value)}
+                        className="font-semibold"
+                      />
                     </div>
                     <div>
                       <Label>Subtotal</Label>
