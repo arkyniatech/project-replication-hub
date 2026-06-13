@@ -847,6 +847,26 @@ export default function NovoContratoV2() {
 
       console.log('[FINALIZACAO] Itens criados com sucesso');
 
+      // #13: Atualizar status dos equipamentos SERIALIZADOS para LOCADO
+      try {
+        const idsSerializados = contrato.itens
+          .filter(i => (i.controle as string) === 'SERIALIZADO' && i.equipamentoId)
+          .map(i => i.equipamentoId as string);
+        if (idsSerializados.length > 0) {
+          const { error: upErr } = await supabase
+            .from('equipamentos')
+            .update({ status_global: 'LOCADO' })
+            .in('id', idsSerializados);
+          if (upErr) {
+            console.error('[FINALIZACAO] Erro ao atualizar status dos equipamentos:', upErr);
+          } else {
+            console.log('✅ Equipamentos marcados como LOCADO:', idsSerializados.length);
+          }
+        }
+      } catch (errStatus) {
+        console.error('[FINALIZACAO] Falha ao atualizar status de equipamentos:', errStatus);
+      }
+
       // Salvar também no localStorage como backup (compatibilidade)
       const novoContrato = {
         id: contratoSupabase.id,
