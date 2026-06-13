@@ -363,3 +363,14 @@ export function downloadContratoPDF(contrato: ContratoPDFData, filename?: string
   const doc = gerarContratoPDF(contrato);
   doc.save(filename || `contrato-${Date.now()}.pdf`);
 }
+
+export function imprimirContratoPDF(contrato: ContratoPDFData) {
+  const doc = gerarContratoPDF(contrato);
+  doc.autoPrint();
+  const blobUrl = doc.output('bloburl');
+  const printWindow = window.open(blobUrl, '_blank');
+  if (!printWindow) {
+    // Fallback: força download caso o popup esteja bloqueado
+    doc.save(`contrato-${Date.now()}.pdf`);
+  }
+}
