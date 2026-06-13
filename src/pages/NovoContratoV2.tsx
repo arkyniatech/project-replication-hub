@@ -274,9 +274,16 @@ export default function NovoContratoV2() {
         console.log('[DEBUG] Equipamento:', eq.codigo_interno, 'Saldo:', saldoLoja, 'Qtd disponível:', qtdDisponivel);
       }
       
+      const codigoExibicao = formatCodigoExibicao({
+        numero_serie: eq.numero_serie,
+        codigo_interno: eq.codigo_interno,
+        grupo_nome: eq.grupos_equipamentos?.nome,
+      });
+
       return {
         id: eq.id,
-        codigo: eq.codigo_interno,
+        codigo: codigoExibicao || eq.codigo_interno,
+        codigoInterno: eq.codigo_interno,
         nome: `${eq.modelos_equipamentos?.nome_comercial || 'Equipamento'} ${eq.numero_serie || ''}`.trim(),
         descricao: eq.modelos_equipamentos?.nome_comercial || 'Equipamento',
         numeroSerie: eq.numero_serie || undefined,
