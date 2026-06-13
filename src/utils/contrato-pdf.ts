@@ -301,7 +301,7 @@ export function gerarContratoPDF(contrato: ContratoPDFData): jsPDF {
   doc.text('Valor Total:', margin + 4, y + 14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...COLOR_ACCENT);
-  doc.text(formatarMoeda(contrato.valorTotal), margin + 24, y + 14);
+  doc.text(formatarMoeda(totalParaExibir), margin + 24, y + 14);
   doc.setTextColor(0, 0, 0);
 
   y += 26;
