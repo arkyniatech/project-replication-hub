@@ -1130,7 +1130,7 @@ export default function NovoContratoV2() {
           // Validações básicas
           const dataValida = contrato.entrega.data !== '';
           const janelaValida = contrato.entrega.janela === 'MANHA' || contrato.entrega.janela === 'TARDE';
-          const confirmacoesValidas = contrato.condicoes.confirmacoes.length >= 1;
+          const confirmacoesValidas = contrato.entrega.clienteRetiraEDevolve || contrato.condicoes.confirmacoes.length >= 1;
           
           // Se taxa de deslocamento aplicada, validar justificativa quando valor for MENOR que o padrão
           if (!contrato.entrega.clienteRetiraEDevolve && contrato.taxaDeslocamento?.aplicar) {
