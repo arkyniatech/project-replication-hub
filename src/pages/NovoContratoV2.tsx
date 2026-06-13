@@ -932,7 +932,49 @@ export default function NovoContratoV2() {
         // Não bloquear a criação do contrato por erro na logística
       }
 
-      // Gerar títulos
+      // Gerar título no Supabase (Contas a Receber)
+      try {
+        const valorFreteTitulo = contrato.taxaDeslocamento?.aplicar
+          ? (contrato.taxaDeslocamento.valor || 0)
+          : 0;
+        const subtotalItensTitulo = contrato.itens.reduce((s, i) => s + (i.subtotal || 0), 0);
+        const valorTituloFinal = (valorTotalCalculado && valorTotalCalculado > 0)
+          ? valorTotalCalculado
+          : subtotalItensTitulo + valorFreteTitulo;
+
+        const vencimentoIso = contrato.pagamento?.vencimentoISO || new Date().toISOString();
+
+        const tituloRow = {
+          numero: `${numeroContrato}/1`,
+          loja_id: contrato.lojaId,
+          cliente_id: contrato.clienteId,
+          contrato_id: contratoSupabase.id,
+          categoria: 'LOCACAO',
+          subcategoria: contrato.pagamento?.forma || null,
+          vencimento: vencimentoIso,
+          valor: valorTituloFinal,
+          saldo: valorTituloFinal,
+          pago: 0,
+          status: 'ABERTO',
+          origem: 'CONTRATO',
+          forma: contrato.pagamento?.forma || null,
+          observacoes: `Locação - Contrato ${numeroContrato}`,
+        };
+
+        const { error: tituloError } = await supabase
+          .from('titulos')
+          .insert(tituloRow);
+
+        if (tituloError) {
+          console.error('[FINALIZACAO] Erro ao gerar título de Contas a Receber:', tituloError);
+        } else {
+          console.log('✅ Título gerado em Contas a Receber:', tituloRow.numero, '— R$', valorTituloFinal);
+        }
+      } catch (errTitulo) {
+        console.error('[FINALIZACAO] Falha ao gerar título no Supabase:', errTitulo);
+      }
+
+      // Backup local (compat)
       gerarTitulosFechamento(novoContrato as any);
 
       // Aplicar taxa de deslocamento se habilitada
