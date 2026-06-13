@@ -905,7 +905,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
               <div>
                 <Label htmlFor="endereco.uf">Estado *</Label>
                 <Select
-                  value={getValues('endereco.uf')}
+                  value={watch('endereco.uf') || ''}
                   onValueChange={(value) => {
                     setValue('endereco.uf', value);
                     setIsDirty(true);
