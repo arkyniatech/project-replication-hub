@@ -9,6 +9,7 @@ import { gerarContratoPDFBase64, downloadContratoPDF } from "@/utils/contrato-pd
 import { supabase } from "@/integrations/supabase/client";
 
 interface ContratoRascunho {
+  numero?: string;
   cliente: {
     nomeRazao: string;
     documento: string;
@@ -16,6 +17,7 @@ interface ContratoRascunho {
     email?: string;
     telefone?: string;
   };
+  obra?: { endereco?: any };
   itens: Array<{
     equipamento: {
       nome: string;
@@ -30,11 +32,14 @@ interface ContratoRascunho {
     data: string;
     janela: string;
     observacoes?: string;
+    endereco?: any;
+    clienteRetiraEDevolve?: boolean;
   };
   pagamento: {
     forma: string;
     vencimentoISO: string;
   };
+  taxaDeslocamento?: { aplicar?: boolean; valor?: number };
   valorTotal: number;
   contratoId?: string;
 }
