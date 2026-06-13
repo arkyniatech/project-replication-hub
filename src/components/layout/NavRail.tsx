@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { 
   Menu, 
   LayoutDashboard,
@@ -174,11 +174,13 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
 
       {/* Header */}
       <div className="h-16 flex items-center justify-center border-b border-border">
-        <img 
-          src={locacaoLogo} 
-          alt="LocaAção" 
-          className="w-10 h-10 object-contain"
-        />
+        <Link to="/" aria-label="Ir para página inicial" className="flex items-center justify-center rounded-md hover:bg-accent transition-colors p-1">
+          <img 
+            src={locacaoLogo} 
+            alt="LocaAção" 
+            className="w-10 h-10 object-contain"
+          />
+        </Link>
       </div>
 
       {/* Menu Items */}

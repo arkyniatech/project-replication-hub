@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTriangle, CheckCircle, Clock, MapPin, CreditCard, Truck, Wrench, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, Search, Plus, Trash2, FileText, AlertTriangle, CheckCircle, Clock, MapPin, CreditCard, Truck, Wrench, Send, Download, Printer } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -721,7 +721,7 @@ export default function NovoContratoV2() {
     // Retornar no formato ISO YYYY-MM-DD
     return `${dataFim.getFullYear()}-${String(dataFim.getMonth() + 1).padStart(2, '0')}-${String(dataFim.getDate()).padStart(2, '0')}`;
   };
-  const finalizarContrato = async () => {
+  const finalizarContrato = async (mode: 'assinatura' | 'pdf' | 'imprimir' = 'assinatura') => {
     try {
       console.log('[FINALIZACAO] Iniciando finalização do contrato...');
       console.log('[FINALIZACAO] Dados do contrato:', JSON.stringify({
@@ -846,6 +846,26 @@ export default function NovoContratoV2() {
       }
 
       console.log('[FINALIZACAO] Itens criados com sucesso');
+
+      // #13: Atualizar status dos equipamentos SERIALIZADOS para LOCADO
+      try {
+        const idsSerializados = contrato.itens
+          .filter(i => (i.controle as string) === 'SERIALIZADO' && i.equipamentoId)
+          .map(i => i.equipamentoId as string);
+        if (idsSerializados.length > 0) {
+          const { error: upErr } = await supabase
+            .from('equipamentos')
+            .update({ status_global: 'LOCADO' })
+            .in('id', idsSerializados);
+          if (upErr) {
+            console.error('[FINALIZACAO] Erro ao atualizar status dos equipamentos:', upErr);
+          } else {
+            console.log('✅ Equipamentos marcados como LOCADO:', idsSerializados.length);
+          }
+        }
+      } catch (errStatus) {
+        console.error('[FINALIZACAO] Falha ao atualizar status de equipamentos:', errStatus);
+      }
 
       // Salvar também no localStorage como backup (compatibilidade)
       const novoContrato = {
@@ -1013,93 +1033,111 @@ export default function NovoContratoV2() {
         localStorage.removeItem(`contrato-rascunho-${contrato.id}`);
       }
 
-      // === ENVIAR PARA ASSINATURA DIGITAL VIA ZAPSIGN ===
-      try {
-        console.log('[ZAPSIGN] Gerando PDF e enviando para assinatura...');
-        
-        // Extrair email e telefone do cliente
-        const contatoEmail = contrato.cliente?.contatos?.find(
-          c => c.tipo === 'Email' || c.tipo === 'email'
-        );
-        const contatoWhatsApp = contrato.cliente?.contatos?.find(
-          c => c.tipo === 'WhatsApp' || c.tipo === 'Telefone' || c.tipo === 'whatsapp' || c.tipo === 'telefone'
-        );
+      // Extrair contatos/nome do cliente (compartilhado por todos os modos)
+      const contatoEmail = contrato.cliente?.contatos?.find(
+        c => c.tipo === 'Email' || c.tipo === 'email'
+      );
+      const contatoWhatsApp = contrato.cliente?.contatos?.find(
+        c => c.tipo === 'WhatsApp' || c.tipo === 'Telefone' || c.tipo === 'whatsapp' || c.tipo === 'telefone'
+      );
+      const nomeCliente = contrato.cliente?.tipo === 'PJ'
+        ? (contrato.cliente.razaoSocial || contrato.cliente.nomeFantasia || contrato.cliente.nomeRazao || '')
+        : (contrato.cliente?.nome || contrato.cliente?.nomeRazao || '');
 
-        const nomeCliente = contrato.cliente?.tipo === 'PJ'
-          ? (contrato.cliente.razaoSocial || contrato.cliente.nomeFantasia || contrato.cliente.nomeRazao || '')
-          : (contrato.cliente?.nome || contrato.cliente?.nomeRazao || '');
-
-        // Gerar PDF base64
-        const { gerarContratoPDFBase64 } = await import('@/utils/contrato-pdf');
-        const pdfBase64 = gerarContratoPDFBase64({
-          cliente: {
-            nomeRazao: nomeCliente,
-            documento: contrato.cliente?.documento || contrato.cliente?.cpf || contrato.cliente?.cnpj || '',
-            endereco: contrato.cliente?.endereco,
+      const dadosPDF = {
+        cliente: {
+          nomeRazao: nomeCliente,
+          documento: contrato.cliente?.documento || contrato.cliente?.cpf || contrato.cliente?.cnpj || '',
+          endereco: contrato.cliente?.endereco,
+        },
+        itens: contrato.itens.map(item => ({
+          equipamento: {
+            nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
+            codigo: item.equipamento?.codigo || '',
           },
-          itens: contrato.itens.map(item => ({
-            equipamento: {
-              nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
-              codigo: item.equipamento?.codigo || '',
+          quantidade: item.quantidade,
+          periodoEscolhido: item.periodoEscolhido,
+          valorUnitario: item.valorUnitario,
+          subtotal: item.subtotal,
+        })),
+        entrega: {
+          data: contrato.entrega.data,
+          janela: contrato.entrega.janela,
+          observacoes: contrato.entrega.observacoes,
+        },
+        pagamento: {
+          forma: contrato.pagamento.forma,
+          vencimentoISO: contrato.pagamento.vencimentoISO,
+        },
+        valorTotal: valorTotalCalculado,
+      };
+
+      if (mode === 'assinatura') {
+        // === ENVIAR PARA ASSINATURA DIGITAL VIA ZAPSIGN ===
+        try {
+          console.log('[ZAPSIGN] Gerando PDF e enviando para assinatura...');
+          const { gerarContratoPDFBase64 } = await import('@/utils/contrato-pdf');
+          const pdfBase64 = gerarContratoPDFBase64(dadosPDF);
+
+          const { data: signData, error: signError } = await supabase.functions.invoke('zapsign-enviar', {
+            body: {
+              pdf_base64: pdfBase64,
+              nome_documento: `Contrato ${numeroContrato} - ${nomeCliente}`,
+              signatario: {
+                nome: nomeCliente,
+                email: contatoEmail?.valor || '',
+                telefone: contatoWhatsApp?.valor || '',
+              },
+              contrato_id: contratoSupabase.id,
             },
-            quantidade: item.quantidade,
-            periodoEscolhido: item.periodoEscolhido,
-            valorUnitario: item.valorUnitario,
-            subtotal: item.subtotal,
-          })),
-          entrega: {
-            data: contrato.entrega.data,
-            janela: contrato.entrega.janela,
-            observacoes: contrato.entrega.observacoes,
-          },
-          pagamento: {
-            forma: contrato.pagamento.forma,
-            vencimentoISO: contrato.pagamento.vencimentoISO,
-          },
-          valorTotal: valorTotalCalculado,
-        });
+          });
 
-        const { data: signData, error: signError } = await supabase.functions.invoke('zapsign-enviar', {
-          body: {
-            pdf_base64: pdfBase64,
-            nome_documento: `Contrato ${numeroContrato} - ${nomeCliente}`,
-            signatario: {
-              nome: nomeCliente,
-              email: contatoEmail?.valor || '',
-              telefone: contatoWhatsApp?.valor || '',
-            },
-            contrato_id: contratoSupabase.id,
-          },
-        });
-
-        if (signError) {
-          console.error('[ZAPSIGN] Erro ao enviar:', signError);
+          if (signError) {
+            console.error('[ZAPSIGN] Erro ao enviar:', signError);
+            toast({
+              title: "Contrato criado, mas falha na assinatura",
+              description: "O contrato foi salvo. Tente enviar para assinatura novamente pela lista de contratos.",
+              variant: "destructive",
+              duration: 6000,
+            });
+          } else {
+            console.log('[ZAPSIGN] Enviado com sucesso:', signData);
+            const canais = [
+              contatoEmail?.valor ? 'e-mail' : '',
+              contatoWhatsApp?.valor ? 'WhatsApp' : '',
+            ].filter(Boolean).join(' e ');
+            toast({
+              title: "Contrato enviado para assinatura!",
+              description: `Contrato ${numeroContrato} enviado${canais ? ` via ${canais}` : ''}`,
+              duration: 5000,
+            });
+          }
+        } catch (signErr) {
+          console.error('[ZAPSIGN] Erro inesperado:', signErr);
           toast({
             title: "Contrato criado, mas falha na assinatura",
-            description: "O contrato foi salvo. Tente enviar para assinatura novamente pela lista de contratos.",
+            description: "O contrato foi salvo. Tente enviar para assinatura novamente depois.",
             variant: "destructive",
             duration: 6000,
           });
-        } else {
-          console.log('[ZAPSIGN] Enviado com sucesso:', signData);
-          const canais = [
-            contatoEmail?.valor ? 'e-mail' : '',
-            contatoWhatsApp?.valor ? 'WhatsApp' : '',
-          ].filter(Boolean).join(' e ');
-
-          toast({
-            title: "Contrato enviado para assinatura!",
-            description: `Contrato ${numeroContrato} enviado${canais ? ` via ${canais}` : ''}`,
-            duration: 5000,
-          });
         }
-      } catch (signErr) {
-        console.error('[ZAPSIGN] Erro inesperado:', signErr);
+      } else if (mode === 'pdf') {
+        // === SALVAR E BAIXAR PDF ===
+        const { downloadContratoPDF } = await import('@/utils/contrato-pdf');
+        downloadContratoPDF(dadosPDF, `contrato-${numeroContrato}-${(nomeCliente || 'cliente').replace(/\s+/g, '-').toLowerCase()}.pdf`);
         toast({
-          title: "Contrato criado, mas falha na assinatura",
-          description: "O contrato foi salvo. Tente enviar para assinatura novamente depois.",
-          variant: "destructive",
-          duration: 6000,
+          title: "Contrato salvo!",
+          description: `Contrato ${numeroContrato} salvo e PDF baixado.`,
+          duration: 4000,
+        });
+      } else if (mode === 'imprimir') {
+        // === SALVAR E IMPRIMIR ===
+        const { imprimirContratoPDF } = await import('@/utils/contrato-pdf');
+        imprimirContratoPDF(dadosPDF);
+        toast({
+          title: "Contrato salvo!",
+          description: `Contrato ${numeroContrato} pronto para impressão.`,
+          duration: 4000,
         });
       }
 
@@ -1130,7 +1168,7 @@ export default function NovoContratoV2() {
           // Validações básicas
           const dataValida = contrato.entrega.data !== '';
           const janelaValida = contrato.entrega.janela === 'MANHA' || contrato.entrega.janela === 'TARDE';
-          const confirmacoesValidas = contrato.condicoes.confirmacoes.length >= 1;
+          const confirmacoesValidas = contrato.entrega.clienteRetiraEDevolve || contrato.condicoes.confirmacoes.length >= 1;
           
           // Se taxa de deslocamento aplicada, validar justificativa quando valor for MENOR que o padrão
           if (!contrato.entrega.clienteRetiraEDevolve && contrato.taxaDeslocamento?.aplicar) {
@@ -1783,7 +1821,7 @@ export default function NovoContratoV2() {
           ) : null;
         })()}
         
-        <div>
+        {!contrato.entrega.clienteRetiraEDevolve && <div>
           <Label className="text-base font-medium">Confirmações de Entrega</Label>
           <p className="text-sm text-muted-foreground mb-3">
             Marque as confirmações realizadas com o cliente:
@@ -1807,7 +1845,7 @@ export default function NovoContratoV2() {
                 </Label>
               </div>)}
           </div>
-        </div>
+        </div>}
 
         <div>
           <Label>Observações sobre Entrega</Label>
@@ -2065,12 +2103,12 @@ export default function NovoContratoV2() {
         </div>
 
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-          <h4 className="font-semibold mb-2 text-primary">Envio para Assinatura Digital</h4>
+          <h4 className="font-semibold mb-2 text-primary">Finalização do Contrato</h4>
           <ul className="text-sm space-y-1 text-muted-foreground">
-            <li>• Ao clicar em <strong>"Enviar para Assinatura"</strong> abaixo, o contrato será salvo e enviado via ZapSign</li>
-            <li>• O cliente receberá o link de assinatura por <strong>e-mail</strong> e <strong>WhatsApp</strong> automaticamente</li>
-            <li>• O status do contrato será atualizado para "Pendente de Assinatura"</li>
-            <li>• Você pode acompanhar o status na lista de contratos</li>
+            <li>• <strong>Enviar para Assinatura</strong>: salva o contrato e envia para o cliente assinar via ZapSign (e-mail e WhatsApp).</li>
+            <li>• <strong>Salvar e Baixar PDF</strong>: salva o contrato e baixa o PDF para enviar manualmente (ex: WhatsApp).</li>
+            <li>• <strong>Salvar e Imprimir</strong>: salva o contrato e abre o PDF pronto para impressão (assinatura presencial).</li>
+            <li>• Em todos os casos o contrato é salvo e fica disponível na lista de contratos.</li>
           </ul>
         </div>
 
@@ -2390,10 +2428,30 @@ export default function NovoContratoV2() {
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
-              </Button> : <Button onClick={finalizarContrato} disabled={!podeAvancar() || etapaAtual === 6 && !contrato.entrega.data} className="gap-2 bg-primary hover:bg-primary/90 relative z-[110]">
-                <Send className="h-4 w-4" />
-                Enviar para Assinatura
-              </Button>}
+              </Button> : <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => finalizarContrato('pdf')}
+                  disabled={!podeAvancar() || (etapaAtual === 6 && !contrato.entrega.data)}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Salvar e Baixar PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => finalizarContrato('imprimir')}
+                  disabled={!podeAvancar() || (etapaAtual === 6 && !contrato.entrega.data)}
+                  className="gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Salvar e Imprimir
+                </Button>
+                <Button onClick={() => finalizarContrato('assinatura')} disabled={!podeAvancar() || etapaAtual === 6 && !contrato.entrega.data} className="gap-2 bg-primary hover:bg-primary/90 relative z-[110]">
+                  <Send className="h-4 w-4" />
+                  Enviar para Assinatura
+                </Button>
+              </div>}
           </div>
         </div>
       </div>
