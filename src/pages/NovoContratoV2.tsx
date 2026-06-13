@@ -674,6 +674,10 @@ export default function NovoContratoV2() {
       } else if (campo === 'quantidade') {
         item.quantidade = parseInt(valor) || 1;
         console.log('🔢 Nova quantidade:', item.quantidade);
+      } else if (campo === 'valorUnitario') {
+        const novo = typeof valor === 'number' ? valor : parseFloat(String(valor).replace(',', '.')) || 0;
+        item.valorUnitario = Math.max(0, novo);
+        console.log('💰 Valor unitário editado manualmente:', item.valorUnitario);
       }
       item.subtotal = item.quantidade * item.valorUnitario;
       novosItens[index] = item;
