@@ -263,10 +263,18 @@ export function ContratoResumoPreview({
                   ))}
                 </tbody>
                 <tfoot className="bg-primary/10">
+                  {valorFrete > 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-3 text-right italic text-muted-foreground">Taxa de Entrega / Frete:</td>
+                      <td className="p-3 text-right">
+                        R$ {valorFrete.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
                   <tr>
                     <td colSpan={4} className="p-3 font-semibold text-right">Total Geral:</td>
                     <td className="p-3 font-bold text-right text-primary">
-                      R$ {contrato.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {totalCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 </tfoot>
