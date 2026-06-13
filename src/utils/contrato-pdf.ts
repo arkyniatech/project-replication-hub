@@ -9,6 +9,8 @@ interface ContratoPDFData {
     documento: string;
     endereco?: any;
   };
+  // Endereço de entrega (obra ou logística). Cai pra cliente.endereco se vazio.
+  enderecoEntrega?: any;
   itens: Array<{
     equipamento: {
       nome: string;
@@ -28,6 +30,7 @@ interface ContratoPDFData {
     forma: string;
     vencimentoISO: string;
   };
+  valorFrete?: number;
   valorTotal: number;
 }
 
