@@ -721,7 +721,7 @@ export default function NovoContratoV2() {
     // Retornar no formato ISO YYYY-MM-DD
     return `${dataFim.getFullYear()}-${String(dataFim.getMonth() + 1).padStart(2, '0')}-${String(dataFim.getDate()).padStart(2, '0')}`;
   };
-  const finalizarContrato = async () => {
+  const finalizarContrato = async (mode: 'assinatura' | 'pdf' | 'imprimir' = 'assinatura') => {
     try {
       console.log('[FINALIZACAO] Iniciando finalização do contrato...');
       console.log('[FINALIZACAO] Dados do contrato:', JSON.stringify({
