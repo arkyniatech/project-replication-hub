@@ -2428,10 +2428,30 @@ export default function NovoContratoV2() {
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
-              </Button> : <Button onClick={finalizarContrato} disabled={!podeAvancar() || etapaAtual === 6 && !contrato.entrega.data} className="gap-2 bg-primary hover:bg-primary/90 relative z-[110]">
-                <Send className="h-4 w-4" />
-                Enviar para Assinatura
-              </Button>}
+              </Button> : <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => finalizarContrato('pdf')}
+                  disabled={!podeAvancar() || (etapaAtual === 6 && !contrato.entrega.data)}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Salvar e Baixar PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => finalizarContrato('imprimir')}
+                  disabled={!podeAvancar() || (etapaAtual === 6 && !contrato.entrega.data)}
+                  className="gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Salvar e Imprimir
+                </Button>
+                <Button onClick={() => finalizarContrato('assinatura')} disabled={!podeAvancar() || etapaAtual === 6 && !contrato.entrega.data} className="gap-2 bg-primary hover:bg-primary/90 relative z-[110]">
+                  <Send className="h-4 w-4" />
+                  Enviar para Assinatura
+                </Button>
+              </div>}
           </div>
         </div>
       </div>
