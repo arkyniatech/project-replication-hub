@@ -219,7 +219,7 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
     >
       {/* Header */}
       <div className="h-16 px-6 flex items-center justify-between border-b border-border/40 shrink-0 bg-background/50">
-        <div className="flex items-center gap-3">
+        <Link to="/" aria-label="Ir para página inicial" className="flex items-center gap-3 rounded-md hover:bg-accent/50 transition-colors px-1 py-1 -mx-1">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <img src={locacaoLogo} alt="LocaAção" className="w-5 h-5 object-contain" />
           </div>
@@ -227,7 +227,7 @@ export const NavOverlayPanel = forwardRef<HTMLElement, NavOverlayPanelProps>(({
             <span className="text-sm font-bold tracking-tight text-foreground">{APP_CONFIG.system.name}</span>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Sistema de Gestão</span>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Content */}
