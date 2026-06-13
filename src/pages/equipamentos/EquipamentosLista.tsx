@@ -25,6 +25,7 @@ import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useTransferEvents } from "@/hooks/useTransferEvents";
 import { HistoricoTransferenciasModal } from "@/components/transferencias/HistoricoTransferenciasModal";
 import { EquipamentoKPIsBadges } from "@/components/equipamentos/EquipamentoKPIsBadges";
+import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
 
 const STATUS_COLORS: Record<StatusEquipamento, string> = {
   DISPONIVEL: "bg-green-100 text-green-800",
