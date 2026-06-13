@@ -736,7 +736,10 @@ export default function ContratoDetalhes() {
           <ItensList
             itens={itensContrato}
             onDevolver={contrato.status === 'ATIVO' ? (itemIds) => handleDevolucaoParcial(itemIds) : undefined}
-            onSubstituir={(itemId) => toast({ title: `Iniciando substituição do item ${itemId}...` })}
+            onSubstituir={(itemId) => {
+              setItemParaSubstituir(itemId);
+              setShowSubstituicaoModal(true);
+            }}
             onRenovar={contrato.status === 'ATIVO' ? (itemIds) => handleRenovarItens(itemIds) : undefined}
           />
 
