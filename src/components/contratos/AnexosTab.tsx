@@ -79,25 +79,38 @@ export default function AnexosTab({ contrato, onContratoUpdate }: AnexosTabProps
     }
   };
 
-  const getPublicUrl = (path: string) => {
-    const { data } = supabase.storage.from('contratos-anexos').getPublicUrl(path);
-    return data.publicUrl;
+  const getSignedUrl = async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from('contratos-anexos')
+      .createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) throw error || new Error('Falha ao gerar URL');
+    return data.signedUrl;
   };
 
-  const handleDownload = (anexo: DocumentoAnexo) => {
-    const url = getPublicUrl(anexo.path);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = anexo.nome;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownload = async (anexo: DocumentoAnexo) => {
+    try {
+      const url = await getSignedUrl(anexo.path);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = anexo.nome;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download error:', err);
+      toast({ title: "Erro ao baixar", description: "Tente novamente", variant: "destructive" });
+    }
   };
 
-  const handlePreview = (anexo: DocumentoAnexo) => {
-    const url = getPublicUrl(anexo.path);
-    window.open(url, '_blank');
+  const handlePreview = async (anexo: DocumentoAnexo) => {
+    try {
+      const url = await getSignedUrl(anexo.path);
+      window.open(url, '_blank');
+    } catch (err) {
+      console.error('Preview error:', err);
+      toast({ title: "Erro ao abrir", description: "Tente novamente", variant: "destructive" });
+    }
   };
 
   const handleDelete = async () => {
