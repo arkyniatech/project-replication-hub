@@ -259,7 +259,14 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
                   // Ensure demo user exists (idempotent)
                   await fetch(
                     `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/setup-demo-user`,
-                    { method: 'POST', headers: { 'content-type': 'application/json' } },
+                    {
+                      method: 'POST',
+                      headers: {
+                        'content-type': 'application/json',
+                        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                      },
+                    },
                   ).catch(() => null);
 
                   const { error } = await supabase.auth.signInWithPassword({
