@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Eye, EyeOff, Shield, User } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Shield, User, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { DEMO_EMAIL, DEMO_PASSWORD } from '@/lib/demoMode';
 
 const loginSchema = z.object({
   email: z.string().optional(),
@@ -236,6 +238,53 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
                 Esqueceu a senha?
               </Button>
             </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900"
+              disabled={isLoading}
+              onClick={async () => {
+                setIsLoading(true);
+                try {
+                  // Ensure demo user exists (idempotent)
+                  await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/setup-demo-user`,
+                    { method: 'POST', headers: { 'content-type': 'application/json' } },
+                  ).catch(() => null);
+
+                  const { error } = await supabase.auth.signInWithPassword({
+                    email: DEMO_EMAIL,
+                    password: DEMO_PASSWORD,
+                  });
+                  if (error) throw error;
+                  toast({
+                    title: 'Modo Demonstração',
+                    description: 'Bem-vindo! Suas ações não serão gravadas.',
+                  });
+                } catch (e: any) {
+                  toast({
+                    variant: 'destructive',
+                    title: 'Falha ao entrar como demo',
+                    description: e?.message || 'Tente novamente em alguns segundos.',
+                  });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              Entrar como Demonstração (Portfólio)
+            </Button>
           </form>
         </Form>
       </CardContent>
