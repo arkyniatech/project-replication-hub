@@ -2,12 +2,15 @@ import { Outlet } from "react-router-dom";
 import { TopBar } from "@/components/layout/TopBar";
 import { NavRail } from "@/components/layout/NavRail";
 import { NavOverlayPanel } from "@/components/layout/NavOverlayPanel";
+import { DemoBanner } from "@/components/layout/DemoBanner";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { ShortcutsHelp } from "@/components/search/ShortcutsHelp";
 import { SelecaoLojaModal } from "@/components/multiunidade/SelecaoLojaModal";
 import { useNavRail } from "@/hooks/useNavRail";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
+import { useAuth } from "@/contexts/AuthContext";
+import { enableDemoMode, disableDemoMode, isDemoEmail } from "@/lib/demoMode";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -15,6 +18,13 @@ export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [modalLojaOpen, setModalLojaOpen] = useState(false);
+  const { user } = useAuth();
+  const isDemo = isDemoEmail(user?.email);
+
+  useEffect(() => {
+    if (isDemo) enableDemoMode();
+    else disableDemoMode();
+  }, [isDemo]);
   
   const railRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLElement>(null);
