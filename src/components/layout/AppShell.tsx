@@ -126,6 +126,7 @@ export function AppShell() {
           width: isPinned ? 'calc(100% - 344px)' : 'calc(100% - 64px)' 
         }}
       >
+        {isDemo && <DemoBanner />}
         <TopBar 
           onOpenSearch={() => setSearchOpen(true)}
           onOpenHelp={() => setHelpOpen(true)}
