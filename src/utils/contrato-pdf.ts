@@ -339,6 +339,59 @@ export function gerarContratoPDF(contrato: ContratoPDFData): jsPDF {
   doc.setFont('helvetica', 'normal');
   doc.text(contrato.cliente.nomeRazao, col2X + colWidth / 2, y + 10, { align: 'center' });
 
+  // --- Termos do Contrato (página nova) ---
+  doc.addPage();
+  let yt = 20;
+  sectionTitle(doc, 'TERMOS E CONDIÇÕES DO CONTRATO DE LOCAÇÃO', margin, yt, pageWidth, margin);
+  yt += 8;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 41, 59);
+  const termos = [
+    '1. OBJETO: A LOCADORA cede em locação ao LOCATÁRIO os equipamentos descritos neste contrato, em perfeito estado de uso e funcionamento.',
+    '2. PRAZO: A locação vigora pelo período contratado, iniciando-se na data de entrega e encerrando-se na devolução efetiva dos equipamentos.',
+    '3. PAGAMENTO: O LOCATÁRIO obriga-se a pagar o valor total na data de vencimento estipulada. O atraso implicará multa de 2% e juros de 1% ao mês, pro rata die.',
+    '4. CONSERVAÇÃO E USO: Os equipamentos devem ser utilizados conforme finalidade, por operador habilitado. O LOCATÁRIO é responsável pela guarda, conservação e correta utilização durante todo o período da locação.',
+    '5. DANOS, PERDA OU FURTO: Em caso de avaria, perda, furto ou roubo, o LOCATÁRIO indenizará a LOCADORA pelo valor de indenização registrado no cadastro do equipamento, sem prejuízo do pagamento das diárias até a reposição.',
+    '6. MANUTENÇÃO: A manutenção preventiva é de responsabilidade da LOCADORA. A manutenção corretiva por uso indevido será cobrada do LOCATÁRIO.',
+    '7. DEVOLUÇÃO: A devolução deve ocorrer no prazo contratado, no horário comercial. A devolução em atraso implica cobrança proporcional das diárias adicionais.',
+    '8. RESCISÃO: O descumprimento de qualquer cláusula faculta à LOCADORA a rescisão imediata, com a retirada dos equipamentos independentemente de aviso prévio.',
+    '9. FORO: Fica eleito o foro da comarca da LOCADORA para dirimir quaisquer questões oriundas deste contrato.',
+    '10. DECLARAÇÃO: O LOCATÁRIO declara haver recebido os equipamentos vistoriados, em perfeitas condições de uso, ciente e de acordo com os termos acima.',
+  ];
+  termos.forEach((t) => {
+    const linhas = doc.splitTextToSize(t, pageWidth - 2 * margin);
+    if (yt + linhas.length * 4 > pageHeight - 30) { doc.addPage(); yt = 20; }
+    doc.text(linhas, margin, yt);
+    yt += linhas.length * 4 + 2;
+  });
+
+  // --- Nota Promissória ---
+  if (yt > pageHeight - 90) { doc.addPage(); yt = 20; }
+  yt += 6;
+  sectionTitle(doc, 'NOTA PROMISSÓRIA', margin, yt, pageWidth, margin);
+  yt += 6;
+  doc.setFillColor(...COLOR_ZEBRA);
+  doc.roundedRect(margin, yt, pageWidth - 2 * margin, 60, 1.5, 1.5, 'F');
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Nº ' + (contrato.numero || '-'), margin + 4, yt + 7);
+  doc.text('Valor: ' + formatarMoeda(totalParaExibir), pageWidth - margin - 4, yt + 7, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const np = `No(s) vencimento(s) indicado(s) neste contrato, pagarei(emos) por esta única via de NOTA PROMISSÓRIA a ${APP_CONFIG.company.fullName}, ou à sua ordem, a quantia de ${formatarMoeda(totalParaExibir)} (em moeda corrente nacional), em ${formatarData(contrato.pagamento.vencimentoISO)}, referente ao Contrato de Locação nº ${contrato.numero || '-'}. Emitente: ${contrato.cliente.nomeRazao} — Documento: ${contrato.cliente.documento}.`;
+  const npLinhas = doc.splitTextToSize(np, pageWidth - 2 * margin - 8);
+  doc.text(npLinhas, margin + 4, yt + 14);
+
+  doc.setDrawColor(...COLOR_PRIMARY);
+  doc.line(margin + 4, yt + 50, margin + 90, yt + 50);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('Emitente (assinatura)', margin + 4, yt + 55);
+  doc.setFont('helvetica', 'normal');
+  doc.text(contrato.cliente.nomeRazao, margin + 4, yt + 58);
+
   // --- Rodapé em todas as páginas ---
   const totalPages = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
