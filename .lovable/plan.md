@@ -1,120 +1,63 @@
-## Rodada 1 — Correções de urgência alta
+## Plano de Correções — Rodada 3 (tickets #12 a #28)
 
-Escopo: **#7, #8, #11, #12 (parcial), #15, #16**. Os demais itens (#13, #14, #10, #9, #6) ficam para rodadas seguintes após aprovação desta.
+Vou dividir em 3 blocos por urgência, exatamente como você marcou. Confirme se posso seguir nesta ordem que eu já entrego tudo na sequência.
 
----
+### Bloco URGENTE (corrigir primeiro)
 
-### #7 — Erro ao cadastrar novo modelo
+**#12 + #19 + #23 + #25 — PDF e datas do contrato**
+- PDF passa a usar o endereço de entrega da etapa de logística (não o do cadastro do cliente).
+- Adicionar linha **"Frete"** na tabela de equipamentos + linha **"Valor Total"** somando equipamentos + frete (hoje sai zerado).
+- Corrigir bug de timezone que está jogando vencimento 1 dia pra trás (22/06 → 21/06; 24/06 → 23/06; 06/07 → 05/07). Causa: `new Date('YYYY-MM-DD')` em UTC. Vou padronizar via parser local em `contrato-pdf.ts`, `ContasReceber` e demais telas.
+- Adicionar **Termos do contrato + Nota promissória** ao final do PDF (vou usar o texto-padrão genérico baseado no modelo enviado; se quiser texto específico da loja, me envia que eu colo).
+- #12.3 / código do produto: o PDF passa a usar `formatCodigoExibicao` (BE-069 etc), espelhando a lista.
 
-**Diagnóstico:** o Postgres retorna `duplicate key value violates unique constraint "modelos_equipamentos_prefixo_codigo_key"`. O form está enviando um `prefixo`+`codigo` que já existe (provavelmente vazio/`null` em outro modelo, ou colidindo com um modelo recém-criado).
+**#16 — Contas a receber não recebe contratos novos**
+- Investigar: na rodada anterior o insert em `titulos` foi adicionado, mas provavelmente falhando silenciosamente (RLS ou erro engolido). Vou logar erro, exibir toast e garantir que `loja_id`/`cliente_id`/`vencimento` estão corretos.
 
-**Correção:**
-1. Migration: relaxar o unique constraint `modelos_equipamentos_prefixo_codigo_key` para permitir múltiplos modelos sem código (`WHERE codigo IS NOT NULL AND codigo <> ''`), mantendo a unicidade só quando o código é preenchido.
-2. No form de "Novo Modelo", autogerar `codigo` a partir do nome+grupo quando o usuário não informar, validando no client com Zod.
-3. Tratar o erro 23505 do Postgres no `useSupabaseModelos.create` com toast amigável ("Já existe um modelo com este código no grupo").
+**#17 — Modal de Renovação sem botão**
+- A modal está sem footer/scroll em telas menores. Vou ajustar layout (DialogFooter sticky + scroll interno) e garantir o botão "Confirmar Renovação".
 
----
+**#18 + #21 — Baixa de pagamento sem botão / erro**
+- Mesmo problema de footer cortado em telas <1080p. Ajustar modal `BaixaPagamento` com footer sticky.
+- Investigar erro de insert em `recebimentos` ao confirmar baixa (provavelmente coluna obrigatória faltando).
 
-### #8 — Código do equipamento amigável (formato `CT-081`)
+**#24 — "Cliente retira na loja" dá erro ao confirmar**
+- Bug no `handleSubmit` do wizard quando `logistica.tipo === 'RETIRA_LOJA'`: campos de endereço/data ficam null mas o insert exige. Vou tornar opcionais nesse caminho.
 
-**Estado atual:** o card mostra `LA416211070` (código interno auto) em destaque e `S/N: 081` como secundário.
+**#26 — Equipamentos alugados aparecem como disponíveis + busca quebrada**
+- Atualizar `EquipamentosLista` para filtrar `status_global !== 'LOCADO'` no card "disponíveis".
+- Corrigir busca: hoje filtra só por `numero_serie` exato; passar a buscar por nome do modelo + código formatado (BE-069).
 
-**Correção (apenas apresentação, sem migração):**
-1. Criar helper `formatCodigoExibicao(equipamento)` em `src/lib/equipamentos-utils.ts` que retorna `{prefixoGrupo}-{numeroSerie}` (ex: `CT-081`). Prefixo do grupo vem do campo `prefixo` em `grupos_equipamentos` (ou primeiras 2 letras do nome como fallback).
-2. Substituir o uso de `equipamento.codigo` (LA...) pelo helper nos pontos visíveis ao usuário:
-   - `EquipamentosLista.tsx` (card)
-   - Wizard de contrato — lista "Equipamentos Disponíveis" (`NovoContratoV2.tsx`)
-   - `ContratoDetalhes.tsx` — "Itens do Contrato"
-   - Geração do PDF do contrato (`utils/contrato-pdf.ts`)
-3. O código interno `LA...` continua existindo no banco como chave técnica; só fica invisível.
-4. Busca/filtro passa a aceitar tanto o S/N (`081`) quanto o código composto (`CT-081`).
+**#20 — Cadastro de veículo/motorista volta pra tela inicial**
+- O botão "+ Novo" na atribuição da tarefa de logística está navegando pra `/logistica` em vez de abrir modal. Vou trocar por modal inline mantendo o contexto da tarefa.
 
----
+**#22 — Replicar endereço do cliente no contrato**
+- Adicionar botão **"Usar endereço do cliente"** na etapa de logística do wizard, que copia CEP/rua/número/bairro/cidade/UF do cliente selecionado.
 
-### #11 — Valor do equipamento e frete editáveis no contrato
+### Bloco ALTA
 
-**Estado atual:** `valorUnitario` é calculado por `precoTabela()` e nunca é editável; frete fixo em R$ 50.
+**#13 — Equipamentos locados ainda aparecem na seleção do contrato**
+- Filtrar no passo de seleção do wizard: serializados com `status_global = 'LOCADO'` não devem aparecer. Já existe a atualização de status (rodada 2), mas o filtro de seleção não respeita.
 
-**Correção:**
-1. **Item do contrato**: tornar o campo `valorUnitario` editável na lista de itens da etapa do wizard. Mantém valor sugerido da tabela como default; usuário pode sobrescrever para mais ou menos. Recalcular `subtotal` ao alterar.
-2. **Frete**: adicionar campo `valorFrete` editável na etapa de logística (substitui o R$ 50 fixo). Default = valor calculado pela política de deslocamento; usuário pode editar.
-3. Persistir `valorUnitario` em `contrato_itens.preco_unitario` (já existe coluna) e `valorFrete` em `contratos.logistica.valorFrete` (jsonb existente).
-4. Quando "Cliente retira e devolve" estiver marcado, `valorFrete = 0` e campo fica desabilitado.
+**#27 — Erro ao atualizar cadastro de equipamento**
+- Investigar e corrigir (provavelmente update tentando alterar coluna gerada/imutável ou RLS). Preciso do log do console — se você puder reproduzir, manda print do erro; senão eu adiciono logs e descubro na próxima rodada.
 
----
+### Bloco BAIXA
 
-### #12 — Contrato (3 pontos críticos do PDF)
-
-**Estado atual no PDF:**
-- Endereço puxa do cadastro do cliente em vez do endereço da obra/entrega informado no contrato.
-- Frete não aparece como linha.
-- Total fica zerado (não soma frete + itens).
-
-**Correção em `src/utils/contrato-pdf.ts` e `ContratoResumoPreview.tsx`:**
-1. **Endereço de entrega**: priorizar nessa ordem — (1) endereço da obra vinculada (`obras.endereco`), (2) `logistica.endereco` informado no wizard, (3) endereço do cadastro do cliente como último fallback. Adicionar bloco "Local de Entrega" separado de "Dados do Cliente".
-2. **Frete**: adicionar linha "Taxa de Entrega/Frete" na tabela de valores, lendo `contrato.logistica.valorFrete`.
-3. **Total**: recalcular como `Σ subtotal_itens + valorFrete` (estava ignorando o frete). Ajustar também o "Total" exibido no rodapé da etapa 7 do wizard.
-
-> Refinamento de layout/campos extras para igualar o PDF da loja fica para rodada futura, quando o PDF modelo for anexado.
+**#28 — Botão "Todas as opções" no checklist do cadastro de equipamento**
+- Adicionar botão "Selecionar todos" no checklist de variações/acessórios do `EquipamentoForm`.
 
 ---
 
-### #15 — Substituir item do contrato não funciona
+### O que eu preciso de você antes de começar
 
-**Bug exato (`ContratoDetalhes.tsx:739`):** o `onSubstituir` chama apenas `toast({ title: 'Iniciando substituição...' })` e **nunca abre o `SubstituicaoModal`** (que já existe e está montado na linha 792).
+1. **Termos do contrato + nota promissória (#19.2):** posso usar um texto genérico padrão de locação de equipamentos, ou você prefere mandar o texto exato que a loja usa? (Recomendo mandar o seu, mas se quiser destravar agora eu uso um padrão e a gente troca depois.)
+2. **#27:** se conseguir reproduzir, manda o print do erro do console (F12 → Console). Sem isso, eu corrijo às cegas com logs.
 
-**Correção (1 linha):**
-```tsx
-onSubstituir={(itemId) => {
-  setItemParaSubstituir(itemId);
-  setShowSubstituicaoModal(true);
-}}
-```
-Validar o fluxo completo do modal (`SubstituicaoModal.tsx`) depois — o código de finalização (`completeSubstituicao`) já está implementado.
+### Ordem de execução proposta
 
----
+Rodada A (urgente): #12, #16, #17, #18, #19, #21, #22, #23, #24, #25, #26, #20  
+Rodada B (alta): #13, #27  
+Rodada C (baixa): #28
 
-### #16 — Contas a Receber não atualizam após criar contrato
-
-**Diagnóstico provável:** ao salvar o contrato como ATIVO, a função `gerarTitulosFechamento` (em `src/lib/contratos-v2-utils.ts`) ou não está sendo chamada, ou está gravando em tabela errada (legacy vs `titulos`). A página Contas a Receber lê de `titulos`/`faturas`, então se a geração for local-only, nada aparece.
-
-**Correção:**
-1. Auditar `NovoContratoV2.tsx` no submit final: garantir que após `INSERT` em `contratos` + `contrato_itens` com status ATIVO, seja chamada a geração de `titulos` na tabela Supabase `titulos` (não em store local).
-2. Criar/ajustar função `gerarTitulosContrato(contratoId)` que insere em `public.titulos`:
-   - 1 título por parcela (lendo `contrato.condicoes_pagamento`)
-   - Vencimento conforme regra do contrato
-   - `cliente_id`, `loja_id`, `contrato_id`, `valor`, `status = 'ABERTO'`, `tipo = 'LOCACAO'`
-3. Adicionar trigger Postgres alternativa (ou função RPC) caso a chamada client-side seja perdida em refresh — preferência: gerar via RPC `gerar_titulos_contrato(p_contrato_id uuid)` chamada explicitamente no submit.
-4. Validar que `useSupabaseTitulos` (usado em Contas a Receber) refaz query após o submit (invalidar `['titulos']` no React Query).
-
----
-
-### Detalhes técnicos por arquivo
-
-```text
-Banco:
-  - migration: relaxar unique modelos_equipamentos_prefixo_codigo
-  - migration (opcional): função RPC gerar_titulos_contrato
-
-Backend (edge functions): nenhum
-
-Frontend:
-  src/lib/equipamentos-utils.ts          (#8 helper)
-  src/lib/contratos-v2-utils.ts          (#16 gerarTitulos)
-  src/utils/contrato-pdf.ts              (#12)
-  src/pages/equipamentos/EquipamentosLista.tsx  (#8)
-  src/pages/NovoContratoV2.tsx           (#8, #11, #16)
-  src/pages/ContratoDetalhes.tsx         (#8, #15)
-  src/components/contratos/ContratoResumoPreview.tsx (#12)
-  src/components/contratos/ItensList.tsx (#8)
-  src/components/modelos/ModeloForm.tsx  (#7 — caminho exato a confirmar na implementação)
-  src/hooks/useSupabaseModelos.ts        (#7 tratamento erro 23505)
-```
-
-### Validação após implementação
-- Cadastrar 2 modelos sem código → ambos salvam (#7)
-- Cards de equipamento mostram `CT-081`, busca por `081` encontra (#8)
-- Editar valor unitário e frete no wizard, valores persistem e aparecem no PDF (#11)
-- PDF traz endereço de obra + frete em linha + total somado (#12)
-- Botão Substituir abre o modal (#15)
-- Criar contrato ATIVO → Contas a Receber lista os títulos imediatamente (#16)
+Posso seguir? Se sim, respondo "vai" e eu mando a Rodada A inteira de uma vez.
