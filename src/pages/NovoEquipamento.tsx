@@ -802,6 +802,22 @@ export default function NovoEquipamento() {
                 </p>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center justify-end mb-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (checklistsSelecionados.length === checklistsDisponiveis.length) {
+                        setChecklistsSelecionados([]);
+                      } else {
+                        setChecklistsSelecionados([...checklistsDisponiveis]);
+                      }
+                    }}
+                  >
+                    {checklistsSelecionados.length === checklistsDisponiveis.length ? 'Desmarcar todas' : 'Todas as opções'}
+                  </Button>
+                </div>
                 <div className="space-y-3">
                   {checklistsDisponiveis.map((checklist) => (
                     <div key={checklist} className="flex items-center space-x-2">
