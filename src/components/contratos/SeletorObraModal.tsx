@@ -17,13 +17,15 @@ interface SeletorObraModalProps {
   onOpenChange: (open: boolean) => void;
   clienteId: string;
   onSelect: (obra: Obra) => void;
+  clienteEndereco?: any;
 }
 
 export function SeletorObraModal({
   open,
   onOpenChange,
   clienteId,
-  onSelect
+  onSelect,
+  clienteEndereco
 }: SeletorObraModalProps) {
   const { lojaAtual } = useMultiunidade();
   const { obras: obrasSupabase, createObra, isLoading } = useSupabaseObras(lojaAtual?.id, clienteId);
@@ -324,6 +326,37 @@ export function SeletorObraModal({
           </TabsContent>
 
           <TabsContent value="nova" className="space-y-4">
+            {clienteEndereco && (clienteEndereco.cep || clienteEndereco.logradouro) && (
+              <div className="flex items-center justify-between p-3 border border-dashed border-primary/40 bg-primary/5 rounded-lg">
+                <div className="text-sm">
+                  <p className="font-medium">Usar o mesmo endereço do cliente?</p>
+                  <p className="text-xs text-muted-foreground">
+                    {clienteEndereco.logradouro}, {clienteEndereco.numero} — {clienteEndereco.cidade}/{clienteEndereco.uf}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setNovaObra(prev => ({
+                      ...prev,
+                      apelido: prev.apelido || 'Mesmo endereço do cliente',
+                      cep: (clienteEndereco.cep || '').replace(/\D/g, ''),
+                      logradouro: clienteEndereco.logradouro || '',
+                      numero: clienteEndereco.numero || '',
+                      complemento: clienteEndereco.complemento || '',
+                      bairro: clienteEndereco.bairro || '',
+                      cidade: clienteEndereco.cidade || '',
+                      uf: clienteEndereco.uf || ''
+                    }));
+                    toast({ title: 'Endereço replicado', description: 'Dados do cliente copiados para a obra' });
+                  }}
+                >
+                  Replicar
+                </Button>
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <Label htmlFor="apelido">Apelido da Obra *</Label>

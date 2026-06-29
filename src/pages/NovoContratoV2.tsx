@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ClienteForm from "@/components/forms/ClienteForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,6 +99,7 @@ function formatarStatusCliente(cliente: Cliente): string {
 }
 export default function NovoContratoV2() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     toast
   } = useToast();
@@ -863,6 +865,8 @@ export default function NovoContratoV2() {
             console.log('✅ Equipamentos marcados como LOCADO:', idsSerializados.length);
           }
         }
+        // Invalidar cache do React Query para refletir disponibilidade imediatamente
+        queryClient.invalidateQueries({ queryKey: ['equipamentos'] });
       } catch (errStatus) {
         console.error('[FINALIZACAO] Falha ao atualizar status de equipamentos:', errStatus);
       }
@@ -1893,7 +1897,7 @@ export default function NovoContratoV2() {
       </CardContent>
       
       {/* Modal de Seleção/Cadastro de Obra */}
-      <SeletorObraModal open={seletorObraOpen} onOpenChange={setSeletorObraOpen} clienteId={contrato.clienteId} onSelect={obra => {
+      <SeletorObraModal open={seletorObraOpen} onOpenChange={setSeletorObraOpen} clienteId={contrato.clienteId} clienteEndereco={contrato.cliente?.endereco} onSelect={obra => {
       setContrato(prev => ({
         ...prev,
         obraId: obra.id,
