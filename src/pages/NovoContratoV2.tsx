@@ -987,11 +987,23 @@ export default function NovoContratoV2() {
 
         if (tituloError) {
           console.error('[FINALIZACAO] Erro ao gerar título de Contas a Receber:', tituloError);
+          toast({
+            title: 'Atenção: Conta a Receber não foi criada',
+            description: `Contrato salvo, mas o título não foi para Contas a Receber. ${tituloError.message || ''}`,
+            variant: 'destructive',
+            duration: 8000,
+          });
         } else {
           console.log('✅ Título gerado em Contas a Receber:', tituloRow.numero, '— R$', valorTituloFinal);
         }
-      } catch (errTitulo) {
+      } catch (errTitulo: any) {
         console.error('[FINALIZACAO] Falha ao gerar título no Supabase:', errTitulo);
+        toast({
+          title: 'Atenção: Conta a Receber não foi criada',
+          description: errTitulo?.message || 'Erro ao criar título em Contas a Receber',
+          variant: 'destructive',
+          duration: 8000,
+        });
       }
 
       // Backup local (compat)
