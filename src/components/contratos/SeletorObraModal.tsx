@@ -24,7 +24,8 @@ export function SeletorObraModal({
   open,
   onOpenChange,
   clienteId,
-  onSelect
+  onSelect,
+  clienteEndereco
 }: SeletorObraModalProps) {
   const { lojaAtual } = useMultiunidade();
   const { obras: obrasSupabase, createObra, isLoading } = useSupabaseObras(lojaAtual?.id, clienteId);
