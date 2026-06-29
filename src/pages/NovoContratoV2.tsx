@@ -1893,7 +1893,7 @@ export default function NovoContratoV2() {
       </CardContent>
       
       {/* Modal de Seleção/Cadastro de Obra */}
-      <SeletorObraModal open={seletorObraOpen} onOpenChange={setSeletorObraOpen} clienteId={contrato.clienteId} onSelect={obra => {
+      <SeletorObraModal open={seletorObraOpen} onOpenChange={setSeletorObraOpen} clienteId={contrato.clienteId} clienteEndereco={contrato.cliente?.endereco} onSelect={obra => {
       setContrato(prev => ({
         ...prev,
         obraId: obra.id,
