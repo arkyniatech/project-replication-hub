@@ -99,6 +99,7 @@ function formatarStatusCliente(cliente: Cliente): string {
 }
 export default function NovoContratoV2() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     toast
   } = useToast();
