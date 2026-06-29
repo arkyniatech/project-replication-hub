@@ -17,6 +17,7 @@ interface SeletorObraModalProps {
   onOpenChange: (open: boolean) => void;
   clienteId: string;
   onSelect: (obra: Obra) => void;
+  clienteEndereco?: any;
 }
 
 export function SeletorObraModal({
