@@ -72,6 +72,13 @@ const formatarMoeda = (valor: number) =>
 
 const formatarData = (iso: string) => {
   if (!iso) return '-';
+  // Para strings YYYY-MM-DD usar parser local (evita timezone shift UTC-3
+  // que jogava o vencimento 1 dia pra trás).
+  const soData = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (soData) {
+    const [, y, m, d] = soData;
+    return `${d}/${m}/${y}`;
+  }
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('pt-BR');
