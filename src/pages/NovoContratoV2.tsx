@@ -865,6 +865,8 @@ export default function NovoContratoV2() {
             console.log('✅ Equipamentos marcados como LOCADO:', idsSerializados.length);
           }
         }
+        // Invalidar cache do React Query para refletir disponibilidade imediatamente
+        queryClient.invalidateQueries({ queryKey: ['equipamentos'] });
       } catch (errStatus) {
         console.error('[FINALIZACAO] Falha ao atualizar status de equipamentos:', errStatus);
       }
