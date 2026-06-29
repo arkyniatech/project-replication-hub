@@ -1044,12 +1044,29 @@ export default function NovoContratoV2() {
         ? (contrato.cliente.razaoSocial || contrato.cliente.nomeFantasia || contrato.cliente.nomeRazao || '')
         : (contrato.cliente?.nome || contrato.cliente?.nomeRazao || '');
 
+      // Endereço de entrega: prioriza obra → endereço da logística → cliente
+      const enderecoEntregaPDF = (contrato as any).obra?.endereco
+        || (contrato.entrega as any)?.endereco
+        || contrato.cliente?.endereco;
+
+      // Frete (taxa de deslocamento)
+      const valorFretePDF = contrato.taxaDeslocamento?.aplicar
+        ? (contrato.taxaDeslocamento.valor || 0)
+        : 0;
+
+      const subtotalItensPDF = contrato.itens.reduce((s, i) => s + (i.subtotal || 0), 0);
+      const valorTotalPDF = (valorTotalCalculado && valorTotalCalculado > 0)
+        ? valorTotalCalculado
+        : subtotalItensPDF + valorFretePDF;
+
       const dadosPDF = {
+        numero: numeroContrato,
         cliente: {
           nomeRazao: nomeCliente,
           documento: contrato.cliente?.documento || contrato.cliente?.cpf || contrato.cliente?.cnpj || '',
           endereco: contrato.cliente?.endereco,
         },
+        enderecoEntrega: enderecoEntregaPDF,
         itens: contrato.itens.map(item => ({
           equipamento: {
             nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
@@ -1069,7 +1086,8 @@ export default function NovoContratoV2() {
           forma: contrato.pagamento.forma,
           vencimentoISO: contrato.pagamento.vencimentoISO,
         },
-        valorTotal: valorTotalCalculado,
+        valorFrete: valorFretePDF,
+        valorTotal: valorTotalPDF,
       };
 
       if (mode === 'assinatura') {
