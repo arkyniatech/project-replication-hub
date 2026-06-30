@@ -21,7 +21,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Cliente, Equipamento, ItemContrato, Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
-import { validarBloqueioCliente, precoTabela, reservarItens, liberarReserva, verificarDisponibilidade, gerarOSEntrega, gerarTitulosFechamento, agruparCobrancaCliente, autoIncrementContrato } from "@/lib/contratos-v2-utils";
+import { validarBloqueioCliente, precoTabela, reservarItens, liberarReserva, verificarDisponibilidade, gerarOSEntrega, gerarTitulosFechamento, agruparCobrancaCliente, autoIncrementContrato, calcularTotalContrato } from "@/lib/contratos-v2-utils";
 import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
 import { aplicarPolitica, ResultadoPolitica } from "@/services/politicasEngine";
 import { ClienteBlockedModal } from "@/components/contratos/ClienteBlockedModal";
@@ -314,10 +314,11 @@ export default function NovoContratoV2() {
         ativo: eq.ativo,
         tabela: tabelaLoja,
         precos: {
-          diaria: tabelaLoja.diaria || 0,
-          semana: tabelaLoja['7'] || 0,
-          mes: tabelaLoja['28'] || 0
+          diaria: tabelaLoja.DIARIA ?? tabelaLoja.diaria ?? 0,
+          semana: tabelaLoja.SEMANA ?? tabelaLoja['7'] ?? 0,
+          mes: tabelaLoja.MES ?? tabelaLoja['28'] ?? 0
         },
+
         lojaId: eq.loja_atual_id,
         createdAt: eq.created_at,
         updatedAt: eq.updated_at
@@ -749,6 +750,20 @@ export default function NovoContratoV2() {
       const dataFimCalculada = calcularDataFimContrato(contrato.entrega.data, contrato.itens);
       console.log('[FINALIZACAO] Data de fim calculada:', dataFimCalculada);
 
+      // Recalcular total via função pura (evita memo stale e expõe a regra
+      // itens + frete [+ política] de forma testável)
+      const valorFreteFinal = contrato.taxaDeslocamento?.aplicar
+        ? (contrato.taxaDeslocamento.valor || 0)
+        : 0;
+      const totalFinal = calcularTotalContrato({
+        itens: contrato.itens.map(i => ({
+          quantidade: i.quantidade,
+          valorUnitario: i.valorUnitario,
+        })),
+        frete: valorFreteFinal,
+        totalComDescontoPolitica: politicaAplicada?.totalComDesconto ?? null,
+      });
+
       // Preparar dados do contrato para Supabase
       const contratoData = {
         numero: numeroContrato.toString(),
@@ -758,12 +773,17 @@ export default function NovoContratoV2() {
         data_inicio: contrato.entrega.data,
         data_prevista_fim: dataFimCalculada,
         data_fim: null,
-        valor_total: valorTotalCalculado,
+        valor_total: totalFinal,
         valor_pago: 0,
-        valor_pendente: valorTotalCalculado,
+        valor_pendente: totalFinal,
         status: 'AGUARDANDO_ENTREGA',
         forma_pagamento: contrato.pagamento.forma,
-        logistica: contrato.entrega,
+        // #12.2(b): persistir frete junto da logística para aparecer no detalhe/PDF
+        logistica: {
+          ...contrato.entrega,
+          taxaDeslocamento: contrato.taxaDeslocamento ?? null,
+          frete: valorFreteFinal,
+        },
         condicoes_pagamento: {
           forma: contrato.pagamento.forma,
           vencimento: contrato.pagamento.vencimentoISO,
@@ -780,6 +800,7 @@ export default function NovoContratoV2() {
         }],
         ativo: true
       };
+
 
       console.log('[FINALIZACAO] Dados do contrato preparados para Supabase');
       console.log('[FINALIZACAO] Status sendo enviado:', JSON.stringify(contratoData.status));
@@ -963,15 +984,11 @@ export default function NovoContratoV2() {
         // Não bloquear a criação do contrato por erro na logística
       }
 
-      // Gerar título no Supabase (Contas a Receber)
       try {
-        const valorFreteTitulo = contrato.taxaDeslocamento?.aplicar
-          ? (contrato.taxaDeslocamento.valor || 0)
-          : 0;
-        const subtotalItensTitulo = contrato.itens.reduce((s, i) => s + (i.subtotal || 0), 0);
-        const valorTituloFinal = (valorTotalCalculado && valorTotalCalculado > 0)
-          ? valorTotalCalculado
-          : subtotalItensTitulo + valorFreteTitulo;
+        // Reaproveita totalFinal calculado acima (itens + frete [+ política])
+        const valorTituloFinal = totalFinal > 0
+          ? totalFinal
+          : contrato.itens.reduce((s, i) => s + (i.subtotal || 0), 0) + valorFreteFinal;
 
         const vencimentoIso = contrato.pagamento?.vencimentoISO || new Date().toISOString();
 
@@ -980,17 +997,20 @@ export default function NovoContratoV2() {
           loja_id: contrato.lojaId,
           cliente_id: contrato.clienteId,
           contrato_id: contratoSupabase.id,
-          categoria: 'LOCACAO',
+          // #16: usar os MESMOS valores enumerados que o restante do app filtra
+          // (Contas a Receber, KPIs e chips usam 'Locação' / 'EM_ABERTO').
+          categoria: 'Locação',
           subcategoria: contrato.pagamento?.forma || null,
           vencimento: vencimentoIso,
           valor: valorTituloFinal,
           saldo: valorTituloFinal,
           pago: 0,
-          status: 'ABERTO',
+          status: 'EM_ABERTO',
           origem: 'CONTRATO',
           forma: contrato.pagamento?.forma || null,
           observacoes: `Locação - Contrato ${numeroContrato}`,
         };
+
 
         const { error: tituloError } = await supabase
           .from('titulos')

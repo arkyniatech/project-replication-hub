@@ -81,6 +81,44 @@ export function precoTabela(equipamento: Equipamento, periodo: 'DIARIA' | 'SEMAN
 }
 
 
+// ============================================================
+// Cálculo PURO do total do contrato (itens + frete [+ política])
+// Extraído para permitir testes determinísticos e evitar
+// dependência de memos/efeitos no wizard NovoContratoV2.
+// ============================================================
+export interface ItemTotalInput {
+  quantidade: number;
+  valorUnitario: number;
+}
+
+export function calcularSubtotalItens(itens: ItemTotalInput[]): number {
+  if (!Array.isArray(itens)) return 0;
+  return itens.reduce((sum, item) => {
+    const q = Number(item?.quantidade) || 0;
+    const v = Number(item?.valorUnitario) || 0;
+    return sum + q * v;
+  }, 0);
+}
+
+export interface CalcularTotalOpts {
+  itens: ItemTotalInput[];
+  frete?: number;
+  /** Quando informado e > 0, substitui o subtotal dos itens (política aplicada). */
+  totalComDescontoPolitica?: number | null;
+}
+
+export function calcularTotalContrato(opts: CalcularTotalOpts): number {
+  const frete = Number(opts.frete) || 0;
+  const subtotal =
+    opts.totalComDescontoPolitica != null && opts.totalComDescontoPolitica > 0
+      ? Number(opts.totalComDescontoPolitica) || 0
+      : calcularSubtotalItens(opts.itens || []);
+  return subtotal + frete;
+}
+
+
+
+
 // Calcular encerramento sem pró-rata (simulação)
 export function calcularEncerramentoSemProrata(
   inicioISO: string,

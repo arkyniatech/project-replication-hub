@@ -11,7 +11,10 @@ import {
   agruparCobrancaCliente,
   calcularEncerramentoSemProrata,
   sugerirHorarios,
+  calcularSubtotalItens,
+  calcularTotalContrato,
 } from '../contratos-v2-utils';
+
 
 // ------------------ Helpers / Fixtures ------------------
 
@@ -295,6 +298,68 @@ describe('contratos-v2-utils', () => {
       vi.setSystemTime(new Date('2026-06-30T11:30:00')); // +30min margem > 11:00
       const h = sugerirHorarios('MANHA', '2026-06-30');
       expect(h).toBe('13:30');
+    });
+  });
+
+  // ============================================================
+  // calcularSubtotalItens / calcularTotalContrato (#12.2)
+  // ============================================================
+  describe('calcularSubtotalItens / calcularTotalContrato', () => {
+    it('soma subtotais de vários itens (quantidade * valorUnitario)', () => {
+      const itens = [
+        { quantidade: 1, valorUnitario: 150 },
+        { quantidade: 2, valorUnitario: 80 },
+        { quantidade: 3, valorUnitario: 10 },
+      ];
+      expect(calcularSubtotalItens(itens)).toBe(150 + 160 + 30);
+    });
+
+    it('item com quantidade > 1 é multiplicado corretamente', () => {
+      expect(calcularSubtotalItens([{ quantidade: 5, valorUnitario: 20 }])).toBe(100);
+    });
+
+    it('lida com lista vazia / valores nulos sem retornar NaN', () => {
+      expect(calcularSubtotalItens([])).toBe(0);
+      expect(
+        calcularSubtotalItens([
+          { quantidade: undefined as any, valorUnitario: 10 },
+          { quantidade: 2, valorUnitario: undefined as any },
+        ]),
+      ).toBe(0);
+    });
+
+    it('calcularTotalContrato: itens + frete', () => {
+      const total = calcularTotalContrato({
+        itens: [
+          { quantidade: 1, valorUnitario: 150 },
+          { quantidade: 2, valorUnitario: 80 },
+        ],
+        frete: 50,
+      });
+      expect(total).toBe(150 + 160 + 50);
+    });
+
+    it('calcularTotalContrato: sem frete = somente itens', () => {
+      expect(
+        calcularTotalContrato({
+          itens: [{ quantidade: 1, valorUnitario: 100 }],
+        }),
+      ).toBe(100);
+    });
+
+    it('calcularTotalContrato: política > 0 substitui subtotal dos itens, mas frete continua somando', () => {
+      const total = calcularTotalContrato({
+        itens: [{ quantidade: 10, valorUnitario: 100 }], // subtotal "cru" = 1000
+        frete: 50,
+        totalComDescontoPolitica: 800,
+      });
+      expect(total).toBe(800 + 50);
+    });
+
+    it('calcularTotalContrato: política <= 0 ou null usa subtotal dos itens', () => {
+      const itens = [{ quantidade: 1, valorUnitario: 100 }];
+      expect(calcularTotalContrato({ itens, totalComDescontoPolitica: null })).toBe(100);
+      expect(calcularTotalContrato({ itens, totalComDescontoPolitica: 0 })).toBe(100);
     });
   });
 });
