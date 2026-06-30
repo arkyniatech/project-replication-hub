@@ -1,331 +1,159 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, vi, expect } from 'vitest';
-import RbacGuard from '@/components/rbac/RbacGuard';
-import { AuthContext } from '@/contexts/AuthContext';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, it, vi, expect, beforeEach } from 'vitest';
+import { RbacGuard, RbacButton, withRbac } from '@/components/rbac/RbacGuard';
+import type { Claim } from '@/modules/rh/rbac/claims';
 
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [], error: null }))
-      }))
-    }))
-  }
+// Mocka o hook que controla as permissões. Os testes injetam o conjunto de
+// claims ativas via setMockClaims(...) e validamos o comportamento dos
+// componentes consumidores sem tocar em Supabase / AuthContext.
+let mockClaims: Claim[] = [];
+
+vi.mock('@/hooks/useRbac', () => ({
+  useRbac: () => ({
+    can: (claim: Claim) => mockClaims.includes(claim),
+    anyOf: (claims: Claim[]) => claims.some((c) => mockClaims.includes(c)),
+    allOf: (claims: Claim[]) => claims.every((c) => mockClaims.includes(c)),
+    perfilAtivo: 'admin',
+    claimsAtivas: mockClaims,
+    isLoading: false,
+  }),
 }));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: false },
-  },
+function setMockClaims(claims: Claim[]) {
+  mockClaims = claims;
+}
+
+describe('RbacGuard', () => {
+  beforeEach(() => {
+    setMockClaims([]);
+  });
+
+  it('renderiza children quando usuário possui a claim (mode any padrão)', () => {
+    setMockClaims(['dashboard:view']);
+    render(
+      <RbacGuard claims={['dashboard:view']}>
+        <div data-testid="protected">ok</div>
+      </RbacGuard>,
+    );
+    expect(screen.getByTestId('protected')).toBeInTheDocument();
+  });
+
+  it('não renderiza children quando usuário não possui nenhuma das claims', () => {
+    setMockClaims(['relatorios:view']);
+    render(
+      <RbacGuard claims={['dashboard:view']}>
+        <div data-testid="protected">ok</div>
+      </RbacGuard>,
+    );
+    expect(screen.queryByTestId('protected')).not.toBeInTheDocument();
+  });
+
+  it('renderiza fallback quando bloqueado', () => {
+    setMockClaims([]);
+    render(
+      <RbacGuard
+        claims={['dashboard:view']}
+        fallback={<div data-testid="fallback">denied</div>}
+      >
+        <div data-testid="protected">ok</div>
+      </RbacGuard>,
+    );
+    expect(screen.getByTestId('fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('protected')).not.toBeInTheDocument();
+  });
+
+  it('mode="all" exige todas as claims — bloqueia quando falta alguma', () => {
+    setMockClaims(['dashboard:view']);
+    render(
+      <RbacGuard claims={['dashboard:view', 'relatorios:view']} mode="all">
+        <div data-testid="protected">ok</div>
+      </RbacGuard>,
+    );
+    expect(screen.queryByTestId('protected')).not.toBeInTheDocument();
+  });
+
+  it('mode="all" libera quando todas as claims estão presentes', () => {
+    setMockClaims(['dashboard:view', 'relatorios:view']);
+    render(
+      <RbacGuard claims={['dashboard:view', 'relatorios:view']} mode="all">
+        <div data-testid="protected">ok</div>
+      </RbacGuard>,
+    );
+    expect(screen.getByTestId('protected')).toBeInTheDocument();
+  });
+
+  it('mode="any" libera quando ao menos uma claim está presente', () => {
+    setMockClaims(['relatorios:view']);
+    render(
+      <RbacGuard claims={['dashboard:view', 'relatorios:view']} mode="any">
+        <div data-testid="protected">ok</div>
+      </RbacGuard>,
+    );
+    expect(screen.getByTestId('protected')).toBeInTheDocument();
+  });
 });
 
-const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider client={queryClient}>
-    {children}
-  </QueryClientProvider>
-);
-
-const mockAuthUser = (userId = 'test-user-id') => {
-  return {
-    user: { id: userId },
-    session: { user: { id: userId } },
-    loading: false
-  };
-};
-
-describe('RbacGuard Component', () => {
+describe('RbacButton', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    queryClient.clear();
+    setMockClaims([]);
   });
 
-  it('should render children if user has required role', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [{ role: 'admin' }], error: null }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-
+  it('renderiza o children sem wrapper de opacidade quando autorizado', () => {
+    setMockClaims(['dashboard:view']);
     render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <RbacGuard claims={['dashboard:view']}>
-            <div data-testid="protected">Conteúdo Protegido</div>
-          </RbacGuard>
-        </AuthContext.Provider>
-      </wrapper>
+      <RbacButton claims={['dashboard:view']}>
+        <button data-testid="action">go</button>
+      </RbacButton>,
     );
-
-    // Wait for the query to resolve
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    expect(screen.getByTestId('protected')).toBeInTheDocument();
-  });
-
-  it('should not render children if user lacks required claims', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [{ role: 'standard' }], error: null }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <RbacGuard claims={['dashboard:view']}>
-            <div data-testid="protected">Conteúdo Protegido</div>
-          </RbacGuard>
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    // Wait for the query to resolve
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    expect(screen.queryByTestId('protected')).not.toBeInTheDocument();
-  });
-
-  it('should render fallback when unauthorized', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [{ role: 'standard' }], error: null }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-    const FallbackComp = () => <div data-testid="fallback">Acesso Negado</div>;
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <RbacGuard claims={['dashboard:view']} fallback={<FallbackComp />}>
-            <div data-testid="protected">Conteúdo Protegido</div>
-          </RbacGuard>
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    // Wait for the query to resolve
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    expect(screen.getByTestId('fallback')).toBeInTheDocument();
-  });
-
-  it('should handle "all" mode correctly', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [{ role: 'admin' }], error: null }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <RbacGuard claims={['dashboard:view', 'admin:access']} mode="all">
-            <div data-testid="protected">Conteúdo Protegido</div>
-          </RbacGuard>
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    // Should not render since user only has 'admin' role but needs both claims
-    expect(screen.queryByTestId('protected')).not.toBeInTheDocument();
-  });
-
-  it('should handle "any" mode correctly', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [{ role: 'admin' }], error: null }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <RbacGuard claims={['dashboard:view', 'admin:access']} mode="any">
-            <div data-testid="protected">Conteúdo Protegido</div>
-          </RbacGuard>
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    // Should render since 'any' mode requires only one claim
-    expect(screen.getByTestId('protected')).toBeInTheDocument();
-  });
-
-  it('should handle unauthenticated user', async () => {
-    const MockAuthUnauthenticated = {
-      user: null,
-      session: null,
-      loading: false
-    };
-
-    const FallbackComp = () => <div data-testid="fallback">Acesso Negado</div>;
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuthUnauthenticated}>
-          <RbacGuard claims={['dashboard:view']} fallback={<FallbackComp />}>
-            <div data-testid="protected">Conteúdo Protegido</div>
-          </RbacGuard>
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    expect(screen.getByTestId('fallback')).toBeInTheDocument();
-  });
-
-  it('should render RbacButton with permission', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [{ role: 'admin' }], error: null }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <RbacGuard.RbacButton claims={['dashboard:view']}>
-            <button data-testid="action-button">Ação Permitida</button>
-          </RbacGuard.RbacButton>
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    const button = screen.getByTestId('action-button');
+    const button = screen.getByTestId('action');
     expect(button).toBeInTheDocument();
-    expect(button).not.toHaveClass('opacity-50');
+    // Quando autorizado, NÃO existe wrapper com opacity-50.
+    expect(document.querySelector('.opacity-50')).toBeNull();
   });
 
-  it('should render RbacButton disabled without permission', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [{ role: 'standard' }], error: null }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-
+  it('envolve com wrapper opacity-50 + tooltip quando bloqueado', () => {
+    setMockClaims([]);
     render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <RbacGuard.RbacButton claims={['admin:access']}>
-            <button data-testid="action-button">Ação Bloqueada</button>
-          </RbacGuard.RbacButton>
-        </AuthContext.Provider>
-      </wrapper>
+      <RbacButton claims={['dashboard:view']} disabledTooltip="Sem acesso">
+        <button data-testid="action">go</button>
+      </RbacButton>,
     );
-
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    const button = screen.getByTestId('action-button');
+    const button = screen.getByTestId('action');
     expect(button).toBeInTheDocument();
-    expect(button).toHaveClass('opacity-50');
+    // o wrapper de disabled deve existir
+    const wrapper = document.querySelector('.opacity-50');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper).toContainElement(button);
+    expect(screen.getByText('Sem acesso')).toBeInTheDocument();
+  });
+});
+
+describe('withRbac HOC', () => {
+  beforeEach(() => {
+    setMockClaims([]);
   });
 
-  it('should handle withRbac HOC', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: [{ role: 'admin' }], error: null }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-
-    const TestComponent = () => <div data-testid="wrapped">Componente Protegido</div>;
-    const ProtectedComponent = RbacGuard.withRbac(TestComponent, ['dashboard:view']);
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <ProtectedComponent />
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    await new Promise(resolve => setTimeout(resolve, 0));
-
+  it('renderiza o componente embrulhado quando autorizado', () => {
+    setMockClaims(['dashboard:view']);
+    const Inner = () => <div data-testid="wrapped">inner</div>;
+    const Protected = withRbac(Inner, ['dashboard:view']);
+    render(<Protected />);
     expect(screen.getByTestId('wrapped')).toBeInTheDocument();
   });
 
-  it('should handle query error gracefully', async () => {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ data: null, error: new Error('Database error') }))
-      }))
-    }));
-    (supabase.from as any).mockImplementation(mockFrom);
-
-    const MockAuth = mockAuthUser('test-user-id');
-    const FallbackComp = () => <div data-testid="fallback">Erro de Permissões</div>;
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuth}>
-          <RbacGuard claims={['dashboard:view']} fallback={<FallbackComp />}>
-            <div data-testid="protected">Conteúdo Protegido</div>
-          </RbacGuard>
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    expect(screen.getByTestId('fallback')).toBeInTheDocument();
+  it('oculta o componente quando não autorizado', () => {
+    setMockClaims([]);
+    const Inner = () => <div data-testid="wrapped">inner</div>;
+    const Protected = withRbac(Inner, ['dashboard:view']);
+    render(<Protected />);
+    expect(screen.queryByTestId('wrapped')).not.toBeInTheDocument();
   });
 
-  it('should handle loading state', () => {
-    const MockAuthLoading = {
-      user: null,
-      session: null,
-      loading: true
-    };
-
-    render(
-      <wrapper>
-        <AuthContext.Provider value={MockAuthLoading}>
-          <RbacGuard claims={['dashboard:view']}>
-            <div data-testid="protected">Conteúdo Protegido</div>
-          </RbacGuard>
-        </AuthContext.Provider>
-      </wrapper>
-    );
-
-    // Should not render content while loading
-    expect(screen.queryByTestId('protected')).not.toBeInTheDocument();
+  it('propaga mode="all" para o RbacGuard', () => {
+    setMockClaims(['dashboard:view']);
+    const Inner = () => <div data-testid="wrapped">inner</div>;
+    const Protected = withRbac(Inner, ['dashboard:view', 'relatorios:view'], 'all');
+    render(<Protected />);
+    expect(screen.queryByTestId('wrapped')).not.toBeInTheDocument();
   });
 });

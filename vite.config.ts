@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { fileURLToPath, URL } from 'node:url';
-import { configDefaults } from 'vitest/config';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,14 +27,7 @@ export default defineConfig(({ mode }) => ({
     setupFiles: './src/__tests__/setupTests.ts',
     css: true,
     reporters: ['verbose'],
-    coverage: {
-      enabled: true,
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        '**/*.tsx',
-        ...configDefaults.exclude,
-      ],
-    },
+    // Coverage desabilitado por padrão (requer @vitest/coverage-v8).
+    // Habilite via flag: `npx vitest run --coverage` após instalar a dep.
   },
 }));
