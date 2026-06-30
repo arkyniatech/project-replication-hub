@@ -135,9 +135,7 @@ export default function TitulosTab() {
     return statusMap[status] || { label: status, value: status, color: 'secondary' as const };
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateString: string) => formatDateBR(dateString);
 
   const calcularDiasVencimento = (dataVencimento: string) => {
     const hoje = new Date();
