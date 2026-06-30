@@ -56,9 +56,7 @@ export default function FaturasTab() {
     );
   }, [faturas, searchTerm]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateString: string) => formatDateBR(dateString);
 
   const adicionarItem = () => {
     const novoItem: ItemFatura = {
