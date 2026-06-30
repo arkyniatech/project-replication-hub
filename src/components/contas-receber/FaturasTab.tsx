@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ItemFatura } from "@/types";
 import { APP_CONFIG } from "@/config/app";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { formatDateBR } from "@/lib/date-utils";
 
 export default function FaturasTab() {
   const [cliente, setCliente] = useState("");
