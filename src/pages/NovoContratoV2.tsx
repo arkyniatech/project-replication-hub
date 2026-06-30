@@ -30,6 +30,7 @@ import { ContratoResumoPreview } from "@/components/contratos/ContratoResumoPrev
 import { SeletorObraModal } from "@/components/contratos/SeletorObraModal";
 import { useSupabaseClientes } from "@/hooks/useSupabaseClientes";
 import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
+import { useEquipamentosOcupados } from "@/hooks/useEquipamentosOcupados";
 import { useSupabaseLogisticaTarefas } from "@/hooks/useSupabaseLogisticaTarefas";
 import { supabaseClienteToLegacy } from "@/lib/cliente-adapter";
 import { TaxaDeslocamentoService } from "@/services/taxaDeslocamentoService";
@@ -114,6 +115,9 @@ export default function NovoContratoV2() {
   // Hooks do Supabase
   const { clientes: clientesSupabase, isLoading: loadingClientes, useCliente } = useSupabaseClientes(lojaAtual?.id);
   const { equipamentos: equipamentosSupabase, isLoading: loadingEquipamentos } = useSupabaseEquipamentos(lojaAtual?.id);
+  // #13: cross-reference contratos ATIVO/AGUARDANDO_ENTREGA p/ esconder itens
+  // já alugados mesmo quando equipamentos.status_global está desatualizado.
+  const { data: equipamentosOcupados = new Set<string>() } = useEquipamentosOcupados(lojaAtual?.id);
   const { createTarefa: createTarefaLogistica } = useSupabaseLogisticaTarefas({
     lojaId: lojaAtual?.id || '',
     dataInicio: new Date().toISOString().split('T')[0],
@@ -320,19 +324,22 @@ export default function NovoContratoV2() {
       };
     });
 
-    // Filtrar apenas DISPONIVEL e com estoque (para SALDO) e por busca
+    // Filtrar apenas DISPONIVEL e com estoque (para SALDO) e por busca.
+    // #13: exclui itens SERIALIZADOS já em contrato ATIVO/AGUARDANDO_ENTREGA
+    // mesmo se equipamentos.status_global estiver desatualizado.
     const filtrados = equipamentosLegacy.filter(e => {
       const statusDisponivel = e.status === 'DISPONIVEL';
+      const naoOcupado = e.controle === 'SERIALIZADO' ? !equipamentosOcupados.has(e.id) : true;
       const temEstoque = e.controle === 'SERIALIZADO' || (e.qtdDisponivel && e.qtdDisponivel > 0);
       const matchesSearch = 
         e.nome.toLowerCase().includes(searchEquipamento.toLowerCase()) || 
         e.codigo.toLowerCase().includes(searchEquipamento.toLowerCase()) || 
         e.grupo?.nome?.toLowerCase().includes(searchEquipamento.toLowerCase());
-      return statusDisponivel && temEstoque && matchesSearch;
+      return statusDisponivel && naoOcupado && temEstoque && matchesSearch;
     }).slice(0, 10);
 
     setEquipamentosFiltrados(filtrados);
-  }, [searchEquipamento, equipamentosSupabase, loadingEquipamentos, lojaAtual]);
+  }, [searchEquipamento, equipamentosSupabase, loadingEquipamentos, lojaAtual, equipamentosOcupados]);
 
   // Calcular total e aplicar política (derivado, sem loop)
   const valorTotalCalculado = useMemo(() => {

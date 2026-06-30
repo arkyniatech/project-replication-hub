@@ -19,6 +19,7 @@ import {
 import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
 import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
+import { useEquipamentosOcupados } from "@/hooks/useEquipamentosOcupados";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { StatusEquipamento } from "@/types/equipamentos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
@@ -49,15 +50,20 @@ const STATUS_LABELS: Record<StatusEquipamento, string> = {
 
 export default function EquipamentosLista() {
   const navigate = useNavigate();
-  const { lojaAtual } = useMultiunidade();
+  const { lojaAtual, lojas } = useMultiunidade();
   
   // Subscribe to transfer events for real-time KPI updates
   useTransferEvents();
   
-  // Fetch data from Supabase
-  const { equipamentos, isLoading: loadingEquipamentos } = useSupabaseEquipamentos(lojaAtual?.id);
+  // #26b: a lista mostrava só itens com loja_atual_id === lojaAtual, enquanto
+  // o catálogo mostrava todos — gerando relato "lista só mostra 059, mas
+  // catálogo mostra 3". Buscamos sem filtro de loja e exibimos badge de loja.
+  const { equipamentos, isLoading: loadingEquipamentos } = useSupabaseEquipamentos();
   const { grupos } = useSupabaseGrupos();
   const { modelos } = useSupabaseModelos();
+  // #26a: o KPI "Disponível" não descontava contratos ATIVO/AGUARDANDO_ENTREGA
+  // quando equipamentos.status_global estava desatualizado.
+  const { data: equipamentosOcupados = new Set<string>() } = useEquipamentosOcupados();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusEquipamento | "">("");
@@ -71,7 +77,18 @@ export default function EquipamentosLista() {
   });
 
 
-  // KPIs por status (considerando quantidades para tipo SALDO)
+  // Helper: effective status of an equipment, considering active contracts.
+  // #26a/#13: if status_global says DISPONIVEL but the equipment is tied to
+  // an active contract, we surface it as LOCADO.
+  const getEffectiveStatus = (eq: any): StatusEquipamento => {
+    const raw = (eq.status_global || 'DISPONIVEL') as StatusEquipamento;
+    if (eq.tipo === 'SERIALIZADO' && raw === 'DISPONIVEL' && equipamentosOcupados.has(eq.id)) {
+      return 'LOCADO';
+    }
+    return raw;
+  };
+
+  // KPIs por status (considerando quantidades para tipo SALDO e cross-ref de contratos)
   const disponibilidade = useMemo(() => {
     const kpis: Record<StatusEquipamento, number> = {
       DISPONIVEL: 0,
@@ -84,44 +101,35 @@ export default function EquipamentosLista() {
     };
 
     equipamentos.forEach(eq => {
-      if (eq.status_global && eq.loja_atual_id === lojaAtual?.id) {
-        // Para tipo SALDO, usar qtdDisponivel para disponível e ocupação para outros
-        if (eq.tipo === 'SALDO' && lojaAtual) {
-          const saldos = eq.saldos_por_loja as Record<string, { 
-            qtd: number; 
-            qtdDisponivel?: number 
-          }> || {};
-          
-          const qtdTotal = saldos[lojaAtual.id]?.qtd || 0;
-          const qtdDisponivel = saldos[lojaAtual.id]?.qtdDisponivel ?? qtdTotal;
-          const qtdOcupada = qtdTotal - qtdDisponivel;
-          
-          // Adicionar disponível separadamente
-          if (qtdDisponivel > 0) {
-            kpis['DISPONIVEL'] += qtdDisponivel;
-          }
-          
-          // Adicionar ocupado no status apropriado
-          if (qtdOcupada > 0) {
-            // Para SALDO, quando há ocupação, usar o status_global do equipamento
-            // Se for LOCADO, RESERVADO, etc, usar esse status
-            const statusOcupado = eq.status_global as StatusEquipamento;
-            if (statusOcupado !== 'DISPONIVEL') {
-              kpis[statusOcupado] += qtdOcupada;
-            } else {
-              // Se o status_global for DISPONIVEL mas tem ocupação, considerar como LOCADO
-              kpis['LOCADO'] += qtdOcupada;
-            }
-          }
-        } else {
-          // Para tipo SERIALIZADO, cada equipamento conta como 1
-          kpis[eq.status_global as StatusEquipamento]++;
+      if (!eq.status_global) return;
+      // Restringe KPIs à loja atual para evitar contagem multi-loja inflada.
+      if (lojaAtual && eq.loja_atual_id !== lojaAtual.id) return;
+
+      // Para tipo SALDO, usar qtdDisponivel para disponível e ocupação para outros
+      if (eq.tipo === 'SALDO' && lojaAtual) {
+        const saldos = eq.saldos_por_loja as Record<string, {
+          qtd: number;
+          qtdDisponivel?: number;
+        }> || {};
+
+        const qtdTotal = saldos[lojaAtual.id]?.qtd || 0;
+        const qtdDisponivel = saldos[lojaAtual.id]?.qtdDisponivel ?? qtdTotal;
+        const qtdOcupada = qtdTotal - qtdDisponivel;
+
+        if (qtdDisponivel > 0) kpis['DISPONIVEL'] += qtdDisponivel;
+        if (qtdOcupada > 0) {
+          const statusOcupado = eq.status_global as StatusEquipamento;
+          if (statusOcupado !== 'DISPONIVEL') kpis[statusOcupado] += qtdOcupada;
+          else kpis['LOCADO'] += qtdOcupada;
         }
+      } else {
+        // SERIALIZADO: cada equipamento conta como 1 sob seu status efetivo.
+        kpis[getEffectiveStatus(eq)]++;
       }
     });
 
     return kpis;
-  }, [equipamentos, lojaAtual]);
+  }, [equipamentos, lojaAtual, equipamentosOcupados]);
 
   // Equipamentos filtrados
   const filteredEquipamentos = useMemo(() => {
@@ -148,7 +156,7 @@ export default function EquipamentosLista() {
     }
 
     if (statusFilter) {
-      filtered = filtered.filter(eq => eq.status_global === statusFilter);
+      filtered = filtered.filter(eq => getEffectiveStatus(eq) === statusFilter);
     }
 
     if (grupoFilter) {
@@ -156,11 +164,11 @@ export default function EquipamentosLista() {
     }
 
     if (selectedStatus) {
-      filtered = filtered.filter(eq => eq.status_global === selectedStatus);
+      filtered = filtered.filter(eq => getEffectiveStatus(eq) === selectedStatus);
     }
 
     return filtered;
-  }, [equipamentos, searchTerm, statusFilter, grupoFilter, selectedStatus, grupos, modelos]);
+  }, [equipamentos, searchTerm, statusFilter, grupoFilter, selectedStatus, grupos, modelos, equipamentosOcupados]);
 
   const handleStatusKPIClick = (status: StatusEquipamento) => {
     if (selectedStatus === status) {
@@ -324,9 +332,22 @@ export default function EquipamentosLista() {
                           <Badge variant="outline" className="text-xs font-mono">
                             {formatCodigoExibicao({ ...equipamento, grupo_nome: grupo?.nome }) || equipamento.codigo_interno}
                           </Badge>
-                          <Badge className={STATUS_COLORS[equipamento.status_global as StatusEquipamento]}>
-                            {STATUS_LABELS[equipamento.status_global as StatusEquipamento]}
-                          </Badge>
+                          {(() => {
+                            const eff = getEffectiveStatus(equipamento);
+                            return (
+                              <Badge className={STATUS_COLORS[eff]}>
+                                {STATUS_LABELS[eff]}
+                              </Badge>
+                            );
+                          })()}
+                          {(() => {
+                            const lojaDoItem = lojas.find(l => l.id === equipamento.loja_atual_id);
+                            return lojaDoItem ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {lojaDoItem.nome}
+                              </Badge>
+                            ) : null;
+                          })()}
                         </div>
                         
                         <p className="text-sm text-muted-foreground">
