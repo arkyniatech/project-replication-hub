@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ItemFatura } from "@/types";
 import { APP_CONFIG } from "@/config/app";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { formatDateBR } from "@/lib/date-utils";
 
 export default function FaturasTab() {
   const [cliente, setCliente] = useState("");
@@ -55,9 +56,7 @@ export default function FaturasTab() {
     );
   }, [faturas, searchTerm]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateString: string) => formatDateBR(dateString);
 
   const adicionarItem = () => {
     const novoItem: ItemFatura = {

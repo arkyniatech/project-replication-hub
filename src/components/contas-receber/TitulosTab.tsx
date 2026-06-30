@@ -15,6 +15,7 @@ import { AgruparFaturaModal } from "./AgruparFaturaModal";
 import { EmitirBolePixModal } from "@/components/bolepix/EmitirBolePixModal";
 import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
 import { toast as sonnerToast } from "sonner";
+import { formatDateBR } from "@/lib/date-utils";
 
 export default function TitulosTab() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -135,9 +136,7 @@ export default function TitulosTab() {
     return statusMap[status] || { label: status, value: status, color: 'secondary' as const };
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateString: string) => formatDateBR(dateString);
 
   const calcularDiasVencimento = (dataVencimento: string) => {
     const hoje = new Date();

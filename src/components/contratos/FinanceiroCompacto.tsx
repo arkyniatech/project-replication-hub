@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertTriangle, CreditCard, FileText, ChevronUp, ChevronDown, AlertCircle, Circle } from "lucide-react";
 import { useState, useMemo } from "react";
+import { formatDateBR } from "@/lib/date-utils";
 
 interface Recebimento {
   valor: number;
@@ -87,9 +88,7 @@ export function FinanceiroCompacto({
     return variants[status];
   };
 
-  const formatDate = (dateISO: string) => {
-    return new Date(dateISO).toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateISO: string) => formatDateBR(dateISO);
 
   const formatDateTime = (dateISO: string) => {
     return new Date(dateISO).toLocaleString('pt-BR');

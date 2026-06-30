@@ -320,7 +320,7 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
           </Card>
 
           {/* Ações */}
-          <div className="flex items-center justify-between pt-4 border-t">
+          <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex items-center justify-between border-t bg-background px-6 py-4">
             <Button variant="outline" onClick={onClose}>
               Cancelar
             </Button>

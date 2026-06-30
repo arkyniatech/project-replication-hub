@@ -6,6 +6,7 @@ import { Search, Download } from "lucide-react";
 import { useSupabaseRecebimentos } from "@/hooks/useSupabaseRecebimentos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateBR } from "@/lib/date-utils";
 
 export default function RecebidasTab() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,9 +51,7 @@ export default function RecebidasTab() {
     return filtered.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
   }, [recebimentosData, searchTerm, formaFilter, dataInicio, dataFim]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateString: string) => formatDateBR(dateString);
 
   const handleExportarCSV = () => {
     // Mock da exportação
