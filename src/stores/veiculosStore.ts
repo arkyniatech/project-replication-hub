@@ -368,7 +368,7 @@ export const useVeiculosStore = create<VeiculosState>()(
         const flags: string[] = [];
         let km_percorrido = 0;
         let km_por_l = 0;
-        let custo_por_km = 0;
+        const custo_por_km = 0;
 
         if (ultimo) {
           km_percorrido = kmAtual - ultimo.km_atual;

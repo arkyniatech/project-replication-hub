@@ -166,7 +166,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
 
   // Auto-preenchimento de endereço por CEP
   const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = formatCEP(e.target.value);
+    const value = formatCEP(e.target.value);
     setValue('endereco.cep', value);
     
     if (validateCEP(value)) {

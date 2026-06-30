@@ -40,7 +40,7 @@ export const getRelatorioEficiencia = (filtros: {
 
     // Determinar flags usando configurações
     const configStore = useVeiculosConfigStore.getState();
-    let flags = [];
+    const flags = [];
     
     if (configStore.isKmAtipico(abast.km_percorrido)) {
       flags.push('KM Atípico');

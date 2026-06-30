@@ -107,7 +107,7 @@ export default function ContagemAlmox() {
     if (!lojaAtual) return;
 
     // Filtrar itens baseado nos critérios
-    let itensParaContagem = catalogoItens.filter(item => {
+    const itensParaContagem = catalogoItens.filter(item => {
       if (!can('almox:patrimonial') && item.tipo === 'PATRIMONIAL') return false;
       if (novaContagemForm.tipo !== 'TODOS' && item.tipo !== novaContagemForm.tipo) return false;
       if (novaContagemForm.grupo && item.grupo !== novaContagemForm.grupo) return false;

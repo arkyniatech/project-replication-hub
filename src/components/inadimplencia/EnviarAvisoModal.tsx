@@ -29,7 +29,7 @@ export default function EnviarAvisoModal({ open, onOpenChange, clienteId, titulo
   // Gerar mensagem padrão quando modal abre
   useEffect(() => {
     if (open && cliente) {
-      let template = MENSAGEM_TEMPLATES.COBRANCA_VENCIDO;
+      const template = MENSAGEM_TEMPLATES.COBRANCA_VENCIDO;
       
       const payload = {
         cliente: cliente.nomeRazao,
