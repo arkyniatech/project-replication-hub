@@ -77,7 +77,18 @@ export default function EquipamentosLista() {
   });
 
 
-  // KPIs por status (considerando quantidades para tipo SALDO)
+  // Helper: effective status of an equipment, considering active contracts.
+  // #26a/#13: if status_global says DISPONIVEL but the equipment is tied to
+  // an active contract, we surface it as LOCADO.
+  const getEffectiveStatus = (eq: any): StatusEquipamento => {
+    const raw = (eq.status_global || 'DISPONIVEL') as StatusEquipamento;
+    if (eq.tipo === 'SERIALIZADO' && raw === 'DISPONIVEL' && equipamentosOcupados.has(eq.id)) {
+      return 'LOCADO';
+    }
+    return raw;
+  };
+
+  // KPIs por status (considerando quantidades para tipo SALDO e cross-ref de contratos)
   const disponibilidade = useMemo(() => {
     const kpis: Record<StatusEquipamento, number> = {
       DISPONIVEL: 0,
@@ -90,44 +101,35 @@ export default function EquipamentosLista() {
     };
 
     equipamentos.forEach(eq => {
-      if (eq.status_global && eq.loja_atual_id === lojaAtual?.id) {
-        // Para tipo SALDO, usar qtdDisponivel para disponível e ocupação para outros
-        if (eq.tipo === 'SALDO' && lojaAtual) {
-          const saldos = eq.saldos_por_loja as Record<string, { 
-            qtd: number; 
-            qtdDisponivel?: number 
-          }> || {};
-          
-          const qtdTotal = saldos[lojaAtual.id]?.qtd || 0;
-          const qtdDisponivel = saldos[lojaAtual.id]?.qtdDisponivel ?? qtdTotal;
-          const qtdOcupada = qtdTotal - qtdDisponivel;
-          
-          // Adicionar disponível separadamente
-          if (qtdDisponivel > 0) {
-            kpis['DISPONIVEL'] += qtdDisponivel;
-          }
-          
-          // Adicionar ocupado no status apropriado
-          if (qtdOcupada > 0) {
-            // Para SALDO, quando há ocupação, usar o status_global do equipamento
-            // Se for LOCADO, RESERVADO, etc, usar esse status
-            const statusOcupado = eq.status_global as StatusEquipamento;
-            if (statusOcupado !== 'DISPONIVEL') {
-              kpis[statusOcupado] += qtdOcupada;
-            } else {
-              // Se o status_global for DISPONIVEL mas tem ocupação, considerar como LOCADO
-              kpis['LOCADO'] += qtdOcupada;
-            }
-          }
-        } else {
-          // Para tipo SERIALIZADO, cada equipamento conta como 1
-          kpis[eq.status_global as StatusEquipamento]++;
+      if (!eq.status_global) return;
+      // Restringe KPIs à loja atual para evitar contagem multi-loja inflada.
+      if (lojaAtual && eq.loja_atual_id !== lojaAtual.id) return;
+
+      // Para tipo SALDO, usar qtdDisponivel para disponível e ocupação para outros
+      if (eq.tipo === 'SALDO' && lojaAtual) {
+        const saldos = eq.saldos_por_loja as Record<string, {
+          qtd: number;
+          qtdDisponivel?: number;
+        }> || {};
+
+        const qtdTotal = saldos[lojaAtual.id]?.qtd || 0;
+        const qtdDisponivel = saldos[lojaAtual.id]?.qtdDisponivel ?? qtdTotal;
+        const qtdOcupada = qtdTotal - qtdDisponivel;
+
+        if (qtdDisponivel > 0) kpis['DISPONIVEL'] += qtdDisponivel;
+        if (qtdOcupada > 0) {
+          const statusOcupado = eq.status_global as StatusEquipamento;
+          if (statusOcupado !== 'DISPONIVEL') kpis[statusOcupado] += qtdOcupada;
+          else kpis['LOCADO'] += qtdOcupada;
         }
+      } else {
+        // SERIALIZADO: cada equipamento conta como 1 sob seu status efetivo.
+        kpis[getEffectiveStatus(eq)]++;
       }
     });
 
     return kpis;
-  }, [equipamentos, lojaAtual]);
+  }, [equipamentos, lojaAtual, equipamentosOcupados]);
 
   // Equipamentos filtrados
   const filteredEquipamentos = useMemo(() => {
