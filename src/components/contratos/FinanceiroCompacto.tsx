@@ -88,9 +88,7 @@ export function FinanceiroCompacto({
     return variants[status];
   };
 
-  const formatDate = (dateISO: string) => {
-    return new Date(dateISO).toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateISO: string) => formatDateBR(dateISO);
 
   const formatDateTime = (dateISO: string) => {
     return new Date(dateISO).toLocaleString('pt-BR');
