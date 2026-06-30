@@ -50,15 +50,20 @@ const STATUS_LABELS: Record<StatusEquipamento, string> = {
 
 export default function EquipamentosLista() {
   const navigate = useNavigate();
-  const { lojaAtual } = useMultiunidade();
+  const { lojaAtual, lojas } = useMultiunidade();
   
   // Subscribe to transfer events for real-time KPI updates
   useTransferEvents();
   
-  // Fetch data from Supabase
-  const { equipamentos, isLoading: loadingEquipamentos } = useSupabaseEquipamentos(lojaAtual?.id);
+  // #26b: a lista mostrava só itens com loja_atual_id === lojaAtual, enquanto
+  // o catálogo mostrava todos — gerando relato "lista só mostra 059, mas
+  // catálogo mostra 3". Buscamos sem filtro de loja e exibimos badge de loja.
+  const { equipamentos, isLoading: loadingEquipamentos } = useSupabaseEquipamentos();
   const { grupos } = useSupabaseGrupos();
   const { modelos } = useSupabaseModelos();
+  // #26a: o KPI "Disponível" não descontava contratos ATIVO/AGUARDANDO_ENTREGA
+  // quando equipamentos.status_global estava desatualizado.
+  const { data: equipamentosOcupados = new Set<string>() } = useEquipamentosOcupados();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusEquipamento | "">("");
