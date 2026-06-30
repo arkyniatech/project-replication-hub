@@ -750,6 +750,20 @@ export default function NovoContratoV2() {
       const dataFimCalculada = calcularDataFimContrato(contrato.entrega.data, contrato.itens);
       console.log('[FINALIZACAO] Data de fim calculada:', dataFimCalculada);
 
+      // Recalcular total via função pura (evita memo stale e expõe a regra
+      // itens + frete [+ política] de forma testável)
+      const valorFreteFinal = contrato.taxaDeslocamento?.aplicar
+        ? (contrato.taxaDeslocamento.valor || 0)
+        : 0;
+      const totalFinal = calcularTotalContrato({
+        itens: contrato.itens.map(i => ({
+          quantidade: i.quantidade,
+          valorUnitario: i.valorUnitario,
+        })),
+        frete: valorFreteFinal,
+        totalComDescontoPolitica: politicaAplicada?.totalComDesconto ?? null,
+      });
+
       // Preparar dados do contrato para Supabase
       const contratoData = {
         numero: numeroContrato.toString(),
@@ -759,12 +773,17 @@ export default function NovoContratoV2() {
         data_inicio: contrato.entrega.data,
         data_prevista_fim: dataFimCalculada,
         data_fim: null,
-        valor_total: valorTotalCalculado,
+        valor_total: totalFinal,
         valor_pago: 0,
-        valor_pendente: valorTotalCalculado,
+        valor_pendente: totalFinal,
         status: 'AGUARDANDO_ENTREGA',
         forma_pagamento: contrato.pagamento.forma,
-        logistica: contrato.entrega,
+        // #12.2(b): persistir frete junto da logística para aparecer no detalhe/PDF
+        logistica: {
+          ...contrato.entrega,
+          taxaDeslocamento: contrato.taxaDeslocamento ?? null,
+          frete: valorFreteFinal,
+        },
         condicoes_pagamento: {
           forma: contrato.pagamento.forma,
           vencimento: contrato.pagamento.vencimentoISO,
@@ -781,6 +800,7 @@ export default function NovoContratoV2() {
         }],
         ativo: true
       };
+
 
       console.log('[FINALIZACAO] Dados do contrato preparados para Supabase');
       console.log('[FINALIZACAO] Status sendo enviado:', JSON.stringify(contratoData.status));
