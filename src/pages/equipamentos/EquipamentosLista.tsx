@@ -332,9 +332,22 @@ export default function EquipamentosLista() {
                           <Badge variant="outline" className="text-xs font-mono">
                             {formatCodigoExibicao({ ...equipamento, grupo_nome: grupo?.nome }) || equipamento.codigo_interno}
                           </Badge>
-                          <Badge className={STATUS_COLORS[equipamento.status_global as StatusEquipamento]}>
-                            {STATUS_LABELS[equipamento.status_global as StatusEquipamento]}
-                          </Badge>
+                          {(() => {
+                            const eff = getEffectiveStatus(equipamento);
+                            return (
+                              <Badge className={STATUS_COLORS[eff]}>
+                                {STATUS_LABELS[eff]}
+                              </Badge>
+                            );
+                          })()}
+                          {(() => {
+                            const lojaDoItem = lojas.find(l => l.id === equipamento.loja_atual_id);
+                            return lojaDoItem ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {lojaDoItem.nome}
+                              </Badge>
+                            ) : null;
+                          })()}
                         </div>
                         
                         <p className="text-sm text-muted-foreground">
