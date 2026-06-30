@@ -156,7 +156,7 @@ export default function EquipamentosLista() {
     }
 
     if (statusFilter) {
-      filtered = filtered.filter(eq => eq.status_global === statusFilter);
+      filtered = filtered.filter(eq => getEffectiveStatus(eq) === statusFilter);
     }
 
     if (grupoFilter) {
@@ -164,11 +164,11 @@ export default function EquipamentosLista() {
     }
 
     if (selectedStatus) {
-      filtered = filtered.filter(eq => eq.status_global === selectedStatus);
+      filtered = filtered.filter(eq => getEffectiveStatus(eq) === selectedStatus);
     }
 
     return filtered;
-  }, [equipamentos, searchTerm, statusFilter, grupoFilter, selectedStatus, grupos, modelos]);
+  }, [equipamentos, searchTerm, statusFilter, grupoFilter, selectedStatus, grupos, modelos, equipamentosOcupados]);
 
   const handleStatusKPIClick = (status: StatusEquipamento) => {
     if (selectedStatus === status) {
