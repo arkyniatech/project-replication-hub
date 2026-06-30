@@ -69,9 +69,11 @@ const DialogFooter = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
+  // Sticky footer so the confirm button always stays visible even when
+  // the dialog body is taller than the viewport (tickets #17, #18, #21, #24).
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "sticky bottom-0 -mx-6 -mb-6 mt-2 flex flex-col-reverse gap-2 border-t bg-background px-6 py-4 sm:flex-row sm:justify-end sm:space-x-2 sm:gap-0",
       className
     )}
     {...props}
