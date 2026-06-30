@@ -27,14 +27,7 @@ export default defineConfig(({ mode }) => ({
     setupFiles: './src/__tests__/setupTests.ts',
     css: true,
     reporters: ['verbose'],
-    coverage: {
-      enabled: false,
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        '**/*.tsx',
-        ...configDefaults.exclude,
-      ],
-    },
+    // Coverage desabilitado por padrão (requer @vitest/coverage-v8).
+    // Habilite via flag: `npx vitest run --coverage` após instalar a dep.
   },
 }));
