@@ -20,7 +20,6 @@ import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
 import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
 import { useEquipamentosOcupados } from "@/hooks/useEquipamentosOcupados";
-import { useSupabaseLojas } from "@/hooks/useSupabaseLojas";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { StatusEquipamento } from "@/types/equipamentos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
