@@ -71,7 +71,7 @@ function generateNumber(tipo: keyof SeriesConfig['tipos'], unidade: string = "MA
   }
   
   const counterKey = generateCounterKey(tipo, tipoConfig, unidade);
-  let currentCounter = config.counters[counterKey] || tipoConfig.proximo || 1;
+  const currentCounter = config.counters[counterKey] || tipoConfig.proximo || 1;
   
   // Gerar número com tokens
   const now = new Date();

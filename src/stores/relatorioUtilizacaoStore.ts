@@ -227,7 +227,7 @@ export const useRelatorioUtilizacaoStore = create<RelatorioUtilizacaoState>()(
         const lojaNome = loja?.nome || 'Loja Principal';
         
         // Filtrar equipamentos
-        let equipamentosFiltrados = equipamentos.filter(e => {
+        const equipamentosFiltrados = equipamentos.filter(e => {
           if (filtros.tipoControle !== 'TODOS') {
             const tipoEquip = e.tipo === 'SERIALIZADO' ? 'SERIE' : 'SALDO';
             if (tipoEquip !== filtros.tipoControle) return false;

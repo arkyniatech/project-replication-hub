@@ -35,7 +35,7 @@ export interface ResultadoPolitica {
  * Ajusta uma data para o dia desejado, respeitando o último dia do mês
  */
 function safeDate(baseDate: Date, targetDay: number, monthShift: number): string {
-  let targetDate = addMonths(baseDate, monthShift);
+  const targetDate = addMonths(baseDate, monthShift);
   const lastDay = lastDayOfMonth(targetDate).getDate();
   const finalDay = Math.min(targetDay, lastDay);
   

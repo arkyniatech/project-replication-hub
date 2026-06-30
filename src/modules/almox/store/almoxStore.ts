@@ -125,7 +125,7 @@ interface AlmoxState {
   getRupturasMes: (lojaId?: string) => number;
 }
 
-let contadorItem = 1;
+const contadorItem = 1;
 let contadorSessao = 1;
 
 export const useAlmoxStore = create<AlmoxState>()(
