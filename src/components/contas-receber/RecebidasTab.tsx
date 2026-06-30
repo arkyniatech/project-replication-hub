@@ -6,6 +6,7 @@ import { Search, Download } from "lucide-react";
 import { useSupabaseRecebimentos } from "@/hooks/useSupabaseRecebimentos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateBR } from "@/lib/date-utils";
 
 export default function RecebidasTab() {
   const [searchTerm, setSearchTerm] = useState("");
