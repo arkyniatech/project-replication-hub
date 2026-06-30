@@ -30,6 +30,7 @@ import { ContratoResumoPreview } from "@/components/contratos/ContratoResumoPrev
 import { SeletorObraModal } from "@/components/contratos/SeletorObraModal";
 import { useSupabaseClientes } from "@/hooks/useSupabaseClientes";
 import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
+import { useEquipamentosOcupados } from "@/hooks/useEquipamentosOcupados";
 import { useSupabaseLogisticaTarefas } from "@/hooks/useSupabaseLogisticaTarefas";
 import { supabaseClienteToLegacy } from "@/lib/cliente-adapter";
 import { TaxaDeslocamentoService } from "@/services/taxaDeslocamentoService";
