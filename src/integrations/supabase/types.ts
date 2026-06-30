@@ -1380,6 +1380,63 @@ export type Database = {
           },
         ]
       }
+      logistica_motoristas: {
+        Row: {
+          ativo: boolean
+          categoria_cnh: string | null
+          cnh: string | null
+          created_at: string
+          id: string
+          loja_id: string
+          nome: string
+          pessoa_id: string | null
+          telefone: string | null
+          updated_at: string
+          vencimento_cnh: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          categoria_cnh?: string | null
+          cnh?: string | null
+          created_at?: string
+          id?: string
+          loja_id: string
+          nome: string
+          pessoa_id?: string | null
+          telefone?: string | null
+          updated_at?: string
+          vencimento_cnh?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          categoria_cnh?: string | null
+          cnh?: string | null
+          created_at?: string
+          id?: string
+          loja_id?: string
+          nome?: string
+          pessoa_id?: string | null
+          telefone?: string | null
+          updated_at?: string
+          vencimento_cnh?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logistica_motoristas_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "logistica_motoristas_pessoa_id_fkey"
+            columns: ["pessoa_id"]
+            isOneToOne: false
+            referencedRelation: "pessoas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       logistica_tarefas: {
         Row: {
           cliente_id: string | null
@@ -1464,6 +1521,53 @@ export type Database = {
           },
           {
             foreignKeyName: "logistica_tarefas_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      logistica_veiculos: {
+        Row: {
+          ano: number | null
+          ativo: boolean
+          capacidade_kg: number | null
+          capacidade_m3: number | null
+          created_at: string
+          id: string
+          loja_id: string
+          modelo: string
+          placa: string
+          updated_at: string
+        }
+        Insert: {
+          ano?: number | null
+          ativo?: boolean
+          capacidade_kg?: number | null
+          capacidade_m3?: number | null
+          created_at?: string
+          id?: string
+          loja_id: string
+          modelo: string
+          placa: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number | null
+          ativo?: boolean
+          capacidade_kg?: number | null
+          capacidade_m3?: number | null
+          created_at?: string
+          id?: string
+          loja_id?: string
+          modelo?: string
+          placa?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logistica_veiculos_loja_id_fkey"
             columns: ["loja_id"]
             isOneToOne: false
             referencedRelation: "lojas"
