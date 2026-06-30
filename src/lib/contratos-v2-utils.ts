@@ -53,11 +53,19 @@ export function precoTabela(equipamento: Equipamento, periodo: 'DIARIA' | 'SEMAN
   // Verificação de segurança para tabela
   if (!equipamento.tabela) {
     console.warn('Equipamento sem tabela de preços:', equipamento.codigo, equipamento.nome);
-    // Fallback para precos antigos
+    // Fallback para precos antigos. Para QUINZENA e 21DIAS (que não existem
+    // no schema legado `precos`), derivamos um valor coerente a partir
+    // do semanal ou diário disponível, evitando retornar 0 silenciosamente.
+    const p = equipamento.precos || {};
+    const diaria = p.diaria ?? p.diario ?? 0;
+    const semana = p.semana ?? p.semanal ?? 0;
+    const mes = p.mes ?? p.mensal ?? 0;
     switch (periodo) {
-      case 'DIARIA': return equipamento.precos?.diaria || 0;
-      case 'SEMANA': return equipamento.precos?.semana || 0;
-      case 'MES': return equipamento.precos?.mes || 0;
+      case 'DIARIA': return diaria;
+      case 'SEMANA': return semana || diaria * 7;
+      case 'QUINZENA': return semana ? semana * 2 : diaria ? diaria * 15 : 0;
+      case '21DIAS': return semana ? semana * 3 : diaria ? diaria * 21 : 0;
+      case 'MES': return mes || semana * 4 || diaria * 30;
       default: return 0;
     }
   }
@@ -71,6 +79,7 @@ export function precoTabela(equipamento: Equipamento, periodo: 'DIARIA' | 'SEMAN
     default: return 0;
   }
 }
+
 
 // Calcular encerramento sem pró-rata (simulação)
 export function calcularEncerramentoSemProrata(
