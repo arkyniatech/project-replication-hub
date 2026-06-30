@@ -984,15 +984,11 @@ export default function NovoContratoV2() {
         // Não bloquear a criação do contrato por erro na logística
       }
 
-      // Gerar título no Supabase (Contas a Receber)
       try {
-        const valorFreteTitulo = contrato.taxaDeslocamento?.aplicar
-          ? (contrato.taxaDeslocamento.valor || 0)
-          : 0;
-        const subtotalItensTitulo = contrato.itens.reduce((s, i) => s + (i.subtotal || 0), 0);
-        const valorTituloFinal = (valorTotalCalculado && valorTotalCalculado > 0)
-          ? valorTotalCalculado
-          : subtotalItensTitulo + valorFreteTitulo;
+        // Reaproveita totalFinal calculado acima (itens + frete [+ política])
+        const valorTituloFinal = totalFinal > 0
+          ? totalFinal
+          : contrato.itens.reduce((s, i) => s + (i.subtotal || 0), 0) + valorFreteFinal;
 
         const vencimentoIso = contrato.pagamento?.vencimentoISO || new Date().toISOString();
 
@@ -1001,17 +997,20 @@ export default function NovoContratoV2() {
           loja_id: contrato.lojaId,
           cliente_id: contrato.clienteId,
           contrato_id: contratoSupabase.id,
-          categoria: 'LOCACAO',
+          // #16: usar os MESMOS valores enumerados que o restante do app filtra
+          // (Contas a Receber, KPIs e chips usam 'Locação' / 'EM_ABERTO').
+          categoria: 'Locação',
           subcategoria: contrato.pagamento?.forma || null,
           vencimento: vencimentoIso,
           valor: valorTituloFinal,
           saldo: valorTituloFinal,
           pago: 0,
-          status: 'ABERTO',
+          status: 'EM_ABERTO',
           origem: 'CONTRATO',
           forma: contrato.pagamento?.forma || null,
           observacoes: `Locação - Contrato ${numeroContrato}`,
         };
+
 
         const { error: tituloError } = await supabase
           .from('titulos')
