@@ -11,7 +11,10 @@ import {
   agruparCobrancaCliente,
   calcularEncerramentoSemProrata,
   sugerirHorarios,
+  calcularSubtotalItens,
+  calcularTotalContrato,
 } from '../contratos-v2-utils';
+
 
 // ------------------ Helpers / Fixtures ------------------
 
