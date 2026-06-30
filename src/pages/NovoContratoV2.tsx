@@ -114,6 +114,9 @@ export default function NovoContratoV2() {
   // Hooks do Supabase
   const { clientes: clientesSupabase, isLoading: loadingClientes, useCliente } = useSupabaseClientes(lojaAtual?.id);
   const { equipamentos: equipamentosSupabase, isLoading: loadingEquipamentos } = useSupabaseEquipamentos(lojaAtual?.id);
+  // #13: cross-reference contratos ATIVO/AGUARDANDO_ENTREGA p/ esconder itens
+  // já alugados mesmo quando equipamentos.status_global está desatualizado.
+  const { data: equipamentosOcupados = new Set<string>() } = useEquipamentosOcupados(lojaAtual?.id);
   const { createTarefa: createTarefaLogistica } = useSupabaseLogisticaTarefas({
     lojaId: lojaAtual?.id || '',
     dataInicio: new Date().toISOString().split('T')[0],
