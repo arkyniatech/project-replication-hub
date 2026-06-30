@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 const originalConsoleError = console.error;
 console.error = (...args) => {
   // Suprimir erros conhecidos ou específicos se desejar
-  if (args[0].includes('Não-react-router-dom')) {
+  if (typeof args[0] === 'string' && args[0].includes('Não-react-router-dom')) {
     return;
   }
   originalConsoleError(...args);

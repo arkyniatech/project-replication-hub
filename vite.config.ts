@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/setupTests.ts',
+    setupFiles: './src/__tests__/setupTests.ts',
     css: true,
     reporters: ['verbose'],
     coverage: {
