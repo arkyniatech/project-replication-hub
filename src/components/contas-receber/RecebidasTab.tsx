@@ -51,9 +51,7 @@ export default function RecebidasTab() {
     return filtered.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
   }, [recebimentosData, searchTerm, formaFilter, dataInicio, dataFim]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  const formatDate = (dateString: string) => formatDateBR(dateString);
 
   const handleExportarCSV = () => {
     // Mock da exportação
