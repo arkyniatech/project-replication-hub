@@ -314,10 +314,11 @@ export default function NovoContratoV2() {
         ativo: eq.ativo,
         tabela: tabelaLoja,
         precos: {
-          diaria: tabelaLoja.diaria || 0,
-          semana: tabelaLoja['7'] || 0,
-          mes: tabelaLoja['28'] || 0
+          diaria: tabelaLoja.DIARIA ?? tabelaLoja.diaria ?? 0,
+          semana: tabelaLoja.SEMANA ?? tabelaLoja['7'] ?? 0,
+          mes: tabelaLoja.MES ?? tabelaLoja['28'] ?? 0
         },
+
         lojaId: eq.loja_atual_id,
         createdAt: eq.created_at,
         updatedAt: eq.updated_at
