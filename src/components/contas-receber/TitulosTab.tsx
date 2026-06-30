@@ -15,6 +15,7 @@ import { AgruparFaturaModal } from "./AgruparFaturaModal";
 import { EmitirBolePixModal } from "@/components/bolepix/EmitirBolePixModal";
 import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
 import { toast as sonnerToast } from "sonner";
+import { formatDateBR } from "@/lib/date-utils";
 
 export default function TitulosTab() {
   const [searchTerm, setSearchTerm] = useState("");
