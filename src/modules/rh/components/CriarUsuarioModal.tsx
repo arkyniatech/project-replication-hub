@@ -277,7 +277,9 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
 
       toast({
         title: 'Usuário criado com sucesso!',
-        description: `Acesso criado para ${pessoa.nome}. Senha temporária gerada automaticamente.`,
+        description: senhaManual
+          ? `Acesso criado para ${pessoa.nome}. Use a senha definida no formulário para o primeiro login.`
+          : `Acesso criado para ${pessoa.nome}. Uma senha temporária foi gerada — anote e repasse ao usuário.`,
       });
 
       onOpenChange(false);
@@ -290,6 +292,9 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       setLojaPadrao('');
       setTwoFA(false);
       setExigeTrocaSenha(true);
+      setSenhaManual(false);
+      setSenha('');
+      setConfirmarSenha('');
     } catch (error: any) {
       console.error('❌ Erro ao criar usuário:', error);
       console.error('Error code:', error.code);
