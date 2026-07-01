@@ -508,13 +508,28 @@ export default function ContratoDetalhes() {
   // Montar dados para PDF/Preview
   const montarDadosPDF = () => {
     if (!contrato) return null;
+    // Endereço de entrega: prioridade obra → logística → cliente
+    const enderecoEntrega =
+      (contrato.obra as any)?.endereco
+      || (contrato.logistica as any)?.endereco
+      || (contrato.logistica as any)?.entrega?.endereco
+      || contrato.cliente.endereco;
+
+    // Ordena itens pelo código canônico para respeitar a ordem existente do sistema
+    const itensOrdenados = [...contrato.itens].sort((a: any, b: any) => {
+      const ca = String(a.equipamento?.codigo || '');
+      const cb = String(b.equipamento?.codigo || '');
+      return ca.localeCompare(cb, 'pt-BR', { numeric: true });
+    });
+
     return {
       cliente: {
         nomeRazao: contrato.cliente.nomeRazao,
         documento: contrato.cliente.documento,
         endereco: contrato.cliente.endereco,
       },
-      itens: contrato.itens.map((item: any) => ({
+      enderecoEntrega,
+      itens: itensOrdenados.map((item: any) => ({
         equipamento: {
           nome: item.equipamento?.nome || item.modelo?.nome || item.grupo?.nome || 'Equipamento',
           codigo: item.equipamento?.codigo || '',
@@ -533,6 +548,7 @@ export default function ContratoDetalhes() {
         forma: contrato.formaPagamento || 'PIX',
         vencimentoISO: contrato.dataInicio,
       },
+      valorFrete: (contrato.logistica as any)?.taxaDeslocamento?.valor || 0,
       valorTotal: contrato.valorTotal,
     };
   };
