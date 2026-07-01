@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { UserCog, Shield, Building2, Save, X } from 'lucide-react';
+import { UserCog, Shield, Building2, Save, X, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseUserProfiles, UserProfile } from '../hooks/useSupabaseUserProfiles';
 import { useSupabaseUserRoles, AppRole } from '../hooks/useSupabaseUserRoles';
 import { useSupabaseUserLojas } from '../hooks/useSupabaseUserLojas';
@@ -46,6 +47,11 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
   const [exigeTrocaSenha, setExigeTrocaSenha] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Senha temporária
+  const [novaSenha, setNovaSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [savingSenha, setSavingSenha] = useState(false);
+
   // Buscar perfil de usuário vinculado à pessoa
   useEffect(() => {
     const profile = profiles.find(p => p.pessoa_id === pessoa.id);
@@ -55,17 +61,19 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
       setLojaPadrao(profile.loja_padrao_id || '');
       setTwoFaEnabled(profile.two_fa_enabled);
       setExigeTrocaSenha(profile.exige_troca_senha);
-      
-      // Buscar roles e lojas do usuário
       fetchUserRolesAndLojas(profile.id);
     }
   }, [profiles, pessoa.id]);
 
   const fetchUserRolesAndLojas = async (userId: string) => {
-    // Esta função seria implementada para buscar as roles e lojas do usuário
-    // Por enquanto, vamos apenas setar valores vazios
-    setSelectedRoles([]);
-    setSelectedLojas([]);
+    const [{ data: rolesData, error: rolesErr }, { data: lojasData, error: lojasErr }] = await Promise.all([
+      supabase.from('user_roles').select('role').eq('user_id', userId),
+      supabase.from('user_lojas_permitidas').select('loja_id').eq('user_id', userId),
+    ]);
+    if (rolesErr) console.error('Erro ao carregar roles:', rolesErr);
+    if (lojasErr) console.error('Erro ao carregar lojas:', lojasErr);
+    setSelectedRoles((rolesData || []).map((r: any) => r.role as AppRole));
+    setSelectedLojas((lojasData || []).map((l: any) => l.loja_id as string));
   };
 
   const handleToggleRole = (role: AppRole) => {
@@ -150,15 +158,52 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
         title: 'Sucesso',
         description: 'Acesso atualizado com sucesso!',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar acesso:', error);
       toast({
         title: 'Erro',
-        description: 'Falha ao atualizar acesso. Tente novamente.',
+        description: `Falha ao atualizar acesso: ${error?.message || 'erro desconhecido'}`,
         variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDefinirSenha = async () => {
+    if (!userProfile) return;
+    if (!novaSenha || novaSenha.length < 8) {
+      toast({
+        title: 'Senha inválida',
+        description: 'A senha deve ter no mínimo 8 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSavingSenha(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-user-password', {
+        body: {
+          user_id: userProfile.id,
+          password: novaSenha,
+          exige_troca_senha: exigeTrocaSenha,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: 'Senha definida',
+        description: 'Nova senha aplicada. Compartilhe com o usuário com segurança.',
+      });
+      setNovaSenha('');
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: `Não foi possível definir a senha: ${err?.message || 'erro'}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingSenha(false);
     }
   };
 
@@ -230,6 +275,61 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Senha Temporária */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5" />
+            Definir Senha Temporária
+          </CardTitle>
+          <CardDescription>
+            Defina manualmente uma nova senha para este usuário. Recomenda-se marcar "Exigir troca no próximo login".
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                type={mostrarSenha ? 'text' : 'password'}
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                const gerada = Array.from(crypto.getRandomValues(new Uint8Array(9)))
+                  .map((b) => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'[b % 56])
+                  .join('');
+                setNovaSenha(gerada);
+                setMostrarSenha(true);
+              }}
+            >
+              Gerar
+            </Button>
+            <Button type="button" onClick={handleDefinirSenha} disabled={savingSenha || !novaSenha}>
+              {savingSenha ? 'Aplicando...' : 'Aplicar Senha'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            A senha é aplicada imediatamente. Compartilhe-a com o usuário por um canal seguro.
+          </p>
+        </CardContent>
+      </Card>
+
+
 
       {/* Perfis de Acesso (Roles) */}
       <Card>
