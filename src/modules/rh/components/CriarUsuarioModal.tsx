@@ -23,28 +23,9 @@ interface CriarUsuarioModalProps {
   pessoa: Pessoa | null;
 }
 
-const ALL_ROLES: { value: AppRole; label: string; color: string; masterOnly?: boolean }[] = [
-  { value: 'master' as AppRole, label: 'Master', color: 'bg-black', masterOnly: true },
-  { value: 'admin' as AppRole, label: 'Admin', color: 'bg-red-500' },
-  { value: 'gerente' as AppRole, label: 'Gerente', color: 'bg-purple-500' },
-  { value: 'rh' as AppRole, label: 'RH', color: 'bg-blue-500' },
-  { value: 'financeiro' as AppRole, label: 'Financeiro', color: 'bg-green-500' },
-  { value: 'vendedor' as AppRole, label: 'Vendedor', color: 'bg-yellow-500' },
-  { value: 'operacao' as AppRole, label: 'Operação', color: 'bg-orange-500' },
-  { value: 'motorista' as AppRole, label: 'Motorista', color: 'bg-indigo-500' },
-  { value: 'mecanico' as AppRole, label: 'Mecânico', color: 'bg-gray-500' },
-  { value: 'user' as AppRole, label: 'Usuário', color: 'bg-slate-500' },
-];
+import { SELECTABLE_ROLES, sugerirRolePorCargo } from '../utils/roleMapping';
 
-// Mapeamento de cargo para role sugerido
-const CARGO_TO_ROLE: Record<string, AppRole> = {
-  'motorista': 'motorista' as AppRole,
-  'vendedor': 'vendedor' as AppRole,
-  'mecânico': 'mecanico' as AppRole,
-  'mecanico': 'mecanico' as AppRole,
-  'gerente': 'gerente' as AppRole,
-  'financeiro': 'financeiro' as AppRole,
-};
+const ALL_ROLES = SELECTABLE_ROLES;
 
 function gerarUsername(nomeCompleto: string): string {
   const partes = nomeCompleto.toLowerCase().trim().split(' ');
@@ -97,26 +78,19 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
   const [twoFA, setTwoFA] = useState(false);
   const [exigeTrocaSenha, setExigeTrocaSenha] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [senhaManual, setSenhaManual] = useState(false);
+  const [senha, setSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
 
   // Gerar email e username automaticamente quando pessoa mudar
   useEffect(() => {
     if (pessoa) {
-      const username = gerarUsername(pessoa.nome);
-      setEmail(username);
-      setUsername(username);
+      const usernameAuto = gerarUsername(pessoa.nome);
+      setEmail(usernameAuto);
+      setUsername(usernameAuto);
 
-      // Sugerir role baseado no cargo
-      if (pessoa.cargo) {
-        const cargoLower = pessoa.cargo.toLowerCase();
-        const roleSugerida = CARGO_TO_ROLE[cargoLower];
-        if (roleSugerida) {
-          setRolesSelecionadas([roleSugerida]);
-        } else {
-          setRolesSelecionadas(['user' as AppRole]);
-        }
-      } else {
-        setRolesSelecionadas(['user' as AppRole]);
-      }
+      const roleSugerida = sugerirRolePorCargo(pessoa.cargo);
+      setRolesSelecionadas(roleSugerida ? [roleSugerida] : []);
     }
   }, [pessoa]);
 
@@ -174,12 +148,21 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       toast({ title: 'Erro', description: 'Loja padrão deve estar nas lojas permitidas', variant: 'destructive' });
       return;
     }
+    if (senhaManual) {
+      if (senha.length < 8) {
+        toast({ title: 'Erro', description: 'A senha deve ter no mínimo 8 caracteres', variant: 'destructive' });
+        return;
+      }
+      if (senha !== confirmarSenha) {
+        toast({ title: 'Erro', description: 'As senhas não conferem', variant: 'destructive' });
+        return;
+      }
+    }
 
     setIsSubmitting(true);
 
     try {
-      // Gerar senha segura automaticamente
-      const senhaGerada = gerarSenhaSegura();
+      const senhaFinal = senhaManual ? senha : gerarSenhaSegura();
 
       // Obter token de autenticação atual
       const { data: { session } } = await supabase.auth.getSession();
@@ -205,7 +188,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       const { data: functionData, error: functionError } = await supabase.functions.invoke('create-user', {
         body: {
           email: emailFinal,
-          password: senhaGerada,
+          password: senhaFinal,
           username: username,
           pessoa_id: pessoa.id,
           two_fa_enabled: twoFA,
@@ -294,7 +277,9 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
 
       toast({
         title: 'Usuário criado com sucesso!',
-        description: `Acesso criado para ${pessoa.nome}. Senha temporária gerada automaticamente.`,
+        description: senhaManual
+          ? `Acesso criado para ${pessoa.nome}. Use a senha definida no formulário para o primeiro login.`
+          : `Acesso criado para ${pessoa.nome}. Uma senha temporária foi gerada — anote e repasse ao usuário.`,
       });
 
       onOpenChange(false);
@@ -307,6 +292,9 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       setLojaPadrao('');
       setTwoFA(false);
       setExigeTrocaSenha(true);
+      setSenhaManual(false);
+      setSenha('');
+      setConfirmarSenha('');
     } catch (error: any) {
       console.error('❌ Erro ao criar usuário:', error);
       console.error('Error code:', error.code);
@@ -414,11 +402,51 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
               </div>
             </div>
 
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
-                <strong>Senha automática:</strong> Uma senha segura e única será gerada automaticamente para este usuário.
-                O usuário será obrigado a alterar a senha no primeiro acesso.
-              </p>
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="senhaManual" className="font-medium">Definir senha manualmente</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {senhaManual
+                      ? 'Você definirá a senha inicial no formulário abaixo.'
+                      : 'Uma senha aleatória será gerada e exibida após a criação — repasse ao usuário.'}
+                  </p>
+                </div>
+                <Switch
+                  id="senhaManual"
+                  checked={senhaManual}
+                  onCheckedChange={setSenhaManual}
+                />
+              </div>
+
+              {senhaManual && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="senha">Senha *</Label>
+                    <Input
+                      id="senha"
+                      type="password"
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      placeholder="mínimo 8 caracteres"
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmarSenha">Confirmar senha *</Label>
+                    <Input
+                      id="confirmarSenha"
+                      type="password"
+                      value={confirmarSenha}
+                      onChange={(e) => setConfirmarSenha(e.target.value)}
+                      placeholder="repita a senha"
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
