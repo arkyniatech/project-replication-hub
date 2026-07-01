@@ -19,8 +19,9 @@ export interface SelectableRole {
  * TODOS os valores DEVEM existir em `VALID_APP_ROLES` — caso contrário o
  * insert em `user_roles` falha com "invalid input value for enum app_role".
  *
- * Perfis solicitados pelo cliente que NÃO existem no enum atual e ficam de fora
- * até haver migration: "Operação" (operacao) e "Usuário" (usuario).
+ * Nota: "Operação" (operacao) e "Usuário" (usuario) já existem no enum
+ * do banco. O erro histórico era o frontend enviar 'user' (inexistente) —
+ * o mapeamento correto é Usuário → 'usuario'.
  */
 export const SELECTABLE_ROLES: SelectableRole[] = [
   { value: 'master', label: 'Master', color: 'bg-black', masterOnly: true },
@@ -31,6 +32,8 @@ export const SELECTABLE_ROLES: SelectableRole[] = [
   { value: 'vendedor', label: 'Vendedor', color: 'bg-yellow-500' },
   { value: 'motorista', label: 'Motorista', color: 'bg-indigo-500' },
   { value: 'mecanico', label: 'Mecânico', color: 'bg-gray-500' },
+  { value: 'operacao', label: 'Operação', color: 'bg-orange-500' },
+  { value: 'usuario', label: 'Usuário', color: 'bg-slate-500' },
 ];
 
 /**
