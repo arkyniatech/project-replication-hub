@@ -365,11 +365,16 @@ export default function NovoEquipamento() {
     try {
       // Modo de edição
       if (isEditMode && id) {
+        // Mapa UI -> ENUM do banco (equipamentos_status_global_check)
+        // Aceita: DISPONIVEL, RESERVADO, LOCADO, EM_REVISAO, MANUTENCAO, EM_TRANSPORTE, INATIVO
+        const statusMap: Record<string, string> = { BAIXADO: 'INATIVO' };
+        const statusGlobalDb = statusMap[formData.situacao] || formData.situacao;
+
         const equipamentoData: any = {
           id,
           numero_serie: formData.numeroSerie || null,
           valor_indenizacao: parseMoneyBR(formData.valorIndenizacao),
-          status_global: formData.situacao,
+          status_global: statusGlobalDb,
           observacoes: formData.observacoes || null,
         };
 
