@@ -402,11 +402,51 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
               </div>
             </div>
 
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
-                <strong>Senha automática:</strong> Uma senha segura e única será gerada automaticamente para este usuário.
-                O usuário será obrigado a alterar a senha no primeiro acesso.
-              </p>
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="senhaManual" className="font-medium">Definir senha manualmente</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {senhaManual
+                      ? 'Você definirá a senha inicial no formulário abaixo.'
+                      : 'Uma senha aleatória será gerada e exibida após a criação — repasse ao usuário.'}
+                  </p>
+                </div>
+                <Switch
+                  id="senhaManual"
+                  checked={senhaManual}
+                  onCheckedChange={setSenhaManual}
+                />
+              </div>
+
+              {senhaManual && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="senha">Senha *</Label>
+                    <Input
+                      id="senha"
+                      type="password"
+                      value={senha}
+                      onChange={(e) => setSenha(e.target.value)}
+                      placeholder="mínimo 8 caracteres"
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmarSenha">Confirmar senha *</Label>
+                    <Input
+                      id="confirmarSenha"
+                      type="password"
+                      value={confirmarSenha}
+                      onChange={(e) => setConfirmarSenha(e.target.value)}
+                      placeholder="repita a senha"
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
