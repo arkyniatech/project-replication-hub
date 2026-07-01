@@ -816,6 +816,7 @@ export function ItinerarioDiario() {
         motoristas={motoristas}
         veiculos={veiculos}
         onConfirm={handleConfirmarAtribuicao}
+        lojaId={lojaId}
       />
     </div>
   );
