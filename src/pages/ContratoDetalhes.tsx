@@ -130,7 +130,7 @@ export default function ContratoDetalhes() {
         documento: contratoSupabase.clientes?.cpf || contratoSupabase.clientes?.cnpj || '',
         email: contratoSupabase.clientes?.email || '',
         telefone: '',
-        endereco: {
+        endereco: (contratoSupabase.clientes?.endereco as any) || {
           logradouro: '',
           numero: '',
           complemento: '',
