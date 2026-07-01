@@ -56,7 +56,7 @@ interface FormData {
   nome: string;
   numeroSerie: string;
   valorIndenizacao: string;
-  situacao: 'DISPONIVEL' | 'MANUTENCAO' | 'RESERVADO' | 'BAIXADO';
+  situacao: 'DISPONIVEL' | 'MANUTENCAO' | 'RESERVADO' | 'BAIXADO' | 'LOCADO' | 'EM_REVISAO' | 'EM_TRANSPORTE' | 'INATIVO';
   lojaId: string;
   tipoControle: 'SERIALIZADO' | 'SALDO';
   quantidade: string;
