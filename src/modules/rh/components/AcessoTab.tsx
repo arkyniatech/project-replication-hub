@@ -131,28 +131,21 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
 
     setIsLoading(true);
     try {
-      // Atualizar perfil
-      await updateProfile.mutateAsync({
-        id: userProfile.id,
-        updates: {
-          username,
-          loja_padrao_id: lojaPadrao || null,
-          two_fa_enabled: twoFaEnabled,
-          exige_troca_senha: exigeTrocaSenha,
+      const { data, error } = await supabase.functions.invoke('update-user-access', {
+        body: {
+          user_id: userProfile.id,
+          profile_updates: {
+            username,
+            loja_padrao_id: lojaPadrao || null,
+            two_fa_enabled: twoFaEnabled,
+            exige_troca_senha: exigeTrocaSenha,
+          },
+          roles: selectedRoles,
+          loja_ids: selectedLojas,
         },
       });
-
-      // Atualizar roles
-      await updateRoles.mutateAsync({
-        userId: userProfile.id,
-        roles: selectedRoles,
-      });
-
-      // Atualizar lojas permitidas
-      await updateLojasPermitidas.mutateAsync({
-        userId: userProfile.id,
-        lojaIds: selectedLojas,
-      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: 'Sucesso',
