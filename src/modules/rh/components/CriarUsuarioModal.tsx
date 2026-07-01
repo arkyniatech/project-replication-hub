@@ -78,26 +78,19 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
   const [twoFA, setTwoFA] = useState(false);
   const [exigeTrocaSenha, setExigeTrocaSenha] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [senhaManual, setSenhaManual] = useState(false);
+  const [senha, setSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
 
   // Gerar email e username automaticamente quando pessoa mudar
   useEffect(() => {
     if (pessoa) {
-      const username = gerarUsername(pessoa.nome);
-      setEmail(username);
-      setUsername(username);
+      const usernameAuto = gerarUsername(pessoa.nome);
+      setEmail(usernameAuto);
+      setUsername(usernameAuto);
 
-      // Sugerir role baseado no cargo
-      if (pessoa.cargo) {
-        const cargoLower = pessoa.cargo.toLowerCase();
-        const roleSugerida = CARGO_TO_ROLE[cargoLower];
-        if (roleSugerida) {
-          setRolesSelecionadas([roleSugerida]);
-        } else {
-          setRolesSelecionadas(['user' as AppRole]);
-        }
-      } else {
-        setRolesSelecionadas(['user' as AppRole]);
-      }
+      const roleSugerida = sugerirRolePorCargo(pessoa.cargo);
+      setRolesSelecionadas(roleSugerida ? [roleSugerida] : []);
     }
   }, [pessoa]);
 
