@@ -36,6 +36,7 @@ import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
 import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseLojas } from "@/modules/rh/hooks/useSupabaseLojas";
 import { formatMoney, parseMoneyBR } from "@/lib/equipamentos-utils";
+import { statusEquipamentoUiToDb, statusEquipamentoDbToUi, type StatusFormUI } from "@/lib/equipamento-status-utils";
 import { DadosTecnicosSection } from "@/components/equipamentos/DadosTecnicosSection";
 import { DadosPatrimoniaisSection } from "@/components/equipamentos/DadosPatrimoniaisSection";
 import { DadosFiscaisSection } from "@/components/equipamentos/DadosFiscaisSection";
