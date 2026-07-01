@@ -276,6 +276,61 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
         </CardContent>
       </Card>
 
+      {/* Senha Temporária */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5" />
+            Definir Senha Temporária
+          </CardTitle>
+          <CardDescription>
+            Defina manualmente uma nova senha para este usuário. Recomenda-se marcar "Exigir troca no próximo login".
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                type={mostrarSenha ? 'text' : 'password'}
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                const gerada = Array.from(crypto.getRandomValues(new Uint8Array(9)))
+                  .map((b) => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'[b % 56])
+                  .join('');
+                setNovaSenha(gerada);
+                setMostrarSenha(true);
+              }}
+            >
+              Gerar
+            </Button>
+            <Button type="button" onClick={handleDefinirSenha} disabled={savingSenha || !novaSenha}>
+              {savingSenha ? 'Aplicando...' : 'Aplicar Senha'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            A senha é aplicada imediatamente. Compartilhe-a com o usuário por um canal seguro.
+          </p>
+        </CardContent>
+      </Card>
+
+
+
       {/* Perfis de Acesso (Roles) */}
       <Card>
         <CardHeader>
