@@ -1110,16 +1110,22 @@ export default function NovoContratoV2() {
           endereco: contrato.cliente?.endereco,
         },
         enderecoEntrega: enderecoEntregaPDF,
-        itens: contrato.itens.map(item => ({
-          equipamento: {
-            nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
-            codigo: item.equipamento?.codigo || '',
-          },
-          quantidade: item.quantidade,
-          periodoEscolhido: item.periodoEscolhido,
-          valorUnitario: item.valorUnitario,
-          subtotal: item.subtotal,
-        })),
+        itens: [...contrato.itens]
+          .sort((a: any, b: any) => {
+            const ca = String(a.equipamento?.codigo || '');
+            const cb = String(b.equipamento?.codigo || '');
+            return ca.localeCompare(cb, 'pt-BR', { numeric: true });
+          })
+          .map(item => ({
+            equipamento: {
+              nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
+              codigo: item.equipamento?.codigo || '',
+            },
+            quantidade: item.quantidade,
+            periodoEscolhido: item.periodoEscolhido,
+            valorUnitario: item.valorUnitario,
+            subtotal: item.subtotal,
+          })),
         entrega: {
           data: contrato.entrega.data,
           janela: contrato.entrega.janela,
@@ -1628,28 +1634,47 @@ export default function NovoContratoV2() {
                 </p>}
             </div>}
           
-          {!contrato.obra && contrato.cliente && <Button variant="link" size="sm" className="text-xs" onClick={() => {
-          // Usar endereço do cliente como fallback
-          setContrato(prev => ({
-            ...prev,
-            obra: {
-              id: 'temp-cliente-endereco',
-              clienteId: contrato.clienteId,
-              apelido: 'Endereço do Cliente',
-              endereco: contrato.cliente!.endereco,
-              isPadrao: false,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            }
-          }));
-          setHasChanges(true);
-          toast({
-            title: "Endereço do cliente selecionado",
-            description: "Usando o endereço cadastrado no cliente"
-          });
-        }}>
-              Usar endereço cadastrado no cliente
-            </Button>}
+          {contrato.cliente && (() => {
+            const usarEnderecoCliente = () => {
+              setContrato(prev => ({
+                ...prev,
+                obra: {
+                  id: 'temp-cliente-endereco',
+                  clienteId: contrato.clienteId,
+                  apelido: 'Endereço do Cliente',
+                  endereco: contrato.cliente!.endereco,
+                  isPadrao: false,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
+              }));
+              setHasChanges(true);
+              toast({
+                title: "Endereço do cliente aplicado",
+                description: "Usando o endereço cadastrado no cliente como local de entrega"
+              });
+            };
+            const isUsandoCliente = contrato.obra?.id === 'temp-cliente-endereco';
+            return (
+              <div className="flex items-center gap-2 p-3 rounded-md border bg-muted/20">
+                <Checkbox
+                  id="usar-endereco-cliente"
+                  checked={isUsandoCliente}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      usarEnderecoCliente();
+                    } else {
+                      setContrato(prev => ({ ...prev, obra: undefined }));
+                      setHasChanges(true);
+                    }
+                  }}
+                />
+                <Label htmlFor="usar-endereco-cliente" className="text-sm cursor-pointer">
+                  Usar mesmo endereço do cliente (replicar cadastro)
+                </Label>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Previsão de Entrega */}

@@ -36,6 +36,7 @@ import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
 import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseLojas } from "@/modules/rh/hooks/useSupabaseLojas";
 import { formatMoney, parseMoneyBR } from "@/lib/equipamentos-utils";
+import { statusEquipamentoUiToDb, statusEquipamentoDbToUi, type StatusFormUI } from "@/lib/equipamento-status-utils";
 import { DadosTecnicosSection } from "@/components/equipamentos/DadosTecnicosSection";
 import { DadosPatrimoniaisSection } from "@/components/equipamentos/DadosPatrimoniaisSection";
 import { DadosFiscaisSection } from "@/components/equipamentos/DadosFiscaisSection";
@@ -56,7 +57,7 @@ interface FormData {
   nome: string;
   numeroSerie: string;
   valorIndenizacao: string;
-  situacao: 'DISPONIVEL' | 'MANUTENCAO' | 'RESERVADO' | 'BAIXADO';
+  situacao: 'DISPONIVEL' | 'MANUTENCAO' | 'RESERVADO' | 'BAIXADO' | 'LOCADO' | 'EM_REVISAO' | 'EM_TRANSPORTE' | 'INATIVO';
   lojaId: string;
   tipoControle: 'SERIALIZADO' | 'SALDO';
   quantidade: string;
@@ -206,6 +207,11 @@ export default function NovoEquipamento() {
         quantidade = String(saldos[lojaId]?.qtd || 1);
       }
 
+      // Mapear enum do DB para o valor do form (compat com valor legado 'BAIXADO' na UI)
+      const situacaoForm = statusEquipamentoDbToUi(
+        equipamentoExistente.status_global as string
+      ) as FormData['situacao'];
+
       setFormData({
         codigo: equipamentoExistente.codigo_interno || '',
         grupoId: equipamentoExistente.grupo_id || '',
@@ -214,7 +220,7 @@ export default function NovoEquipamento() {
         nome: modelo?.nome_comercial || '',
         numeroSerie: equipamentoExistente.numero_serie || '',
         valorIndenizacao: formatMoney(equipamentoExistente.valor_indenizacao || 0),
-        situacao: equipamentoExistente.status_global as FormData['situacao'],
+        situacao: situacaoForm,
         lojaId: equipamentoExistente.loja_atual_id || '',
         tipoControle: equipamentoExistente.tipo as FormData['tipoControle'],
         quantidade,
@@ -360,11 +366,14 @@ export default function NovoEquipamento() {
     try {
       // Modo de edição
       if (isEditMode && id) {
+        // Mapa UI -> ENUM do banco (equipamentos_status_global_check)
+        const statusGlobalDb = statusEquipamentoUiToDb(formData.situacao as StatusFormUI);
+
         const equipamentoData: any = {
           id,
           numero_serie: formData.numeroSerie || null,
           valor_indenizacao: parseMoneyBR(formData.valorIndenizacao),
-          status_global: formData.situacao,
+          status_global: statusGlobalDb,
           observacoes: formData.observacoes || null,
         };
 
