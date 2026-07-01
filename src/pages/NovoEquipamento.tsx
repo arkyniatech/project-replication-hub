@@ -206,6 +206,11 @@ export default function NovoEquipamento() {
         quantidade = String(saldos[lojaId]?.qtd || 1);
       }
 
+      // Mapear enum do DB para o valor do form (compat com valor legado 'BAIXADO' na UI)
+      const statusDb = equipamentoExistente.status_global as string;
+      const situacaoForm: FormData['situacao'] =
+        statusDb === 'INATIVO' ? 'BAIXADO' : (statusDb as FormData['situacao']);
+
       setFormData({
         codigo: equipamentoExistente.codigo_interno || '',
         grupoId: equipamentoExistente.grupo_id || '',
@@ -214,7 +219,7 @@ export default function NovoEquipamento() {
         nome: modelo?.nome_comercial || '',
         numeroSerie: equipamentoExistente.numero_serie || '',
         valorIndenizacao: formatMoney(equipamentoExistente.valor_indenizacao || 0),
-        situacao: equipamentoExistente.status_global as FormData['situacao'],
+        situacao: situacaoForm,
         lojaId: equipamentoExistente.loja_atual_id || '',
         tipoControle: equipamentoExistente.tipo as FormData['tipoControle'],
         quantidade,
