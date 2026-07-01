@@ -148,12 +148,21 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       toast({ title: 'Erro', description: 'Loja padrão deve estar nas lojas permitidas', variant: 'destructive' });
       return;
     }
+    if (senhaManual) {
+      if (senha.length < 8) {
+        toast({ title: 'Erro', description: 'A senha deve ter no mínimo 8 caracteres', variant: 'destructive' });
+        return;
+      }
+      if (senha !== confirmarSenha) {
+        toast({ title: 'Erro', description: 'As senhas não conferem', variant: 'destructive' });
+        return;
+      }
+    }
 
     setIsSubmitting(true);
 
     try {
-      // Gerar senha segura automaticamente
-      const senhaGerada = gerarSenhaSegura();
+      const senhaFinal = senhaManual ? senha : gerarSenhaSegura();
 
       // Obter token de autenticação atual
       const { data: { session } } = await supabase.auth.getSession();
