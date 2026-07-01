@@ -208,9 +208,9 @@ export default function NovoEquipamento() {
       }
 
       // Mapear enum do DB para o valor do form (compat com valor legado 'BAIXADO' na UI)
-      const statusDb = equipamentoExistente.status_global as string;
-      const situacaoForm: FormData['situacao'] =
-        statusDb === 'INATIVO' ? 'BAIXADO' : (statusDb as FormData['situacao']);
+      const situacaoForm = statusEquipamentoDbToUi(
+        equipamentoExistente.status_global as string
+      ) as FormData['situacao'];
 
       setFormData({
         codigo: equipamentoExistente.codigo_interno || '',
