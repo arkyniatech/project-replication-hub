@@ -1110,16 +1110,22 @@ export default function NovoContratoV2() {
           endereco: contrato.cliente?.endereco,
         },
         enderecoEntrega: enderecoEntregaPDF,
-        itens: contrato.itens.map(item => ({
-          equipamento: {
-            nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
-            codigo: item.equipamento?.codigo || '',
-          },
-          quantidade: item.quantidade,
-          periodoEscolhido: item.periodoEscolhido,
-          valorUnitario: item.valorUnitario,
-          subtotal: item.subtotal,
-        })),
+        itens: [...contrato.itens]
+          .sort((a: any, b: any) => {
+            const ca = String(a.equipamento?.codigo || '');
+            const cb = String(b.equipamento?.codigo || '');
+            return ca.localeCompare(cb, 'pt-BR', { numeric: true });
+          })
+          .map(item => ({
+            equipamento: {
+              nome: item.equipamento?.nome || item.equipamento?.descricao || 'Equipamento',
+              codigo: item.equipamento?.codigo || '',
+            },
+            quantidade: item.quantidade,
+            periodoEscolhido: item.periodoEscolhido,
+            valorUnitario: item.valorUnitario,
+            subtotal: item.subtotal,
+          })),
         entrega: {
           data: contrato.entrega.data,
           janela: contrato.entrega.janela,
