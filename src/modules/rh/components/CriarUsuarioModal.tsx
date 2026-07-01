@@ -23,28 +23,9 @@ interface CriarUsuarioModalProps {
   pessoa: Pessoa | null;
 }
 
-const ALL_ROLES: { value: AppRole; label: string; color: string; masterOnly?: boolean }[] = [
-  { value: 'master' as AppRole, label: 'Master', color: 'bg-black', masterOnly: true },
-  { value: 'admin' as AppRole, label: 'Admin', color: 'bg-red-500' },
-  { value: 'gerente' as AppRole, label: 'Gerente', color: 'bg-purple-500' },
-  { value: 'rh' as AppRole, label: 'RH', color: 'bg-blue-500' },
-  { value: 'financeiro' as AppRole, label: 'Financeiro', color: 'bg-green-500' },
-  { value: 'vendedor' as AppRole, label: 'Vendedor', color: 'bg-yellow-500' },
-  { value: 'operacao' as AppRole, label: 'Operação', color: 'bg-orange-500' },
-  { value: 'motorista' as AppRole, label: 'Motorista', color: 'bg-indigo-500' },
-  { value: 'mecanico' as AppRole, label: 'Mecânico', color: 'bg-gray-500' },
-  { value: 'user' as AppRole, label: 'Usuário', color: 'bg-slate-500' },
-];
+import { SELECTABLE_ROLES, sugerirRolePorCargo } from '../utils/roleMapping';
 
-// Mapeamento de cargo para role sugerido
-const CARGO_TO_ROLE: Record<string, AppRole> = {
-  'motorista': 'motorista' as AppRole,
-  'vendedor': 'vendedor' as AppRole,
-  'mecânico': 'mecanico' as AppRole,
-  'mecanico': 'mecanico' as AppRole,
-  'gerente': 'gerente' as AppRole,
-  'financeiro': 'financeiro' as AppRole,
-};
+const ALL_ROLES = SELECTABLE_ROLES;
 
 function gerarUsername(nomeCompleto: string): string {
   const partes = nomeCompleto.toLowerCase().trim().split(' ');
