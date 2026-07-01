@@ -367,9 +367,7 @@ export default function NovoEquipamento() {
       // Modo de edição
       if (isEditMode && id) {
         // Mapa UI -> ENUM do banco (equipamentos_status_global_check)
-        // Aceita: DISPONIVEL, RESERVADO, LOCADO, EM_REVISAO, MANUTENCAO, EM_TRANSPORTE, INATIVO
-        const statusMap: Record<string, string> = { BAIXADO: 'INATIVO' };
-        const statusGlobalDb = statusMap[formData.situacao] || formData.situacao;
+        const statusGlobalDb = statusEquipamentoUiToDb(formData.situacao as StatusFormUI);
 
         const equipamentoData: any = {
           id,
