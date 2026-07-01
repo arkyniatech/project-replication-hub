@@ -47,6 +47,11 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
   const [exigeTrocaSenha, setExigeTrocaSenha] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Senha temporária
+  const [novaSenha, setNovaSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [savingSenha, setSavingSenha] = useState(false);
+
   // Buscar perfil de usuário vinculado à pessoa
   useEffect(() => {
     const profile = profiles.find(p => p.pessoa_id === pessoa.id);
@@ -56,17 +61,19 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
       setLojaPadrao(profile.loja_padrao_id || '');
       setTwoFaEnabled(profile.two_fa_enabled);
       setExigeTrocaSenha(profile.exige_troca_senha);
-      
-      // Buscar roles e lojas do usuário
       fetchUserRolesAndLojas(profile.id);
     }
   }, [profiles, pessoa.id]);
 
   const fetchUserRolesAndLojas = async (userId: string) => {
-    // Esta função seria implementada para buscar as roles e lojas do usuário
-    // Por enquanto, vamos apenas setar valores vazios
-    setSelectedRoles([]);
-    setSelectedLojas([]);
+    const [{ data: rolesData, error: rolesErr }, { data: lojasData, error: lojasErr }] = await Promise.all([
+      supabase.from('user_roles').select('role').eq('user_id', userId),
+      supabase.from('user_lojas_permitidas').select('loja_id').eq('user_id', userId),
+    ]);
+    if (rolesErr) console.error('Erro ao carregar roles:', rolesErr);
+    if (lojasErr) console.error('Erro ao carregar lojas:', lojasErr);
+    setSelectedRoles((rolesData || []).map((r: any) => r.role as AppRole));
+    setSelectedLojas((lojasData || []).map((l: any) => l.loja_id as string));
   };
 
   const handleToggleRole = (role: AppRole) => {
