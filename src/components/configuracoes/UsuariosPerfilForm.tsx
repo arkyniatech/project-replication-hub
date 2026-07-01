@@ -255,14 +255,14 @@ export function UsuariosPerfilForm() {
 
   const ROLES_DISPONIVEIS: { value: AppRole; label: string; description: string; color: string }[] = [
     { value: 'admin' as AppRole, label: 'Admin', description: 'Acesso total ao sistema', color: 'bg-red-500' },
-    { value: 'gerente' as AppRole, label: 'Gerente', description: 'Visão ampla e relatórios multi-loja', color: 'bg-purple-500' },
+    { value: 'gestor' as AppRole, label: 'Gerente', description: 'Visão ampla e relatórios multi-loja', color: 'bg-purple-500' },
     { value: 'rh' as AppRole, label: 'RH', description: 'Gestão de pessoas e benefícios', color: 'bg-blue-500' },
     { value: 'financeiro' as AppRole, label: 'Financeiro', description: 'CR/CP completos, relatórios', color: 'bg-green-500' },
     { value: 'vendedor' as AppRole, label: 'Vendedor', description: 'Contratos, logística, CR básico', color: 'bg-yellow-500' },
     { value: 'operacao' as AppRole, label: 'Operação', description: 'Logística e manutenção', color: 'bg-orange-500' },
     { value: 'motorista' as AppRole, label: 'Motorista', description: 'Logística do dia', color: 'bg-indigo-500' },
     { value: 'mecanico' as AppRole, label: 'Mecânico', description: 'Manutenção de equipamentos', color: 'bg-gray-500' },
-    { value: 'user' as AppRole, label: 'Usuário', description: 'Acesso básico de consulta', color: 'bg-slate-500' },
+    { value: 'usuario' as AppRole, label: 'Usuário', description: 'Acesso básico de consulta', color: 'bg-slate-500' },
   ];
 
   useEffect(() => {
