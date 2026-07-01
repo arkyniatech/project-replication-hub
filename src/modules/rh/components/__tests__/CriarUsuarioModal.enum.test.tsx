@@ -12,6 +12,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { VALID_APP_ROLES, SELECTABLE_ROLES } from '../../utils/roleMapping';
 
+// jsdom polyfills usados pelos primitivos Radix
+class RO { observe() {} unobserve() {} disconnect() {} }
+(globalThis as any).ResizeObserver = (globalThis as any).ResizeObserver ?? RO;
+if (!(Element.prototype as any).hasPointerCapture) {
+  (Element.prototype as any).hasPointerCapture = () => false;
+  (Element.prototype as any).setPointerCapture = () => {};
+  (Element.prototype as any).releasePointerCapture = () => {};
+  (Element.prototype as any).scrollIntoView = () => {};
+}
+
 // --- Mocks ------------------------------------------------------------------
 
 const addRolesMutate = vi.fn().mockResolvedValue(undefined);
