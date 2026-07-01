@@ -2843,6 +2843,8 @@ export type Database = {
         | "admin"
         | "rh"
         | "master"
+        | "operacao"
+        | "usuario"
       area_oficina: "AMARELA" | "VERMELHA" | "AZUL" | "VERDE" | "CINZA"
       class_defeito: "DESGASTE" | "MAU_USO" | "NA"
       origem_os: "POS_LOCACAO" | "AUDITORIA" | "SUPORTE"
@@ -2997,6 +2999,8 @@ export const Constants = {
         "admin",
         "rh",
         "master",
+        "operacao",
+        "usuario",
       ],
       area_oficina: ["AMARELA", "VERMELHA", "AZUL", "VERDE", "CINZA"],
       class_defeito: ["DESGASTE", "MAU_USO", "NA"],

@@ -50,8 +50,8 @@ describe('roleMapping', () => {
   it('isValidAppRole valida contra o enum real', () => {
     expect(isValidAppRole('master')).toBe(true);
     expect(isValidAppRole('gestor')).toBe(true);
+    // valores historicamente rejeitados pelo enum (não existem)
     expect(isValidAppRole('user')).toBe(false);
-    expect(isValidAppRole('operacao')).toBe(false);
     expect(isValidAppRole('gerente')).toBe(false);
   });
 });

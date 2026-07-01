@@ -9,7 +9,7 @@ import type { Database } from '@/integrations/supabase/types';
 type AppRole = Database['public']['Enums']['app_role'];
 
 // Mapeamento de roles para claims válidos
-const ROLE_TO_CLAIMS: Record<AppRole, Claim[]> = {
+const ROLE_TO_CLAIMS: Partial<Record<AppRole, Claim[]>> = {
   admin: [
     'dashboard:view', 'relatorios:view',
     'clientes:view', 'clientes:create', 'clientes:edit',
