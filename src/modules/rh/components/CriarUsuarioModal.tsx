@@ -188,7 +188,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       const { data: functionData, error: functionError } = await supabase.functions.invoke('create-user', {
         body: {
           email: emailFinal,
-          password: senhaGerada,
+          password: senhaFinal,
           username: username,
           pessoa_id: pessoa.id,
           two_fa_enabled: twoFA,
