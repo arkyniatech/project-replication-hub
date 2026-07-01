@@ -13,17 +13,16 @@ describe('roleMapping', () => {
     }
   });
 
-  it('nenhum chip envia valores rejeitados historicamente pelo enum', () => {
+  it('nenhum chip envia valores fora do enum', () => {
     const values = SELECTABLE_ROLES.map((r) => r.value as string);
+    // 'user' e 'gerente' NÃO existem no enum — jamais podem aparecer.
     expect(values).not.toContain('user');
-    expect(values).not.toContain('usuario');
-    expect(values).not.toContain('operacao');
     expect(values).not.toContain('gerente');
   });
 
-  it('inclui os perfis operacionais principais', () => {
+  it('inclui os perfis operacionais principais + operacao e usuario', () => {
     const values = SELECTABLE_ROLES.map((r) => r.value);
-    for (const expected of ['master', 'admin', 'gestor', 'rh', 'financeiro', 'vendedor', 'motorista', 'mecanico'] as const) {
+    for (const expected of ['master', 'admin', 'gestor', 'rh', 'financeiro', 'vendedor', 'motorista', 'mecanico', 'operacao', 'usuario'] as const) {
       expect(values).toContain(expected);
     }
   });
@@ -50,7 +49,9 @@ describe('roleMapping', () => {
   it('isValidAppRole valida contra o enum real', () => {
     expect(isValidAppRole('master')).toBe(true);
     expect(isValidAppRole('gestor')).toBe(true);
-    // valores historicamente rejeitados pelo enum (não existem)
+    expect(isValidAppRole('operacao')).toBe(true);
+    expect(isValidAppRole('usuario')).toBe(true);
+    // valores que NÃO existem no enum
     expect(isValidAppRole('user')).toBe(false);
     expect(isValidAppRole('gerente')).toBe(false);
   });

@@ -113,9 +113,27 @@ describe('CriarUsuarioModal — payload de roles conforme enum app_role', () => 
     }
     expect(rolesArg).toEqual(expect.arrayContaining(['gestor', 'vendedor']));
 
-    // (c) nenhum valor histórico inválido
-    for (const bad of ['user', 'usuario', 'gerente', 'operacao']) {
+    // (c) nenhum valor FORA do enum (o bug original enviava 'user'/'gerente')
+    for (const bad of ['user', 'gerente']) {
       expect(rolesArg).not.toContain(bad);
+    }
+  });
+
+  it('submete com "Operação" e "Usuário" e envia operacao/usuario (valores válidos)', async () => {
+    render(<CriarUsuarioModal open onOpenChange={() => {}} pessoa={{ ...pessoa, cargo: '' }} />);
+    fireEvent.click(await screen.findByText('Matriz'));
+    fireEvent.click(screen.getByText('Operação'));
+    fireEvent.click(screen.getByText('Usuário'));
+    fireEvent.click(screen.getByRole('button', { name: /criar usuário/i }));
+
+    await waitFor(() => expect(addRolesMutate).toHaveBeenCalled(), { timeout: 3000 });
+    const rolesArg: string[] = addRolesMutate.mock.calls[0][0].roles;
+    expect(rolesArg).toEqual(expect.arrayContaining(['operacao', 'usuario']));
+    // jamais os valores errados
+    expect(rolesArg).not.toContain('user');
+    expect(rolesArg).not.toContain('gerente');
+    for (const r of rolesArg) {
+      expect(VALID_APP_ROLES as readonly string[]).toContain(r);
     }
   });
 
