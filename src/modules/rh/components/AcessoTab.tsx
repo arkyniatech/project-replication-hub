@@ -158,15 +158,52 @@ export function AcessoTab({ pessoa }: AcessoTabProps) {
         title: 'Sucesso',
         description: 'Acesso atualizado com sucesso!',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar acesso:', error);
       toast({
         title: 'Erro',
-        description: 'Falha ao atualizar acesso. Tente novamente.',
+        description: `Falha ao atualizar acesso: ${error?.message || 'erro desconhecido'}`,
         variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDefinirSenha = async () => {
+    if (!userProfile) return;
+    if (!novaSenha || novaSenha.length < 8) {
+      toast({
+        title: 'Senha inválida',
+        description: 'A senha deve ter no mínimo 8 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSavingSenha(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-user-password', {
+        body: {
+          user_id: userProfile.id,
+          password: novaSenha,
+          exige_troca_senha: exigeTrocaSenha,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: 'Senha definida',
+        description: 'Nova senha aplicada. Compartilhe com o usuário com segurança.',
+      });
+      setNovaSenha('');
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: `Não foi possível definir a senha: ${err?.message || 'erro'}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingSenha(false);
     }
   };
 
