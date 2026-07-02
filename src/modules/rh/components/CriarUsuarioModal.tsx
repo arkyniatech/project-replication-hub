@@ -185,6 +185,8 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       }
 
       // 1. Criar usuário via Edge Function (mantém admin logado!)
+      // Roles e lojas são inseridas na própria edge function usando service_role
+      // para contornar RLS de user_roles / user_lojas_permitidas.
       const { data: functionData, error: functionError } = await supabase.functions.invoke('create-user', {
         body: {
           email: emailFinal,
@@ -194,6 +196,8 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
           two_fa_enabled: twoFA,
           exige_troca_senha: exigeTrocaSenha,
           loja_padrao_id: lojaPadrao || null,
+          roles: rolesSelecionadas,
+          lojas_permitidas: lojasSelecionadas,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -251,17 +255,8 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
 
       // 2. User_profile JÁ FOI CRIADO na Edge Function
 
-      // 3. Adicionar roles
-      await addRoles.mutateAsync({
-        userId,
-        roles: rolesSelecionadas,
-      });
+      // 3. Roles e lojas já foram inseridas na Edge Function (service_role, bypassa RLS)
 
-      // 4. Adicionar lojas permitidas
-      await addLojas.mutateAsync({
-        userId,
-        lojaIds: lojasSelecionadas,
-      });
 
       // 5. Log de auditoria
       await logAction('USER_CREATED', {
