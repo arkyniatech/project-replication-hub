@@ -255,17 +255,8 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
 
       // 2. User_profile JÁ FOI CRIADO na Edge Function
 
-      // 3. Adicionar roles
-      await addRoles.mutateAsync({
-        userId,
-        roles: rolesSelecionadas,
-      });
+      // 3. Roles e lojas já foram inseridas na Edge Function (service_role, bypassa RLS)
 
-      // 4. Adicionar lojas permitidas
-      await addLojas.mutateAsync({
-        userId,
-        lojaIds: lojasSelecionadas,
-      });
 
       // 5. Log de auditoria
       await logAction('USER_CREATED', {
