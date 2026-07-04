@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS public.contratos (
   
   UNIQUE(loja_id, numero)
 );
-
 -- Índices
 CREATE INDEX idx_contratos_loja ON public.contratos(loja_id);
 CREATE INDEX idx_contratos_cliente ON public.contratos(cliente_id);
@@ -70,10 +69,8 @@ CREATE INDEX idx_contratos_numero ON public.contratos(numero);
 CREATE INDEX idx_contratos_status ON public.contratos(status);
 CREATE INDEX idx_contratos_data_inicio ON public.contratos(data_inicio);
 CREATE INDEX idx_contratos_data_fim ON public.contratos(data_fim);
-
 -- RLS
 ALTER TABLE public.contratos ENABLE ROW LEVEL SECURITY;
-
 -- Políticas de SELECT
 CREATE POLICY "Contratos visíveis para usuários da loja"
   ON public.contratos FOR SELECT
@@ -83,7 +80,6 @@ CREATE POLICY "Contratos visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de INSERT
 CREATE POLICY "Vendedor pode criar contratos"
   ON public.contratos FOR INSERT
@@ -97,7 +93,6 @@ CREATE POLICY "Vendedor pode criar contratos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de UPDATE
 CREATE POLICY "Vendedor pode atualizar contratos"
   ON public.contratos FOR UPDATE
@@ -111,12 +106,10 @@ CREATE POLICY "Vendedor pode atualizar contratos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de DELETE
 CREATE POLICY "Admin pode deletar contratos"
   ON public.contratos FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 2. ITENS DE CONTRATO
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.contrato_itens (
@@ -158,17 +151,14 @@ CREATE TABLE IF NOT EXISTS public.contrato_itens (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
 -- Índices
 CREATE INDEX idx_contrato_itens_contrato ON public.contrato_itens(contrato_id);
 CREATE INDEX idx_contrato_itens_equipamento ON public.contrato_itens(equipamento_id);
 CREATE INDEX idx_contrato_itens_modelo ON public.contrato_itens(modelo_id);
 CREATE INDEX idx_contrato_itens_grupo ON public.contrato_itens(grupo_id);
 CREATE INDEX idx_contrato_itens_status ON public.contrato_itens(status);
-
 -- RLS
 ALTER TABLE public.contrato_itens ENABLE ROW LEVEL SECURITY;
-
 -- Políticas de SELECT (herdar do contrato)
 CREATE POLICY "Itens visíveis para usuários que veem o contrato"
   ON public.contrato_itens FOR SELECT
@@ -181,7 +171,6 @@ CREATE POLICY "Itens visíveis para usuários que veem o contrato"
       )
     )
   );
-
 -- Políticas de INSERT
 CREATE POLICY "Vendedor pode criar itens de contrato"
   ON public.contrato_itens FOR INSERT
@@ -190,7 +179,6 @@ CREATE POLICY "Vendedor pode criar itens de contrato"
      has_role(auth.uid(), 'gestor'::app_role) OR
      has_role(auth.uid(), 'admin'::app_role))
   );
-
 -- Políticas de UPDATE
 CREATE POLICY "Vendedor pode atualizar itens de contrato"
   ON public.contrato_itens FOR UPDATE
@@ -199,18 +187,15 @@ CREATE POLICY "Vendedor pode atualizar itens de contrato"
      has_role(auth.uid(), 'gestor'::app_role) OR
      has_role(auth.uid(), 'admin'::app_role))
   );
-
 -- Políticas de DELETE
 CREATE POLICY "Admin pode deletar itens de contrato"
   ON public.contrato_itens FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 3. TRIGGERS
 -- =====================================================
 CREATE TRIGGER update_contratos_updated_at
   BEFORE UPDATE ON public.contratos
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
 CREATE TRIGGER update_contrato_itens_updated_at
   BEFORE UPDATE ON public.contrato_itens
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();

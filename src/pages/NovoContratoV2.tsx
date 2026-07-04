@@ -1102,13 +1102,26 @@ export default function NovoContratoV2() {
         ? valorTotalCalculado
         : subtotalItensPDF + valorFretePDF;
 
+      // Dados fiscais da loja emissora (cabeçalho do contrato + promissória)
+      const { data: lojaFiscal } = await supabase
+        .from('lojas')
+        .select('*')
+        .eq('id', contrato.lojaId)
+        .maybeSingle();
+
       const dadosPDF = {
-        numero: numeroContrato,
+        numero: String(numeroContrato),
+        loja: lojaFiscal as any,
         cliente: {
           nomeRazao: nomeCliente,
           documento: contrato.cliente?.documento || contrato.cliente?.cpf || contrato.cliente?.cnpj || '',
           endereco: contrato.cliente?.endereco,
+          celular: contatoWhatsApp?.valor || '',
         },
+        obra: (contrato as any).obra ? {
+          responsavel: (contrato as any).obra?.nome || '',
+          endereco: (contrato as any).obra?.endereco,
+        } : null,
         enderecoEntrega: enderecoEntregaPDF,
         itens: [...contrato.itens]
           .sort((a: any, b: any) => {
@@ -1125,16 +1138,23 @@ export default function NovoContratoV2() {
             periodoEscolhido: item.periodoEscolhido,
             valorUnitario: item.valorUnitario,
             subtotal: item.subtotal,
+            valorIndenizacao: (item.equipamento as any)?.valorIndenizacao || 0,
           })),
         entrega: {
           data: contrato.entrega.data,
           janela: contrato.entrega.janela,
           observacoes: contrato.entrega.observacoes,
         },
+        periodoLocacao: {
+          inicio: contrato.entrega.data,
+          fim: dataFimCalculada,
+        },
+        dataDevolucao: dataFimCalculada,
         pagamento: {
           forma: contrato.pagamento.forma,
           vencimentoISO: contrato.pagamento.vencimentoISO,
         },
+        tipoDeslocamento: contrato.entrega.clienteRetiraEDevolve ? 'Cliente Retira/Devolve' : 'Entrega/Retirada',
         valorFrete: valorFretePDF,
         valorTotal: valorTotalPDF,
       };
@@ -1144,7 +1164,7 @@ export default function NovoContratoV2() {
         try {
           console.log('[ZAPSIGN] Gerando PDF e enviando para assinatura...');
           const { gerarContratoPDFBase64 } = await import('@/utils/contrato-pdf');
-          const pdfBase64 = gerarContratoPDFBase64(dadosPDF);
+          const pdfBase64 = await gerarContratoPDFBase64(dadosPDF);
 
           const { data: signData, error: signError } = await supabase.functions.invoke('zapsign-enviar', {
             body: {
@@ -1191,7 +1211,7 @@ export default function NovoContratoV2() {
       } else if (mode === 'pdf') {
         // === SALVAR E BAIXAR PDF ===
         const { downloadContratoPDF } = await import('@/utils/contrato-pdf');
-        downloadContratoPDF(dadosPDF, `contrato-${numeroContrato}-${(nomeCliente || 'cliente').replace(/\s+/g, '-').toLowerCase()}.pdf`);
+        await downloadContratoPDF(dadosPDF, `contrato-${numeroContrato}-${(nomeCliente || 'cliente').replace(/\s+/g, '-').toLowerCase()}.pdf`);
         toast({
           title: "Contrato salvo!",
           description: `Contrato ${numeroContrato} salvo e PDF baixado.`,
@@ -1200,7 +1220,7 @@ export default function NovoContratoV2() {
       } else if (mode === 'imprimir') {
         // === SALVAR E IMPRIMIR ===
         const { imprimirContratoPDF } = await import('@/utils/contrato-pdf');
-        imprimirContratoPDF(dadosPDF);
+        await imprimirContratoPDF(dadosPDF);
         toast({
           title: "Contrato salvo!",
           description: `Contrato ${numeroContrato} pronto para impressão.`,

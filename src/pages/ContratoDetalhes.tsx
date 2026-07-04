@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
 import { useSupabaseFaturas } from "@/hooks/useSupabaseFaturas";
+import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useSupabaseAditivos } from "@/hooks/useSupabaseAditivos";
 import { useToast } from "@/hooks/use-toast";
 import { ContratoHeader } from "@/components/contratos/ContratoHeader";
@@ -27,6 +28,7 @@ import ConfirmarRetiradaModal from "@/components/modals/ConfirmarRetiradaModal";
 import EmitirFaturaModal from "@/components/modals/EmitirFaturaModal";
 import { parseISO, differenceInCalendarDays, startOfDay, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
 import { useEffect } from "react";
 import { gerarContratoPDFBase64, downloadContratoPDF } from "@/utils/contrato-pdf";
@@ -42,9 +44,24 @@ export default function ContratoDetalhes() {
   const { useContrato, updateContrato, cancelContrato, confirmarRetirada } = useSupabaseContratos();
   const { data: contratoSupabase, isLoading: loading } = useContrato(id || '');
   
-  // Buscar faturas e aditivos do contrato
+  // Buscar faturas, títulos e aditivos do contrato
   const { faturas = [], isLoading: loadingFaturas } = useSupabaseFaturas(undefined, undefined, id);
+  const { titulos: titulosContrato = [] } = useSupabaseTitulos(undefined, undefined, id);
   const { aditivos = [], isLoading: loadingAditivos, updateAditivo } = useSupabaseAditivos(id);
+
+  // Loja emissora — dados fiscais para o cabeçalho do contrato PDF
+  const { data: lojaContrato } = useQuery({
+    queryKey: ['loja-contrato', contratoSupabase?.loja_id],
+    enabled: !!contratoSupabase?.loja_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('lojas')
+        .select('*')
+        .eq('id', contratoSupabase!.loja_id)
+        .maybeSingle();
+      return data;
+    },
+  });
 
   const [showRenovarModal, setShowRenovarModal] = useState(false);
   const [itensSelecionadosRenovacao, setItensSelecionadosRenovacao] = useState<string[]>([]);
@@ -115,6 +132,7 @@ export default function ContratoDetalhes() {
           }) || item.equipamentos?.codigo_interno || '',
           codigoInterno: item.equipamentos?.codigo_interno || '',
           serie: item.equipamentos?.numero_serie || '',
+          valorIndenizacao: Number(item.equipamentos?.valor_indenizacao || 0),
         } : null,
         modelo: item.modelos_equipamentos ? {
           nome: item.modelos_equipamentos.nome_comercial,
@@ -187,47 +205,55 @@ export default function ContratoDetalhes() {
       });
   }, [id]);
 
-  // Transformar faturas em parcelas para o FinanceiroCompacto
+  // Transformar TÍTULOS em parcelas para o FinanceiroCompacto.
+  // Títulos são a fonte da verdade do financeiro (é o que Contas a Receber
+  // lê) — antes o card lia apenas faturas e o título gerado na criação do
+  // contrato nunca aparecia ("Nenhuma parcela gerada ainda" com saldo aberto).
   const parcelas = useMemo(() => {
-    if (!faturas.length) return [];
-    
-    return faturas.map((fatura: any) => {
-      const valorTotal = Number(fatura.total || 0);
-      // Somar recebimentos reais vinculados a títulos desta fatura
-      const valorPago = recebimentosContrato
-        .filter(r => r.titulo_id && faturas.some((f: any) => f.id === r.fatura_id))
-        .reduce((sum, r) => sum + Number(r.valor_liquido || 0), 0) || 0;
-      const saldo = valorTotal - valorPago;
-      const hoje = new Date();
-      const vencimento = new Date(fatura.vencimento);
+    if (!titulosContrato.length) return [];
+
+    const hoje = new Date();
+    return titulosContrato.map((titulo: any) => {
+      const valorTotal = Number(titulo.valor || 0);
+      const valorPago = Number(titulo.pago || 0);
+      const saldo = Number(titulo.saldo ?? valorTotal - valorPago);
+      const vencimento = new Date(`${titulo.vencimento}T12:00:00`);
       const isVencido = vencimento < hoje && saldo > 0;
-      
+
       let status: 'ABERTA' | 'ATRASADA' | 'PAGA' | 'CANCELADA' = 'ABERTA';
-      if (saldo <= 0) status = 'PAGA';
+      if (titulo.status === 'CANCELADO') status = 'CANCELADA';
+      else if (saldo <= 0) status = 'PAGA';
       else if (isVencido) status = 'ATRASADA';
-      
+
       return {
-        id: fatura.id,
-        codigo: fatura.numero,
-        emissao: fatura.emissao,
+        id: titulo.id,
+        codigo: titulo.numero,
+        emissao: titulo.emissao,
         periodo: {
-          inicio: fatura.emissao,
-          fim: fatura.vencimento,
+          inicio: titulo.emissao,
+          fim: titulo.vencimento,
         },
-        vencimento: fatura.vencimento,
+        vencimento: titulo.vencimento,
         valor: valorTotal,
         situacao: status,
         pago: valorPago,
         saldo: Math.max(0, saldo),
-        recebimentos: recebimentosContrato,
+        recebimentos: recebimentosContrato.filter(r => r.titulo_id === titulo.id),
         aditivos: [],
         nfse: null,
       };
     });
-  }, [faturas, recebimentosContrato]);
+  }, [titulosContrato, recebimentosContrato]);
 
-  // Calcular saldos financeiros
-  const saldoAberto = contrato?.valorPendente || 0;
+  // Calcular saldos financeiros: preferir a soma real dos títulos em aberto;
+  // valor_pendente do contrato é fallback para dados antigos sem títulos.
+  const saldoTitulosAbertos = useMemo(
+    () => parcelas
+      .filter(p => p.situacao === 'ABERTA' || p.situacao === 'ATRASADA')
+      .reduce((sum, p) => sum + p.saldo, 0),
+    [parcelas]
+  );
+  const saldoAberto = parcelas.length > 0 ? saldoTitulosAbertos : (contrato?.valorPendente || 0);
   const saldoAtraso = useMemo(() => {
     return parcelas
       .filter(p => p.situacao === 'ATRASADA')
@@ -367,34 +393,10 @@ export default function ContratoDetalhes() {
 
       const nomeCliente = contrato.cliente.nomeRazao;
 
-      // Gerar PDF base64
-      const pdfBase64 = gerarContratoPDFBase64({
-        cliente: {
-          nomeRazao: nomeCliente,
-          documento: contrato.cliente.documento,
-          endereco: contrato.cliente.endereco,
-        },
-        itens: contrato.itens.map((item: any) => ({
-          equipamento: {
-            nome: item.equipamento?.nome || item.modelo?.nome || item.grupo?.nome || 'Equipamento',
-            codigo: item.equipamento?.codigo || '',
-          },
-          quantidade: item.quantidade || 1,
-          periodoEscolhido: item.periodo || 'MES',
-          valorUnitario: item.valorUnitario,
-          subtotal: item.valorTotal,
-        })),
-        entrega: {
-          data: contrato.dataInicio,
-          janela: (contrato.logistica as any)?.entrega?.janela || 'MANHA',
-          observacoes: contrato.observacoes || '',
-        },
-        pagamento: {
-          forma: contrato.formaPagamento || 'PIX',
-          vencimentoISO: contrato.dataInicio,
-        },
-        valorTotal: contrato.valorTotal,
-      });
+      // Gerar PDF base64 (mesmos dados do download/impressão)
+      const dadosPDF = montarDadosPDF();
+      if (!dadosPDF) throw new Error('Não foi possível montar os dados do contrato');
+      const pdfBase64 = await gerarContratoPDFBase64(dadosPDF);
 
       const { data, error } = await supabase.functions.invoke('zapsign-enviar', {
         body: {
@@ -508,11 +510,13 @@ export default function ContratoDetalhes() {
   // Montar dados para PDF/Preview
   const montarDadosPDF = () => {
     if (!contrato) return null;
+    const logistica = contrato.logistica as any;
+
     // Endereço de entrega: prioridade obra → logística → cliente
     const enderecoEntrega =
       (contrato.obra as any)?.endereco
-      || (contrato.logistica as any)?.endereco
-      || (contrato.logistica as any)?.entrega?.endereco
+      || logistica?.endereco
+      || logistica?.entrega?.endereco
       || contrato.cliente.endereco;
 
     // Ordena itens pelo código canônico para respeitar a ordem existente do sistema
@@ -522,12 +526,33 @@ export default function ContratoDetalhes() {
       return ca.localeCompare(cb, 'pt-BR', { numeric: true });
     });
 
+    // Celular do cliente (contatos do cadastro)
+    const clienteContatos = (contratoSupabase?.clientes?.contatos as any[]) || [];
+    const contatoCelular = clienteContatos.find((c: any) => {
+      const tipo = (c.tipo || '').toLowerCase();
+      return tipo === 'whatsapp' || tipo === 'celular' || tipo === 'telefone';
+    });
+
+    // Datas reais: entrega vem da logística (data agendada); vencimento das
+    // condições de pagamento — antes ambos caíam em dataInicio e o PDF saía
+    // com datas erradas.
+    const dataEntrega = logistica?.data || contrato.dataInicio;
+    const vencimento = (contrato.condicoesPagamento as any)?.vencimento || contrato.dataInicio;
+    const clienteRetira = logistica?.clienteRetiraEDevolve === true;
+
     return {
+      numero: contrato.numero,
+      loja: lojaContrato as any,
       cliente: {
         nomeRazao: contrato.cliente.nomeRazao,
         documento: contrato.cliente.documento,
         endereco: contrato.cliente.endereco,
+        celular: contatoCelular?.valor || '',
       },
+      obra: contrato.obra ? {
+        responsavel: (contrato.obra as any)?.nome || '',
+        endereco: (contrato.obra as any)?.endereco,
+      } : null,
       enderecoEntrega,
       itens: itensOrdenados.map((item: any) => ({
         equipamento: {
@@ -538,26 +563,33 @@ export default function ContratoDetalhes() {
         periodoEscolhido: item.periodo || 'MES',
         valorUnitario: item.valorUnitario || 0,
         subtotal: item.valorTotal || 0,
+        valorIndenizacao: item.equipamento?.valorIndenizacao || 0,
       })),
       entrega: {
-        data: contrato.dataInicio,
-        janela: (contrato.logistica as any)?.entrega?.janela || 'MANHA',
+        data: dataEntrega,
+        janela: logistica?.janela || logistica?.entrega?.janela || 'MANHA',
         observacoes: contrato.observacoes || '',
       },
+      periodoLocacao: {
+        inicio: contrato.dataInicio,
+        fim: contrato.dataFim,
+      },
+      dataDevolucao: contrato.dataFim,
       pagamento: {
         forma: contrato.formaPagamento || 'PIX',
-        vencimentoISO: contrato.dataInicio,
+        vencimentoISO: vencimento,
       },
-      valorFrete: (contrato.logistica as any)?.taxaDeslocamento?.valor || 0,
+      tipoDeslocamento: clienteRetira ? 'Cliente Retira/Devolve' : 'Entrega/Retirada',
+      valorFrete: Number(logistica?.frete ?? logistica?.taxaDeslocamento?.valor ?? 0),
       valorTotal: contrato.valorTotal,
     };
   };
 
-  const handleBaixarContratoPDF = () => {
+  const handleBaixarContratoPDF = async () => {
     const dados = montarDadosPDF();
     if (!dados) return;
     try {
-      downloadContratoPDF(dados, `contrato-${contrato!.numero}.pdf`);
+      await downloadContratoPDF(dados, `contrato-${contrato!.numero}.pdf`);
       toast({ title: "PDF gerado com sucesso!" });
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
@@ -739,6 +771,7 @@ export default function ContratoDetalhes() {
             parcelas={parcelas}
             previsoesNaoFaturadas={previsoesNaoFaturadas}
             saldoAtraso={saldoAtraso}
+            saldoAbertoSemCobranca={parcelas.length === 0 ? (contrato.valorPendente || 0) : 0}
             totalPrevisoes={totalPrevisoes}
             onSegundaVia={(id) => toast({ title: `Gerando 2ª via da parcela ${id}...` })}
             onReceber={(id) => toast({ title: `Abrindo recebimento da parcela ${id}...` })}

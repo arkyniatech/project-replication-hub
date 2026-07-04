@@ -6,13 +6,11 @@ UPDATE public.pessoas p
 SET loja_id = l.id
 FROM public.lojas l
 WHERE p.loja_id::text = l.codigo;
-
 -- Atualizar cc_id baseado nos códigos  
 UPDATE public.pessoas p
 SET cc_id = cc.id
 FROM public.centros_custo cc
 WHERE p.cc_id::text = cc.codigo;
-
 -- Limpar registros órfãos (se houver) - apenas para dados inválidos remanescentes
 -- Comentado por segurança - descomentar se necessário após verificar dados
 -- UPDATE public.pessoas

@@ -19,19 +19,15 @@ CREATE TABLE IF NOT EXISTS public.grupos_equipamentos (
   
   UNIQUE(nome)
 );
-
 -- Índices
 CREATE INDEX idx_grupos_nome ON public.grupos_equipamentos(nome);
 CREATE INDEX idx_grupos_ativo ON public.grupos_equipamentos(ativo);
-
 -- RLS
 ALTER TABLE public.grupos_equipamentos ENABLE ROW LEVEL SECURITY;
-
 -- Políticas de SELECT (todos podem ver grupos ativos)
 CREATE POLICY "Grupos visíveis para autenticados"
   ON public.grupos_equipamentos FOR SELECT
   USING (ativo = true);
-
 -- Políticas de INSERT (gestor e admin)
 CREATE POLICY "Gestor pode criar grupos"
   ON public.grupos_equipamentos FOR INSERT
@@ -39,7 +35,6 @@ CREATE POLICY "Gestor pode criar grupos"
     has_role(auth.uid(), 'gestor'::app_role) OR 
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 -- Políticas de UPDATE (gestor e admin)
 CREATE POLICY "Gestor pode atualizar grupos"
   ON public.grupos_equipamentos FOR UPDATE
@@ -47,12 +42,10 @@ CREATE POLICY "Gestor pode atualizar grupos"
     has_role(auth.uid(), 'gestor'::app_role) OR 
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 -- Políticas de DELETE (apenas admin)
 CREATE POLICY "Admin pode deletar grupos"
   ON public.grupos_equipamentos FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 2. MODELOS DE EQUIPAMENTOS
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.modelos_equipamentos (
@@ -81,21 +74,17 @@ CREATE TABLE IF NOT EXISTS public.modelos_equipamentos (
   UNIQUE(grupo_id, nome_comercial),
   UNIQUE(prefixo_codigo)
 );
-
 -- Índices
 CREATE INDEX idx_modelos_grupo ON public.modelos_equipamentos(grupo_id);
 CREATE INDEX idx_modelos_nome ON public.modelos_equipamentos(nome_comercial);
 CREATE INDEX idx_modelos_prefixo ON public.modelos_equipamentos(prefixo_codigo);
 CREATE INDEX idx_modelos_ativo ON public.modelos_equipamentos(ativo);
-
 -- RLS
 ALTER TABLE public.modelos_equipamentos ENABLE ROW LEVEL SECURITY;
-
 -- Políticas de SELECT (todos podem ver modelos ativos)
 CREATE POLICY "Modelos visíveis para autenticados"
   ON public.modelos_equipamentos FOR SELECT
   USING (ativo = true);
-
 -- Políticas de INSERT (gestor e admin)
 CREATE POLICY "Gestor pode criar modelos"
   ON public.modelos_equipamentos FOR INSERT
@@ -103,7 +92,6 @@ CREATE POLICY "Gestor pode criar modelos"
     has_role(auth.uid(), 'gestor'::app_role) OR 
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 -- Políticas de UPDATE (gestor e admin)
 CREATE POLICY "Gestor pode atualizar modelos"
   ON public.modelos_equipamentos FOR UPDATE
@@ -111,12 +99,10 @@ CREATE POLICY "Gestor pode atualizar modelos"
     has_role(auth.uid(), 'gestor'::app_role) OR 
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 -- Políticas de DELETE (apenas admin)
 CREATE POLICY "Admin pode deletar modelos"
   ON public.modelos_equipamentos FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 3. HISTÓRICO DE PREÇOS
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.historico_precos (
@@ -134,15 +120,12 @@ CREATE TABLE IF NOT EXISTS public.historico_precos (
   usuario TEXT NOT NULL,
   data_iso TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
 -- Índices
 CREATE INDEX idx_historico_modelo ON public.historico_precos(modelo_id);
 CREATE INDEX idx_historico_loja ON public.historico_precos(loja_id);
 CREATE INDEX idx_historico_data ON public.historico_precos(data_iso DESC);
-
 -- RLS
 ALTER TABLE public.historico_precos ENABLE ROW LEVEL SECURITY;
-
 -- Políticas de SELECT (gestor e admin podem ver histórico)
 CREATE POLICY "Gestor pode ver histórico de preços"
   ON public.historico_precos FOR SELECT
@@ -150,18 +133,15 @@ CREATE POLICY "Gestor pode ver histórico de preços"
     has_role(auth.uid(), 'gestor'::app_role) OR 
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 -- Políticas de INSERT (sistema registra automaticamente)
 CREATE POLICY "Sistema pode inserir histórico"
   ON public.historico_precos FOR INSERT
   WITH CHECK (true);
-
 -- 4. TRIGGERS
 -- =====================================================
 CREATE TRIGGER update_grupos_updated_at
   BEFORE UPDATE ON public.grupos_equipamentos
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
 CREATE TRIGGER update_modelos_updated_at
   BEFORE UPDATE ON public.modelos_equipamentos
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();

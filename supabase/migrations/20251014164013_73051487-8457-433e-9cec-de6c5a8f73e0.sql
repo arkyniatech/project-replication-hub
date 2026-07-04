@@ -9,7 +9,6 @@ CREATE TYPE tipo_conta_financeira AS ENUM ('BANCO', 'CAIXA', 'CARTAO');
 CREATE TYPE status_aprovacao AS ENUM ('PENDENTE', 'APROVADO', 'REPROVADO');
 CREATE TYPE nivel_aprovacao AS ENUM ('FINANCEIRO', 'GESTOR', 'DIRECAO');
 CREATE TYPE tipo_categoria AS ENUM ('DESPESA', 'RECEITA');
-
 -- ============================================================================
 -- 2. TABELAS
 -- ============================================================================
@@ -25,7 +24,6 @@ CREATE TABLE public.categorias_n2 (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
-
 -- 2.2. Contas Financeiras
 CREATE TABLE public.contas_financeiras (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -44,7 +42,6 @@ CREATE TABLE public.contas_financeiras (
   updated_at timestamptz DEFAULT now(),
   UNIQUE(loja_id, codigo)
 );
-
 -- 2.3. Títulos a Pagar
 CREATE TABLE public.titulos_pagar (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,7 +69,6 @@ CREATE TABLE public.titulos_pagar (
   ativo boolean DEFAULT true,
   UNIQUE(loja_id, numero)
 );
-
 -- 2.4. Parcelas a Pagar
 CREATE TABLE public.parcelas_pagar (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -96,7 +92,6 @@ CREATE TABLE public.parcelas_pagar (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
-
 -- 2.5. Movimentos (Pagamentos)
 CREATE TABLE public.movimentos_pagar (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -116,7 +111,6 @@ CREATE TABLE public.movimentos_pagar (
   created_by uuid,
   created_at timestamptz DEFAULT now()
 );
-
 -- 2.6. Budget/Metas
 CREATE TABLE public.budget_metas (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -130,7 +124,6 @@ CREATE TABLE public.budget_metas (
   updated_at timestamptz DEFAULT now(),
   UNIQUE(periodo, loja_id, categoria_codigo)
 );
-
 -- 2.7. Fechamentos
 CREATE TABLE public.fechamentos_cp (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -145,7 +138,6 @@ CREATE TABLE public.fechamentos_cp (
   updated_at timestamptz DEFAULT now(),
   UNIQUE(periodo, loja_id)
 );
-
 -- 2.8. Aprovações
 CREATE TABLE public.aprovacoes_cp (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -157,7 +149,6 @@ CREATE TABLE public.aprovacoes_cp (
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
-
 -- ============================================================================
 -- 3. ÍNDICES
 -- ============================================================================
@@ -165,15 +156,12 @@ CREATE TABLE public.aprovacoes_cp (
 CREATE INDEX idx_titulos_pagar_loja ON public.titulos_pagar(loja_id);
 CREATE INDEX idx_titulos_pagar_fornecedor ON public.titulos_pagar(fornecedor_id);
 CREATE INDEX idx_titulos_pagar_status ON public.titulos_pagar(status);
-
 CREATE INDEX idx_parcelas_pagar_titulo ON public.parcelas_pagar(titulo_id);
 CREATE INDEX idx_parcelas_pagar_loja ON public.parcelas_pagar(loja_id);
 CREATE INDEX idx_parcelas_pagar_vencimento ON public.parcelas_pagar(vencimento);
 CREATE INDEX idx_parcelas_pagar_status ON public.parcelas_pagar(status);
-
 CREATE INDEX idx_movimentos_pagar_parcela ON public.movimentos_pagar(parcela_id);
 CREATE INDEX idx_movimentos_pagar_conta ON public.movimentos_pagar(conta_id);
-
 -- ============================================================================
 -- 4. TRIGGERS
 -- ============================================================================
@@ -183,22 +171,18 @@ CREATE TRIGGER update_titulos_pagar_updated_at
   BEFORE UPDATE ON public.titulos_pagar
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
-
 CREATE TRIGGER update_parcelas_pagar_updated_at
   BEFORE UPDATE ON public.parcelas_pagar
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
-
 CREATE TRIGGER update_categorias_n2_updated_at
   BEFORE UPDATE ON public.categorias_n2
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
-
 CREATE TRIGGER update_contas_financeiras_updated_at
   BEFORE UPDATE ON public.contas_financeiras
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
-
 -- 4.2. Atualizar status da parcela após pagamento
 CREATE OR REPLACE FUNCTION public.atualizar_status_parcela()
 RETURNS TRIGGER
@@ -232,12 +216,10 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 CREATE TRIGGER trigger_atualizar_status_parcela
   AFTER INSERT ON public.movimentos_pagar
   FOR EACH ROW
   EXECUTE FUNCTION public.atualizar_status_parcela();
-
 -- ============================================================================
 -- 5. FUNÇÕES AUXILIARES
 -- ============================================================================
@@ -258,7 +240,6 @@ AS $$
       AND fechado = true
   );
 $$;
-
 -- 5.2. Gerar número de título a pagar
 CREATE OR REPLACE FUNCTION public.gerar_numero_titulo_pagar(p_loja_id uuid)
 RETURNS text
@@ -285,28 +266,23 @@ BEGIN
   RETURN v_numero;
 END;
 $$;
-
 -- ============================================================================
 -- 6. RLS POLICIES
 -- ============================================================================
 
 -- 6.1. categorias_n2
 ALTER TABLE public.categorias_n2 ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Categorias visíveis para autenticados"
   ON public.categorias_n2 FOR SELECT
   USING (ativo = true);
-
 CREATE POLICY "Admin/Financeiro podem gerenciar categorias"
   ON public.categorias_n2 FOR ALL
   USING (
     has_role(auth.uid(), 'admin'::app_role) OR 
     has_role(auth.uid(), 'financeiro'::app_role)
   );
-
 -- 6.2. contas_financeiras
 ALTER TABLE public.contas_financeiras ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Contas visíveis para usuários da loja"
   ON public.contas_financeiras FOR SELECT
   USING (
@@ -315,7 +291,6 @@ CREATE POLICY "Contas visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin/Financeiro podem gerenciar contas"
   ON public.contas_financeiras FOR ALL
   USING (
@@ -325,10 +300,8 @@ CREATE POLICY "Admin/Financeiro podem gerenciar contas"
       WHERE user_id = auth.uid()
     )
   );
-
 -- 6.3. titulos_pagar
 ALTER TABLE public.titulos_pagar ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Títulos visíveis para usuários da loja"
   ON public.titulos_pagar FOR SELECT
   USING (
@@ -337,7 +310,6 @@ CREATE POLICY "Títulos visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Financeiro/Gestor podem criar títulos"
   ON public.titulos_pagar FOR INSERT
   WITH CHECK (
@@ -349,7 +321,6 @@ CREATE POLICY "Financeiro/Gestor podem criar títulos"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Financeiro/Gestor podem atualizar títulos"
   ON public.titulos_pagar FOR UPDATE
   USING (
@@ -361,14 +332,11 @@ CREATE POLICY "Financeiro/Gestor podem atualizar títulos"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin pode deletar títulos"
   ON public.titulos_pagar FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 6.4. parcelas_pagar
 ALTER TABLE public.parcelas_pagar ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Parcelas visíveis para usuários da loja"
   ON public.parcelas_pagar FOR SELECT
   USING (
@@ -377,7 +345,6 @@ CREATE POLICY "Parcelas visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Financeiro pode gerenciar parcelas"
   ON public.parcelas_pagar FOR ALL
   USING (
@@ -387,10 +354,8 @@ CREATE POLICY "Financeiro pode gerenciar parcelas"
       WHERE user_id = auth.uid()
     )
   );
-
 -- 6.5. movimentos_pagar
 ALTER TABLE public.movimentos_pagar ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Movimentos visíveis para usuários da loja"
   ON public.movimentos_pagar FOR SELECT
   USING (
@@ -399,7 +364,6 @@ CREATE POLICY "Movimentos visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Financeiro pode registrar pagamentos"
   ON public.movimentos_pagar FOR INSERT
   WITH CHECK (
@@ -409,10 +373,8 @@ CREATE POLICY "Financeiro pode registrar pagamentos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- 6.6. budget_metas
 ALTER TABLE public.budget_metas ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Metas visíveis para usuários da loja"
   ON public.budget_metas FOR SELECT
   USING (
@@ -421,7 +383,6 @@ CREATE POLICY "Metas visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Financeiro/Gestor podem gerenciar metas"
   ON public.budget_metas FOR ALL
   USING (
@@ -433,10 +394,8 @@ CREATE POLICY "Financeiro/Gestor podem gerenciar metas"
       WHERE user_id = auth.uid()
     )
   );
-
 -- 6.7. fechamentos_cp
 ALTER TABLE public.fechamentos_cp ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Fechamentos visíveis para usuários da loja"
   ON public.fechamentos_cp FOR SELECT
   USING (
@@ -445,7 +404,6 @@ CREATE POLICY "Fechamentos visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Financeiro/Admin podem gerenciar fechamentos"
   ON public.fechamentos_cp FOR ALL
   USING (
@@ -455,10 +413,8 @@ CREATE POLICY "Financeiro/Admin podem gerenciar fechamentos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- 6.8. aprovacoes_cp
 ALTER TABLE public.aprovacoes_cp ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Aprovações visíveis para usuários autorizados"
   ON public.aprovacoes_cp FOR SELECT
   USING (
@@ -466,7 +422,6 @@ CREATE POLICY "Aprovações visíveis para usuários autorizados"
     has_role(auth.uid(), 'gestor'::app_role) OR 
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 CREATE POLICY "Usuários autorizados podem gerenciar aprovações"
   ON public.aprovacoes_cp FOR ALL
   USING (

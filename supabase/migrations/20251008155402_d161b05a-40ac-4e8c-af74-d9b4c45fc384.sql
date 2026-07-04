@@ -74,14 +74,12 @@ BEGIN
   RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
 -- Trigger AFTER INSERT em contrato_itens
 DROP TRIGGER IF EXISTS trigger_saldo_insert ON contrato_itens;
 CREATE TRIGGER trigger_saldo_insert
   AFTER INSERT ON contrato_itens
   FOR EACH ROW
   EXECUTE FUNCTION recalcular_saldo_equipamento();
-
 -- Trigger AFTER UPDATE em contrato_itens (apenas se equipamento_id, quantidade ou controle mudarem)
 DROP TRIGGER IF EXISTS trigger_saldo_update ON contrato_itens;
 CREATE TRIGGER trigger_saldo_update
@@ -93,14 +91,12 @@ CREATE TRIGGER trigger_saldo_update
     OLD.controle IS DISTINCT FROM NEW.controle
   )
   EXECUTE FUNCTION recalcular_saldo_equipamento();
-
 -- Trigger AFTER DELETE em contrato_itens
 DROP TRIGGER IF EXISTS trigger_saldo_delete ON contrato_itens;
 CREATE TRIGGER trigger_saldo_delete
   AFTER DELETE ON contrato_itens
   FOR EACH ROW
   EXECUTE FUNCTION recalcular_saldo_equipamento();
-
 -- Função auxiliar para recalcular por equipamento específico (uso direto)
 CREATE OR REPLACE FUNCTION public.recalcular_saldo_equipamento_direto(p_equipamento_id UUID)
 RETURNS VOID AS $$
@@ -155,7 +151,6 @@ BEGIN
   WHERE id = p_equipamento_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
 -- Função para recalcular quando o status do contrato muda
 CREATE OR REPLACE FUNCTION public.recalcular_saldo_por_contrato()
 RETURNS TRIGGER AS $$
@@ -182,7 +177,6 @@ BEGIN
   RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
 -- Trigger em contratos para quando status mudar
 DROP TRIGGER IF EXISTS trigger_contrato_status_change ON contratos;
 CREATE TRIGGER trigger_contrato_status_change

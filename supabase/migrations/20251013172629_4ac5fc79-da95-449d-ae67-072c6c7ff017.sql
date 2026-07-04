@@ -6,7 +6,6 @@
 
 -- Remover política permissiva atual
 DROP POLICY IF EXISTS "Roles visíveis para autenticados" ON user_roles;
-
 -- Criar política restritiva
 CREATE POLICY "Usuário vê apenas próprias roles ou admin vê todas"
   ON user_roles FOR SELECT
@@ -16,7 +15,6 @@ CREATE POLICY "Usuário vê apenas próprias roles ou admin vê todas"
     OR has_role(auth.uid(), 'admin'::app_role)
     OR has_role(auth.uid(), 'rh'::app_role)
   );
-
 -- ============================================
 -- CORREÇÃO 2: Remover Políticas Duplicadas da Tabela pessoas
 -- ============================================
@@ -25,18 +23,14 @@ CREATE POLICY "Usuário vê apenas próprias roles ou admin vê todas"
 
 -- Remover política de DELETE duplicada (mais restritiva)
 DROP POLICY IF EXISTS "Apenas admin pode deletar pessoas" ON pessoas;
-
 -- Remover política de INSERT duplicada
 DROP POLICY IF EXISTS "Admin e RH podem inserir pessoas" ON pessoas;
-
 -- Remover política de UPDATE duplicada (menos permissiva)
 DROP POLICY IF EXISTS "Admin e RH podem atualizar pessoas" ON pessoas;
-
 -- ============================================
 -- Comentários de Auditoria
 -- ============================================
 COMMENT ON POLICY "Usuário vê apenas próprias roles ou admin vê todas" ON user_roles IS 
   '✅ SECURITY FIX: Previne enumeração de admins. Usuários comuns veem apenas suas próprias roles.';
-
 COMMENT ON TABLE pessoas IS 
   '✅ SECURITY FIX: Políticas duplicadas removidas. 4 políticas CRUD mantidas (SELECT/INSERT/UPDATE/DELETE).';

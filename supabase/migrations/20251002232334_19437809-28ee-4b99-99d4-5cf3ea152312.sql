@@ -15,7 +15,6 @@ DROP INDEX IF EXISTS public.idx_contrato_itens_equipamento;
 DROP INDEX IF EXISTS public.idx_contrato_itens_modelo;
 DROP INDEX IF EXISTS public.idx_contrato_itens_grupo;
 DROP INDEX IF EXISTS public.idx_contrato_itens_status;
-
 -- 1. CONTRATOS
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.contratos (
@@ -75,7 +74,6 @@ CREATE TABLE IF NOT EXISTS public.contratos (
   
   UNIQUE(loja_id, numero)
 );
-
 -- Índices para contratos
 CREATE INDEX IF NOT EXISTS idx_contratos_loja_v2 ON public.contratos(loja_id);
 CREATE INDEX IF NOT EXISTS idx_contratos_cliente_v2 ON public.contratos(cliente_id);
@@ -84,16 +82,13 @@ CREATE INDEX IF NOT EXISTS idx_contratos_numero_v2 ON public.contratos(numero);
 CREATE INDEX IF NOT EXISTS idx_contratos_status_v2 ON public.contratos(status);
 CREATE INDEX IF NOT EXISTS idx_contratos_data_inicio_v2 ON public.contratos(data_inicio);
 CREATE INDEX IF NOT EXISTS idx_contratos_data_fim_v2 ON public.contratos(data_fim);
-
 -- RLS para contratos
 ALTER TABLE public.contratos ENABLE ROW LEVEL SECURITY;
-
 -- Drop old policies if they exist
 DROP POLICY IF EXISTS "Contratos visíveis para usuários da loja" ON public.contratos;
 DROP POLICY IF EXISTS "Vendedor pode criar contratos" ON public.contratos;
 DROP POLICY IF EXISTS "Vendedor pode atualizar contratos" ON public.contratos;
 DROP POLICY IF EXISTS "Admin pode deletar contratos" ON public.contratos;
-
 -- Políticas de SELECT
 CREATE POLICY "Contratos visíveis para usuários da loja"
   ON public.contratos FOR SELECT
@@ -103,7 +98,6 @@ CREATE POLICY "Contratos visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de INSERT
 CREATE POLICY "Vendedor pode criar contratos"
   ON public.contratos FOR INSERT
@@ -117,7 +111,6 @@ CREATE POLICY "Vendedor pode criar contratos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de UPDATE
 CREATE POLICY "Vendedor pode atualizar contratos"
   ON public.contratos FOR UPDATE
@@ -131,12 +124,10 @@ CREATE POLICY "Vendedor pode atualizar contratos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de DELETE
 CREATE POLICY "Admin pode deletar contratos"
   ON public.contratos FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 2. ITENS DE CONTRATO
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.contrato_itens (
@@ -178,23 +169,19 @@ CREATE TABLE IF NOT EXISTS public.contrato_itens (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
 -- Índices para itens
 CREATE INDEX IF NOT EXISTS idx_contrato_itens_contrato_v2 ON public.contrato_itens(contrato_id);
 CREATE INDEX IF NOT EXISTS idx_contrato_itens_equipamento_v2 ON public.contrato_itens(equipamento_id);
 CREATE INDEX IF NOT EXISTS idx_contrato_itens_modelo_v2 ON public.contrato_itens(modelo_id);
 CREATE INDEX IF NOT EXISTS idx_contrato_itens_grupo_v2 ON public.contrato_itens(grupo_id);
 CREATE INDEX IF NOT EXISTS idx_contrato_itens_status_v2 ON public.contrato_itens(status);
-
 -- RLS para itens
 ALTER TABLE public.contrato_itens ENABLE ROW LEVEL SECURITY;
-
 -- Drop old policies if they exist
 DROP POLICY IF EXISTS "Itens visíveis para usuários que veem o contrato" ON public.contrato_itens;
 DROP POLICY IF EXISTS "Vendedor pode criar itens de contrato" ON public.contrato_itens;
 DROP POLICY IF EXISTS "Vendedor pode atualizar itens de contrato" ON public.contrato_itens;
 DROP POLICY IF EXISTS "Admin pode deletar itens de contrato" ON public.contrato_itens;
-
 -- Políticas de SELECT (herdar do contrato)
 CREATE POLICY "Itens visíveis para usuários que veem o contrato"
   ON public.contrato_itens FOR SELECT
@@ -207,7 +194,6 @@ CREATE POLICY "Itens visíveis para usuários que veem o contrato"
       )
     )
   );
-
 -- Políticas de INSERT
 CREATE POLICY "Vendedor pode criar itens de contrato"
   ON public.contrato_itens FOR INSERT
@@ -216,7 +202,6 @@ CREATE POLICY "Vendedor pode criar itens de contrato"
      has_role(auth.uid(), 'gestor'::app_role) OR
      has_role(auth.uid(), 'admin'::app_role))
   );
-
 -- Políticas de UPDATE
 CREATE POLICY "Vendedor pode atualizar itens de contrato"
   ON public.contrato_itens FOR UPDATE
@@ -225,21 +210,17 @@ CREATE POLICY "Vendedor pode atualizar itens de contrato"
      has_role(auth.uid(), 'gestor'::app_role) OR
      has_role(auth.uid(), 'admin'::app_role))
   );
-
 -- Políticas de DELETE
 CREATE POLICY "Admin pode deletar itens de contrato"
   ON public.contrato_itens FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 3. TRIGGERS
 -- =====================================================
 DROP TRIGGER IF EXISTS update_contratos_updated_at ON public.contratos;
 DROP TRIGGER IF EXISTS update_contrato_itens_updated_at ON public.contrato_itens;
-
 CREATE TRIGGER update_contratos_updated_at
   BEFORE UPDATE ON public.contratos
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
 CREATE TRIGGER update_contrato_itens_updated_at
   BEFORE UPDATE ON public.contrato_itens
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();

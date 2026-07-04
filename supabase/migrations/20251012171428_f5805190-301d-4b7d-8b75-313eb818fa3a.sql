@@ -15,28 +15,23 @@ CREATE TABLE IF NOT EXISTS public.aditivos_contratuais (
   criado_em TIMESTAMP WITH TIME ZONE DEFAULT now(),
   atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
-
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_aditivos_contrato_id ON public.aditivos_contratuais(contrato_id);
 CREATE INDEX IF NOT EXISTS idx_aditivos_loja_id ON public.aditivos_contratuais(loja_id);
 CREATE INDEX IF NOT EXISTS idx_aditivos_tipo ON public.aditivos_contratuais(tipo);
-
 -- Trigger para atualizar updated_at
 CREATE TRIGGER update_aditivos_updated_at
   BEFORE UPDATE ON public.aditivos_contratuais
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
-
 -- Enable RLS
 ALTER TABLE public.aditivos_contratuais ENABLE ROW LEVEL SECURITY;
-
 -- Policies
 CREATE POLICY "Aditivos visíveis para usuários da loja"
   ON public.aditivos_contratuais FOR SELECT
   USING (loja_id IN (
     SELECT loja_id FROM public.user_lojas_permitidas WHERE user_id = auth.uid()
   ));
-
 CREATE POLICY "Vendedor pode criar aditivos"
   ON public.aditivos_contratuais FOR INSERT
   WITH CHECK (
@@ -47,7 +42,6 @@ CREATE POLICY "Vendedor pode criar aditivos"
       SELECT loja_id FROM public.user_lojas_permitidas WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Vendedor pode atualizar aditivos"
   ON public.aditivos_contratuais FOR UPDATE
   USING (
@@ -58,7 +52,6 @@ CREATE POLICY "Vendedor pode atualizar aditivos"
       SELECT loja_id FROM public.user_lojas_permitidas WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin pode deletar aditivos"
   ON public.aditivos_contratuais FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));

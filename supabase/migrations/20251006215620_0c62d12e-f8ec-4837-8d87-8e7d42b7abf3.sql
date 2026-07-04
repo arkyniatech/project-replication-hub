@@ -11,14 +11,12 @@ CREATE TYPE status_tarefa_logistica AS ENUM (
   'REAGENDADO',
   'CANCELADO'
 );
-
 -- 2. Criar ENUM para tipo de tarefa
 CREATE TYPE tipo_tarefa_logistica AS ENUM (
   'ENTREGA',
   'RETIRADA',
   'SUPORTE'
 );
-
 -- 3. Criar ENUM para prioridade
 CREATE TYPE prioridade_tarefa AS ENUM (
   'BAIXA',
@@ -26,7 +24,6 @@ CREATE TYPE prioridade_tarefa AS ENUM (
   'ALTA',
   'CRITICA'
 );
-
 -- 4. Tabela de configurações de logística por loja
 CREATE TABLE logistica_config (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -74,7 +71,6 @@ CREATE TABLE logistica_config (
   
   UNIQUE(loja_id)
 );
-
 -- 5. Tabela de motoristas
 CREATE TABLE logistica_motoristas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -93,7 +89,6 @@ CREATE TABLE logistica_motoristas (
   updated_at TIMESTAMPTZ DEFAULT now(),
   created_by UUID REFERENCES auth.users(id)
 );
-
 -- 6. Tabela de veículos
 CREATE TABLE logistica_veiculos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -113,7 +108,6 @@ CREATE TABLE logistica_veiculos (
   
   UNIQUE(loja_id, placa)
 );
-
 -- 7. Tabela de itinerários
 CREATE TABLE logistica_itinerarios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -135,7 +129,6 @@ CREATE TABLE logistica_itinerarios (
   
   UNIQUE(loja_id, data_iso, motorista_id)
 );
-
 -- 8. Tabela de tarefas de logística
 CREATE TABLE logistica_tarefas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -182,7 +175,6 @@ CREATE TABLE logistica_tarefas (
   updated_at TIMESTAMPTZ DEFAULT now(),
   created_by UUID REFERENCES auth.users(id)
 );
-
 -- 9. Tabela de métricas diárias
 CREATE TABLE logistica_metricas_diarias (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -208,33 +200,25 @@ CREATE TABLE logistica_metricas_diarias (
   
   UNIQUE(loja_id, data_iso, motorista_id)
 );
-
 -- 10. Índices para performance
 CREATE INDEX idx_logistica_tarefas_loja_data ON logistica_tarefas(loja_id, previsto_iso);
 CREATE INDEX idx_logistica_tarefas_status ON logistica_tarefas(status);
 CREATE INDEX idx_logistica_tarefas_motorista ON logistica_tarefas(itinerario_id) WHERE itinerario_id IS NOT NULL;
 CREATE INDEX idx_logistica_itinerarios_loja_data ON logistica_itinerarios(loja_id, data_iso);
 CREATE INDEX idx_logistica_metricas_loja_data ON logistica_metricas_diarias(loja_id, data_iso);
-
 -- 11. Trigger para updated_at
 CREATE TRIGGER update_logistica_config_updated_at BEFORE UPDATE ON logistica_config
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_logistica_motoristas_updated_at BEFORE UPDATE ON logistica_motoristas
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_logistica_veiculos_updated_at BEFORE UPDATE ON logistica_veiculos
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_logistica_itinerarios_updated_at BEFORE UPDATE ON logistica_itinerarios
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_logistica_tarefas_updated_at BEFORE UPDATE ON logistica_tarefas
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_logistica_metricas_updated_at BEFORE UPDATE ON logistica_metricas_diarias
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 -- 12. RLS - Habilitar Row Level Security
 ALTER TABLE logistica_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE logistica_motoristas ENABLE ROW LEVEL SECURITY;
@@ -242,85 +226,71 @@ ALTER TABLE logistica_veiculos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE logistica_itinerarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE logistica_tarefas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE logistica_metricas_diarias ENABLE ROW LEVEL SECURITY;
-
 -- 13. RLS Policies - logistica_config
 CREATE POLICY "Config visível para usuários da loja"
   ON logistica_config FOR SELECT
   USING (loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()));
-
 CREATE POLICY "Gestor/Admin podem atualizar config"
   ON logistica_config FOR UPDATE
   USING (
     (has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
     AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
   );
-
 CREATE POLICY "Gestor/Admin podem inserir config"
   ON logistica_config FOR INSERT
   WITH CHECK (
     (has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
     AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
   );
-
 -- 14. RLS Policies - logistica_motoristas
 CREATE POLICY "Motoristas visíveis para usuários da loja"
   ON logistica_motoristas FOR SELECT
   USING (loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()));
-
 CREATE POLICY "Vendedor/Gestor podem gerenciar motoristas"
   ON logistica_motoristas FOR ALL
   USING (
     (has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
     AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
   );
-
 -- 15. RLS Policies - logistica_veiculos
 CREATE POLICY "Veículos visíveis para usuários da loja"
   ON logistica_veiculos FOR SELECT
   USING (loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()));
-
 CREATE POLICY "Vendedor/Gestor podem gerenciar veículos"
   ON logistica_veiculos FOR ALL
   USING (
     (has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
     AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
   );
-
 -- 16. RLS Policies - logistica_itinerarios
 CREATE POLICY "Itinerários visíveis para usuários da loja"
   ON logistica_itinerarios FOR SELECT
   USING (loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()));
-
 CREATE POLICY "Vendedor/Operação podem gerenciar itinerários"
   ON logistica_itinerarios FOR ALL
   USING (
     (has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'operacao') OR has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
     AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
   );
-
 -- 17. RLS Policies - logistica_tarefas
 CREATE POLICY "Tarefas visíveis para usuários da loja"
   ON logistica_tarefas FOR SELECT
   USING (loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()));
-
 CREATE POLICY "Vendedor/Operação podem gerenciar tarefas"
   ON logistica_tarefas FOR ALL
   USING (
     (has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'operacao') OR has_role(auth.uid(), 'motorista') OR has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
     AND loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
   );
-
 -- 18. RLS Policies - logistica_metricas_diarias
 CREATE POLICY "Métricas visíveis para usuários da loja"
   ON logistica_metricas_diarias FOR SELECT
   USING (loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()));
-
 CREATE POLICY "Sistema pode gerenciar métricas"
   ON logistica_metricas_diarias FOR ALL
   USING (
     loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
   );
-
 -- 19. Seed inicial - Criar config padrão para todas as lojas existentes
 INSERT INTO logistica_config (loja_id)
 SELECT id FROM lojas WHERE ativo = true

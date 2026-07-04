@@ -78,13 +78,11 @@ BEGIN
   RETURN COALESCE(NEW, OLD);
 END;
 $$;
-
 -- Trigger AFTER INSERT
 CREATE TRIGGER trigger_recalcular_saldo_insert
 AFTER INSERT ON contrato_itens
 FOR EACH ROW
 EXECUTE FUNCTION recalcular_saldo_equipamento();
-
 -- Trigger AFTER UPDATE
 CREATE TRIGGER trigger_recalcular_saldo_update
 AFTER UPDATE ON contrato_itens
@@ -95,13 +93,11 @@ WHEN (
   OLD.controle IS DISTINCT FROM NEW.controle
 )
 EXECUTE FUNCTION recalcular_saldo_equipamento();
-
 -- Trigger AFTER DELETE
 CREATE TRIGGER trigger_recalcular_saldo_delete
 AFTER DELETE ON contrato_itens
 FOR EACH ROW
 EXECUTE FUNCTION recalcular_saldo_equipamento();
-
 -- Trigger para recalcular quando status do contrato mudar
 CREATE OR REPLACE FUNCTION public.recalcular_saldo_por_contrato()
 RETURNS TRIGGER
@@ -132,7 +128,6 @@ BEGIN
   RETURN COALESCE(NEW, OLD);
 END;
 $$;
-
 -- Função auxiliar para recalcular um equipamento específico
 CREATE OR REPLACE FUNCTION public.recalcular_saldo_equipamento_direto(p_equipamento_id UUID)
 RETURNS void
@@ -191,7 +186,6 @@ BEGIN
   WHERE id = p_equipamento_id;
 END;
 $$;
-
 -- Trigger para mudanças de status do contrato
 CREATE TRIGGER trigger_contrato_status_change
 AFTER UPDATE ON contratos

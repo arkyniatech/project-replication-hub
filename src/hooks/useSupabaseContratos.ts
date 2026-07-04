@@ -84,7 +84,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
           obras(*),
           contrato_itens(
             *,
-            equipamentos(codigo_interno, numero_serie),
+            equipamentos(codigo_interno, numero_serie, valor_indenizacao),
             modelos_equipamentos(nome_comercial),
             grupos_equipamentos(nome)
           )
@@ -529,8 +529,54 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
         throw updateContratoError;
       }
 
-      console.log('[devolverContrato] Devolução concluída com sucesso:', { 
-        contratoId, 
+      // 7. No encerramento, garantir que o saldo pendente esteja representado
+      //    em títulos — senão o valor fica "preso" em contratos.valor_pendente
+      //    e nunca aparece em Contas a Receber (bug #30).
+      if (todosItensDevolvidos) {
+        const valorPendente = Number(contrato.valor_pendente || 0);
+        if (valorPendente > 0) {
+          const { data: titulosAbertos } = await supabase
+            .from('titulos')
+            .select('saldo')
+            .eq('contrato_id', contratoId)
+            .in('status', ['EM_ABERTO', 'PARCIAL']);
+
+          const saldoEmTitulos = (titulosAbertos || [])
+            .reduce((acc, t: any) => acc + Number(t.saldo || 0), 0);
+          const descoberto = valorPendente - saldoEmTitulos;
+
+          if (descoberto > 0.009) {
+            const hojeIso = new Date().toISOString().split('T')[0];
+            const { error: tituloError } = await supabase.from('titulos').insert({
+              numero: `${contrato.numero}/ENC`,
+              loja_id: contrato.loja_id,
+              cliente_id: contrato.cliente_id,
+              contrato_id: contratoId,
+              categoria: 'Locação',
+              subcategoria: contrato.forma_pagamento || null,
+              emissao: hojeIso,
+              vencimento: dataDevolucao || hojeIso,
+              valor: descoberto,
+              saldo: descoberto,
+              pago: 0,
+              status: 'EM_ABERTO',
+              origem: 'CONTRATO',
+              forma: contrato.forma_pagamento || null,
+              observacoes: `Saldo de encerramento - Contrato ${contrato.numero}`,
+            });
+
+            if (tituloError) {
+              // Não bloqueia a devolução — mas registra para diagnóstico
+              console.error('[devolverContrato] Erro ao gerar título de encerramento:', tituloError);
+            } else {
+              console.log(`[devolverContrato] Título de encerramento gerado: R$ ${descoberto.toFixed(2)}`);
+            }
+          }
+        }
+      }
+
+      console.log('[devolverContrato] Devolução concluída com sucesso:', {
+        contratoId,
         novoStatus,
         equipamentosParaRevisao: equipamentosParaRevisao.length
       });
@@ -545,8 +591,9 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
       queryClient.invalidateQueries({ queryKey: ['contratos'] });
       queryClient.invalidateQueries({ queryKey: ['contrato'] });
       queryClient.invalidateQueries({ queryKey: ['equipamentos'] });
-      
-      const msg = data.novoStatus === 'ENCERRADO' 
+      queryClient.invalidateQueries({ queryKey: ['titulos'] });
+
+      const msg = data.novoStatus === 'ENCERRADO'
         ? `Contrato encerrado! ${data.equipamentosLiberados} equipamento(s) em revisão (área amarela).`
         : `Devolução parcial confirmada! ${data.equipamentosLiberados} equipamento(s) em revisão.`;
       

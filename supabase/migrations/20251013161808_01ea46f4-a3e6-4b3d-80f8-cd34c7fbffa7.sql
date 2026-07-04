@@ -4,7 +4,6 @@
 INSERT INTO public.user_roles (user_id, role)
 VALUES ('5be19bf1-0eac-4501-8fb5-217140626b3c', 'admin')
 ON CONFLICT (user_id, role) DO NOTHING;
-
 -- ============================================
 -- PASSO 2: Ajustar políticas RLS - user_roles
 -- ============================================
@@ -13,7 +12,6 @@ ON CONFLICT (user_id, role) DO NOTHING;
 DROP POLICY IF EXISTS "Admin pode inserir roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admin pode atualizar roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admin pode deletar roles" ON public.user_roles;
-
 -- Criar policies corrigidas
 CREATE POLICY "Admin pode inserir roles"
   ON public.user_roles
@@ -22,7 +20,6 @@ CREATE POLICY "Admin pode inserir roles"
   WITH CHECK (
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 CREATE POLICY "Admin pode atualizar roles"
   ON public.user_roles
   FOR UPDATE
@@ -30,7 +27,6 @@ CREATE POLICY "Admin pode atualizar roles"
   USING (
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 CREATE POLICY "Admin pode deletar roles"
   ON public.user_roles
   FOR DELETE
@@ -38,7 +34,6 @@ CREATE POLICY "Admin pode deletar roles"
   USING (
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 -- ============================================
 -- PASSO 2: Ajustar políticas RLS - user_lojas_permitidas
 -- ============================================
@@ -47,7 +42,6 @@ CREATE POLICY "Admin pode deletar roles"
 DROP POLICY IF EXISTS "Admin pode inserir lojas permitidas" ON public.user_lojas_permitidas;
 DROP POLICY IF EXISTS "Admin pode atualizar lojas" ON public.user_lojas_permitidas;
 DROP POLICY IF EXISTS "Admin pode deletar lojas permitidas" ON public.user_lojas_permitidas;
-
 -- Criar policies corrigidas
 CREATE POLICY "Admin pode inserir lojas permitidas"
   ON public.user_lojas_permitidas
@@ -56,7 +50,6 @@ CREATE POLICY "Admin pode inserir lojas permitidas"
   WITH CHECK (
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 CREATE POLICY "Admin pode atualizar lojas"
   ON public.user_lojas_permitidas
   FOR UPDATE
@@ -64,7 +57,6 @@ CREATE POLICY "Admin pode atualizar lojas"
   USING (
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 CREATE POLICY "Admin pode deletar lojas permitidas"
   ON public.user_lojas_permitidas
   FOR DELETE
@@ -72,7 +64,6 @@ CREATE POLICY "Admin pode deletar lojas permitidas"
   USING (
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 -- ============================================
 -- PASSO 3: Adicionar loja permitida ao usuário admin
 -- ============================================

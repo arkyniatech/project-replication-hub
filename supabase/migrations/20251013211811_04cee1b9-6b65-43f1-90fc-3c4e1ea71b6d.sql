@@ -22,7 +22,6 @@ BEGIN
   REFERENCES auth.users(id) 
   ON DELETE CASCADE;
 END $$;
-
 -- Verificar e ajustar user_roles
 DO $$ 
 BEGIN
@@ -40,7 +39,6 @@ BEGIN
   REFERENCES auth.users(id) 
   ON DELETE CASCADE;
 END $$;
-
 -- Verificar e ajustar user_lojas_permitidas
 DO $$ 
 BEGIN
@@ -58,15 +56,12 @@ BEGIN
   REFERENCES auth.users(id) 
   ON DELETE CASCADE;
 END $$;
-
 -- ============================================
 -- Comentários de Auditoria
 -- ============================================
 COMMENT ON CONSTRAINT user_profiles_id_fkey ON user_profiles IS 
   '✅ SECURITY: CASCADE delete - quando usuário é deletado do auth.users, perfil é deletado automaticamente';
-
 COMMENT ON CONSTRAINT user_roles_user_id_fkey ON user_roles IS 
   '✅ SECURITY: CASCADE delete - quando usuário é deletado do auth.users, roles são deletadas automaticamente';
-
 COMMENT ON CONSTRAINT user_lojas_permitidas_user_id_fkey ON user_lojas_permitidas IS 
   '✅ SECURITY: CASCADE delete - quando usuário é deletado do auth.users, lojas permitidas são deletadas automaticamente';

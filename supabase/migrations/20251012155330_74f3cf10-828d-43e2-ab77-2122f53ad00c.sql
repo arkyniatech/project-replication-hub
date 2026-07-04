@@ -16,22 +16,18 @@ CREATE TABLE IF NOT EXISTS public.faturas (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by UUID
 );
-
 -- Index para performance
 CREATE INDEX idx_faturas_loja ON public.faturas(loja_id);
 CREATE INDEX idx_faturas_cliente ON public.faturas(cliente_id);
 CREATE INDEX idx_faturas_contrato ON public.faturas(contrato_id);
 CREATE INDEX idx_faturas_numero ON public.faturas(numero);
-
 -- Trigger para updated_at
 CREATE TRIGGER update_faturas_updated_at
   BEFORE UPDATE ON public.faturas
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
-
 -- RLS Policies
 ALTER TABLE public.faturas ENABLE ROW LEVEL SECURITY;
-
 -- Faturas visíveis para usuários da loja
 CREATE POLICY "Faturas visíveis para usuários da loja"
   ON public.faturas
@@ -42,7 +38,6 @@ CREATE POLICY "Faturas visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Vendedor/Gestor/Admin podem criar faturas
 CREATE POLICY "Vendedor pode criar faturas"
   ON public.faturas
@@ -57,7 +52,6 @@ CREATE POLICY "Vendedor pode criar faturas"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Vendedor/Gestor/Admin podem atualizar faturas
 CREATE POLICY "Vendedor pode atualizar faturas"
   ON public.faturas
@@ -72,7 +66,6 @@ CREATE POLICY "Vendedor pode atualizar faturas"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Admin pode deletar faturas
 CREATE POLICY "Admin pode deletar faturas"
   ON public.faturas

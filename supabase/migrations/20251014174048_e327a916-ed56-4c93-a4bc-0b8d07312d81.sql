@@ -9,7 +9,6 @@ VALUES (
   10485760, -- 10MB
   ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
 );
-
 -- 2) Storage policies: Leitura para usuários da loja
 CREATE POLICY "Usuários podem ver anexos da sua loja"
 ON storage.objects FOR SELECT
@@ -21,7 +20,6 @@ USING (
     AND loja_id::text = (storage.foldername(name))[1]
   )
 );
-
 -- 3) Storage policies: Escrita para vendedor/gestor/admin/mecanico
 CREATE POLICY "Usuários autorizados podem fazer upload"
 ON storage.objects FOR INSERT
@@ -39,7 +37,6 @@ WITH CHECK (
     AND loja_id::text = (storage.foldername(name))[1]
   )
 );
-
 -- 4) Storage policies: Update
 CREATE POLICY "Usuários autorizados podem atualizar anexos"
 ON storage.objects FOR UPDATE
@@ -52,7 +49,6 @@ USING (
     has_role(auth.uid(), 'mecanico'::app_role)
   )
 );
-
 -- 5) Storage policies: Delete (apenas admin/gestor)
 CREATE POLICY "Admin/Gestor podem deletar anexos"
 ON storage.objects FOR DELETE

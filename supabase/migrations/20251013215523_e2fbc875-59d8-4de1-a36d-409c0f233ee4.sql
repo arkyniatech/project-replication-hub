@@ -10,7 +10,6 @@ CREATE TYPE origem_os AS ENUM ('POS_LOCACAO', 'AUDITORIA', 'SUPORTE');
 CREATE TYPE prioridade_os AS ENUM ('BAIXA', 'MEDIA', 'ALTA', 'CRITICA');
 CREATE TYPE class_defeito AS ENUM ('DESGASTE', 'MAU_USO', 'NA');
 CREATE TYPE status_pedido AS ENUM ('RASCUNHO', 'FINALIZADO', 'COMPRADO', 'PARCIAL', 'TOTAL');
-
 -- 2. TABELA: ordens_servico (OS)
 CREATE TABLE public.ordens_servico (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -48,10 +47,8 @@ CREATE TABLE public.ordens_servico (
   
   UNIQUE (loja_id, numero)
 );
-
 -- RLS para ordens_servico
 ALTER TABLE public.ordens_servico ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "OS visíveis para usuários da loja"
   ON public.ordens_servico FOR SELECT
   TO authenticated
@@ -61,7 +58,6 @@ CREATE POLICY "OS visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Mecânico/Gestor podem criar OS"
   ON public.ordens_servico FOR INSERT
   TO authenticated
@@ -74,7 +70,6 @@ CREATE POLICY "Mecânico/Gestor podem criar OS"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Mecânico/Gestor podem atualizar OS"
   ON public.ordens_servico FOR UPDATE
   TO authenticated
@@ -87,12 +82,10 @@ CREATE POLICY "Mecânico/Gestor podem atualizar OS"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin pode deletar OS"
   ON public.ordens_servico FOR DELETE
   TO authenticated
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 3. TABELA: checklist_templates
 CREATE TABLE public.checklist_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -103,15 +96,12 @@ CREATE TABLE public.checklist_templates (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
-
 -- RLS para checklist_templates
 ALTER TABLE public.checklist_templates ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Templates visíveis para autenticados"
   ON public.checklist_templates FOR SELECT
   TO authenticated
   USING (ativo = true);
-
 CREATE POLICY "Gestor pode gerenciar templates"
   ON public.checklist_templates FOR ALL
   TO authenticated
@@ -119,7 +109,6 @@ CREATE POLICY "Gestor pode gerenciar templates"
     has_role(auth.uid(), 'gestor'::app_role) OR 
     has_role(auth.uid(), 'admin'::app_role)
   );
-
 -- 4. TABELA: produtividade_manutencao
 CREATE TABLE public.produtividade_manutencao (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,10 +135,8 @@ CREATE TABLE public.produtividade_manutencao (
   
   UNIQUE (data_iso, loja_id, mecanico_id, auxiliar_id)
 );
-
 -- RLS para produtividade_manutencao
 ALTER TABLE public.produtividade_manutencao ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Produtividade visível para usuários da loja"
   ON public.produtividade_manutencao FOR SELECT
   TO authenticated
@@ -159,7 +146,6 @@ CREATE POLICY "Produtividade visível para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Mecânico/Gestor podem registrar produtividade"
   ON public.produtividade_manutencao FOR INSERT
   TO authenticated
@@ -172,7 +158,6 @@ CREATE POLICY "Mecânico/Gestor podem registrar produtividade"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Mecânico/Gestor podem atualizar produtividade"
   ON public.produtividade_manutencao FOR UPDATE
   TO authenticated
@@ -185,7 +170,6 @@ CREATE POLICY "Mecânico/Gestor podem atualizar produtividade"
       WHERE user_id = auth.uid()
     )
   );
-
 -- 5. ÍNDICES para performance
 CREATE INDEX idx_os_equipamento ON ordens_servico(equipamento_id);
 CREATE INDEX idx_os_loja ON ordens_servico(loja_id);
@@ -195,23 +179,19 @@ CREATE INDEX idx_os_contrato ON ordens_servico(contrato_id);
 CREATE INDEX idx_checklist_modelo ON checklist_templates(modelo_id);
 CREATE INDEX idx_produtividade_data ON produtividade_manutencao(data_iso);
 CREATE INDEX idx_produtividade_loja ON produtividade_manutencao(loja_id);
-
 -- 6. TRIGGERS para updated_at
 CREATE TRIGGER update_ordens_servico_updated_at
   BEFORE UPDATE ON ordens_servico
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_checklist_templates_updated_at
   BEFORE UPDATE ON checklist_templates
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_produtividade_manutencao_updated_at
   BEFORE UPDATE ON produtividade_manutencao
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- 7. FUNCTION para gerar número de OS
 CREATE OR REPLACE FUNCTION gerar_numero_os(p_loja_id UUID)
 RETURNS TEXT
@@ -246,7 +226,6 @@ BEGIN
   RETURN v_numero;
 END;
 $$;
-
 -- 8. FUNCTION para atualizar área do equipamento quando OS muda de área
 CREATE OR REPLACE FUNCTION atualizar_area_equipamento_por_os()
 RETURNS TRIGGER
@@ -284,17 +263,14 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 CREATE TRIGGER trigger_atualizar_area_equipamento
   AFTER INSERT OR UPDATE ON ordens_servico
   FOR EACH ROW
   EXECUTE FUNCTION atualizar_area_equipamento_por_os();
-
 -- 9. COMENTÁRIOS nas tabelas
 COMMENT ON TABLE ordens_servico IS 'Ordens de Serviço da Oficina de Manutenção';
 COMMENT ON TABLE checklist_templates IS 'Templates de checklist por modelo de equipamento';
 COMMENT ON TABLE produtividade_manutencao IS 'Registro diário de produtividade da manutenção';
-
 COMMENT ON COLUMN ordens_servico.timeline IS 'Timeline de eventos da OS em formato JSONB: [{id, ts, user, action, payload}]';
 COMMENT ON COLUMN ordens_servico.checklist IS 'Checklist executado em formato JSONB';
 COMMENT ON COLUMN ordens_servico.pedido_pecas IS 'Pedido de peças em formato JSONB';

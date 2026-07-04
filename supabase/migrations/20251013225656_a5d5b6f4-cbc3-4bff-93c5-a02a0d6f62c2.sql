@@ -57,16 +57,13 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
-
 -- Garantir que o trigger existe na tabela ordens_servico
 DROP TRIGGER IF EXISTS atualizar_area_equipamento_por_os ON ordens_servico;
-
 CREATE TRIGGER atualizar_area_equipamento_por_os
   AFTER INSERT OR UPDATE OF area_atual
   ON ordens_servico
   FOR EACH ROW
   EXECUTE FUNCTION atualizar_area_equipamento_por_os();
-
 -- Comentário explicativo
 COMMENT ON FUNCTION public.atualizar_area_equipamento_por_os() IS 
 'Registra movimentações entre áreas de manutenção (AMARELA, VERMELHA, AZUL, VERDE, CINZA) na timeline dos equipamentos';

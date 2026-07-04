@@ -51,7 +51,6 @@ CREATE TABLE IF NOT EXISTS public.clientes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by UUID REFERENCES auth.users(id)
 );
-
 -- Índices
 CREATE INDEX idx_clientes_loja ON public.clientes(loja_id);
 CREATE INDEX idx_clientes_tipo ON public.clientes(tipo);
@@ -59,10 +58,8 @@ CREATE INDEX idx_clientes_cpf ON public.clientes(cpf) WHERE cpf IS NOT NULL;
 CREATE INDEX idx_clientes_cnpj ON public.clientes(cnpj) WHERE cnpj IS NOT NULL;
 CREATE INDEX idx_clientes_status ON public.clientes(status_credito);
 CREATE INDEX idx_clientes_inadimplente ON public.clientes(inadimplente);
-
 -- RLS
 ALTER TABLE public.clientes ENABLE ROW LEVEL SECURITY;
-
 -- Políticas de SELECT (todos autenticados podem ver clientes da sua loja)
 CREATE POLICY "Clientes visíveis para usuários da loja"
   ON public.clientes FOR SELECT
@@ -72,7 +69,6 @@ CREATE POLICY "Clientes visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de INSERT (vendedor, gestor, admin)
 CREATE POLICY "Vendedor pode criar clientes"
   ON public.clientes FOR INSERT
@@ -86,7 +82,6 @@ CREATE POLICY "Vendedor pode criar clientes"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de UPDATE (vendedor, gestor, admin)
 CREATE POLICY "Vendedor pode atualizar clientes"
   ON public.clientes FOR UPDATE
@@ -100,12 +95,10 @@ CREATE POLICY "Vendedor pode atualizar clientes"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de DELETE (apenas admin)
 CREATE POLICY "Admin pode deletar clientes"
   ON public.clientes FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 2. OBRAS
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.obras (
@@ -140,16 +133,13 @@ CREATE TABLE IF NOT EXISTS public.obras (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by UUID REFERENCES auth.users(id)
 );
-
 -- Índices
 CREATE INDEX idx_obras_loja ON public.obras(loja_id);
 CREATE INDEX idx_obras_cliente ON public.obras(cliente_id);
 CREATE INDEX idx_obras_status ON public.obras(status);
 CREATE INDEX idx_obras_codigo ON public.obras(codigo) WHERE codigo IS NOT NULL;
-
 -- RLS
 ALTER TABLE public.obras ENABLE ROW LEVEL SECURITY;
-
 -- Políticas de SELECT
 CREATE POLICY "Obras visíveis para usuários da loja"
   ON public.obras FOR SELECT
@@ -159,7 +149,6 @@ CREATE POLICY "Obras visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de INSERT
 CREATE POLICY "Vendedor pode criar obras"
   ON public.obras FOR INSERT
@@ -173,7 +162,6 @@ CREATE POLICY "Vendedor pode criar obras"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de UPDATE
 CREATE POLICY "Vendedor pode atualizar obras"
   ON public.obras FOR UPDATE
@@ -187,18 +175,15 @@ CREATE POLICY "Vendedor pode atualizar obras"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de DELETE
 CREATE POLICY "Admin pode deletar obras"
   ON public.obras FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 3. TRIGGERS
 -- =====================================================
 CREATE TRIGGER update_clientes_updated_at
   BEFORE UPDATE ON public.clientes
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
 CREATE TRIGGER update_obras_updated_at
   BEFORE UPDATE ON public.obras
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();

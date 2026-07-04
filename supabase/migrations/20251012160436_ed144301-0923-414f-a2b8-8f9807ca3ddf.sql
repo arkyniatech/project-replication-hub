@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS public.titulos (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   created_by UUID
 );
-
 -- Criar índices
 CREATE INDEX IF NOT EXISTS idx_titulos_loja ON public.titulos(loja_id);
 CREATE INDEX IF NOT EXISTS idx_titulos_cliente ON public.titulos(cliente_id);
@@ -30,16 +29,13 @@ CREATE INDEX IF NOT EXISTS idx_titulos_contrato ON public.titulos(contrato_id);
 CREATE INDEX IF NOT EXISTS idx_titulos_fatura ON public.titulos(fatura_id);
 CREATE INDEX IF NOT EXISTS idx_titulos_vencimento ON public.titulos(vencimento);
 CREATE INDEX IF NOT EXISTS idx_titulos_status ON public.titulos(status);
-
 -- Trigger para atualizar updated_at
 CREATE TRIGGER update_titulos_updated_at
   BEFORE UPDATE ON public.titulos
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
 -- Políticas RLS
 ALTER TABLE public.titulos ENABLE ROW LEVEL SECURITY;
-
 -- Títulos visíveis para usuários da loja
 CREATE POLICY "Títulos visíveis para usuários da loja"
   ON public.titulos
@@ -50,7 +46,6 @@ CREATE POLICY "Títulos visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Vendedor/Financeiro podem criar títulos
 CREATE POLICY "Vendedor/Financeiro podem criar títulos"
   ON public.titulos
@@ -67,7 +62,6 @@ CREATE POLICY "Vendedor/Financeiro podem criar títulos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Financeiro pode atualizar títulos
 CREATE POLICY "Financeiro pode atualizar títulos"
   ON public.titulos
@@ -83,7 +77,6 @@ CREATE POLICY "Financeiro pode atualizar títulos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Admin pode deletar títulos
 CREATE POLICY "Admin pode deletar títulos"
   ON public.titulos

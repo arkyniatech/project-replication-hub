@@ -16,9 +16,7 @@ BEGIN
   ON CONFLICT (user_id, role) DO NOTHING;
 END;
 $$;
-
 -- PASSO 2: Executar a função de bootstrap
 SELECT public.bootstrap_first_admin();
-
 -- PASSO 3: Remover a função (cleanup de segurança)
 DROP FUNCTION IF EXISTS public.bootstrap_first_admin();

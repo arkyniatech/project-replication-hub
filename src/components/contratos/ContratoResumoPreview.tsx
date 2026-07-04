@@ -116,9 +116,9 @@ export function ContratoResumoPreview({
     valorTotal: totalCalculado,
   });
 
-  const handleBaixarPDF = () => {
+  const handleBaixarPDF = async () => {
     try {
-      downloadContratoPDF(buildPdfData(), `contrato-${(contrato.cliente.nomeRazao || 'cliente').replace(/\s+/g, '-')}.pdf`);
+      await downloadContratoPDF(buildPdfData(), `contrato-${(contrato.cliente.nomeRazao || 'cliente').replace(/\s+/g, '-')}.pdf`);
       toast({ title: "PDF gerado com sucesso!" });
     } catch (err) {
       console.error('Erro ao gerar PDF:', err);
@@ -134,7 +134,7 @@ export function ContratoResumoPreview({
 
     setEnviando(true);
     try {
-      const pdfBase64 = gerarContratoPDFBase64(buildPdfData());
+      const pdfBase64 = await gerarContratoPDFBase64(buildPdfData());
 
       const { data, error } = await supabase.functions.invoke('zapsign-enviar', {
         body: {

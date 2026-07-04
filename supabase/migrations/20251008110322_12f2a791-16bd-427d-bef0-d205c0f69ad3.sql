@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS public.config_organizacao (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(loja_id)
 );
-
 -- 2. Configurações Financeiras
 CREATE TABLE IF NOT EXISTS public.config_financeiro (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -47,7 +46,6 @@ CREATE TABLE IF NOT EXISTS public.config_financeiro (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(loja_id)
 );
-
 -- 3. Configurações de Numeração de Documentos
 CREATE TABLE IF NOT EXISTS public.config_numeracao (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -63,7 +61,6 @@ CREATE TABLE IF NOT EXISTS public.config_numeracao (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(loja_id, tipo)
 );
-
 -- 4. Configurações de Segurança
 CREATE TABLE IF NOT EXISTS public.config_seguranca (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -76,7 +73,6 @@ CREATE TABLE IF NOT EXISTS public.config_seguranca (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(loja_id)
 );
-
 -- 5. Configurações de Parametrizações de Locação
 CREATE TABLE IF NOT EXISTS public.config_locacao (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -117,7 +113,6 @@ CREATE TABLE IF NOT EXISTS public.config_locacao (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   UNIQUE(loja_id)
 );
-
 -- ============================================
 -- TRIGGERS DE UPDATED_AT
 -- ============================================
@@ -129,27 +124,21 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 CREATE TRIGGER update_config_organizacao_updated_at
   BEFORE UPDATE ON public.config_organizacao
   FOR EACH ROW EXECUTE FUNCTION update_config_updated_at();
-
 CREATE TRIGGER update_config_financeiro_updated_at
   BEFORE UPDATE ON public.config_financeiro
   FOR EACH ROW EXECUTE FUNCTION update_config_updated_at();
-
 CREATE TRIGGER update_config_numeracao_updated_at
   BEFORE UPDATE ON public.config_numeracao
   FOR EACH ROW EXECUTE FUNCTION update_config_updated_at();
-
 CREATE TRIGGER update_config_seguranca_updated_at
   BEFORE UPDATE ON public.config_seguranca
   FOR EACH ROW EXECUTE FUNCTION update_config_updated_at();
-
 CREATE TRIGGER update_config_locacao_updated_at
   BEFORE UPDATE ON public.config_locacao
   FOR EACH ROW EXECUTE FUNCTION update_config_updated_at();
-
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
@@ -159,7 +148,6 @@ ALTER TABLE public.config_financeiro ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.config_numeracao ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.config_seguranca ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.config_locacao ENABLE ROW LEVEL SECURITY;
-
 -- Políticas para config_organizacao
 CREATE POLICY "Usuários veem config da sua loja"
   ON public.config_organizacao FOR SELECT
@@ -168,7 +156,6 @@ CREATE POLICY "Usuários veem config da sua loja"
     SELECT loja_id FROM public.user_lojas_permitidas 
     WHERE user_id = auth.uid()
   ));
-
 CREATE POLICY "Admin/Gestor podem atualizar config organização"
   ON public.config_organizacao FOR UPDATE
   TO authenticated
@@ -179,7 +166,6 @@ CREATE POLICY "Admin/Gestor podem atualizar config organização"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin/Gestor podem inserir config organização"
   ON public.config_organizacao FOR INSERT
   TO authenticated
@@ -190,7 +176,6 @@ CREATE POLICY "Admin/Gestor podem inserir config organização"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas para config_financeiro
 CREATE POLICY "Usuários veem config financeiro da sua loja"
   ON public.config_financeiro FOR SELECT
@@ -199,7 +184,6 @@ CREATE POLICY "Usuários veem config financeiro da sua loja"
     SELECT loja_id FROM public.user_lojas_permitidas 
     WHERE user_id = auth.uid()
   ));
-
 CREATE POLICY "Admin/Financeiro podem atualizar config financeiro"
   ON public.config_financeiro FOR UPDATE
   TO authenticated
@@ -210,7 +194,6 @@ CREATE POLICY "Admin/Financeiro podem atualizar config financeiro"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin/Financeiro podem inserir config financeiro"
   ON public.config_financeiro FOR INSERT
   TO authenticated
@@ -221,7 +204,6 @@ CREATE POLICY "Admin/Financeiro podem inserir config financeiro"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas para config_numeracao
 CREATE POLICY "Usuários veem config numeração da sua loja"
   ON public.config_numeracao FOR SELECT
@@ -230,7 +212,6 @@ CREATE POLICY "Usuários veem config numeração da sua loja"
     SELECT loja_id FROM public.user_lojas_permitidas 
     WHERE user_id = auth.uid()
   ));
-
 CREATE POLICY "Admin pode gerenciar config numeração"
   ON public.config_numeracao FOR ALL
   TO authenticated
@@ -241,7 +222,6 @@ CREATE POLICY "Admin pode gerenciar config numeração"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas para config_seguranca
 CREATE POLICY "Usuários veem config segurança da sua loja"
   ON public.config_seguranca FOR SELECT
@@ -250,7 +230,6 @@ CREATE POLICY "Usuários veem config segurança da sua loja"
     SELECT loja_id FROM public.user_lojas_permitidas 
     WHERE user_id = auth.uid()
   ));
-
 CREATE POLICY "Admin pode gerenciar config segurança"
   ON public.config_seguranca FOR ALL
   TO authenticated
@@ -261,7 +240,6 @@ CREATE POLICY "Admin pode gerenciar config segurança"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas para config_locacao
 CREATE POLICY "Usuários veem config locação da sua loja"
   ON public.config_locacao FOR SELECT
@@ -270,7 +248,6 @@ CREATE POLICY "Usuários veem config locação da sua loja"
     SELECT loja_id FROM public.user_lojas_permitidas 
     WHERE user_id = auth.uid()
   ));
-
 CREATE POLICY "Admin/Gestor podem atualizar config locação"
   ON public.config_locacao FOR UPDATE
   TO authenticated
@@ -281,7 +258,6 @@ CREATE POLICY "Admin/Gestor podem atualizar config locação"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin/Gestor podem inserir config locação"
   ON public.config_locacao FOR INSERT
   TO authenticated

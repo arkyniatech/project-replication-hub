@@ -3,7 +3,6 @@
 -- 1. Adicionar coluna codigo_numerico na tabela grupos_equipamentos
 ALTER TABLE grupos_equipamentos 
 ADD COLUMN IF NOT EXISTS codigo_numerico INTEGER;
-
 -- 2. Popular grupos existentes com códigos numéricos sequenciais (01-99)
 WITH numbered_groups AS (
   SELECT 
@@ -16,20 +15,15 @@ UPDATE grupos_equipamentos g
 SET codigo_numerico = ng.row_num
 FROM numbered_groups ng
 WHERE g.id = ng.id;
-
 -- 3. Adicionar constraints
 ALTER TABLE grupos_equipamentos 
 ALTER COLUMN codigo_numerico SET NOT NULL;
-
 ALTER TABLE grupos_equipamentos 
 ADD CONSTRAINT grupos_equipamentos_codigo_numerico_unique UNIQUE (codigo_numerico);
-
 ALTER TABLE grupos_equipamentos 
 ADD CONSTRAINT grupos_equipamentos_codigo_numerico_check CHECK (codigo_numerico BETWEEN 1 AND 99);
-
 -- 4. Recriar tabela sequenciais_equipamentos com nova estrutura
 DROP TABLE IF EXISTS sequenciais_equipamentos CASCADE;
-
 CREATE TABLE sequenciais_equipamentos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
@@ -39,29 +33,24 @@ CREATE TABLE sequenciais_equipamentos (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(loja_id, grupo_id)
 );
-
 -- 5. Habilitar RLS
 ALTER TABLE sequenciais_equipamentos ENABLE ROW LEVEL SECURITY;
-
 -- 6. Políticas RLS para sequenciais_equipamentos
 CREATE POLICY "Sequenciais visíveis para autenticados"
   ON sequenciais_equipamentos
   FOR SELECT
   TO authenticated
   USING (true);
-
 CREATE POLICY "Sistema pode inserir sequenciais"
   ON sequenciais_equipamentos
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
-
 CREATE POLICY "Sistema pode atualizar sequenciais"
   ON sequenciais_equipamentos
   FOR UPDATE
   TO authenticated
   USING (true);
-
 -- 7. Atualizar função gerar_codigo_equipamento para novo formato
 CREATE OR REPLACE FUNCTION public.gerar_codigo_equipamento(
   p_loja_id UUID,

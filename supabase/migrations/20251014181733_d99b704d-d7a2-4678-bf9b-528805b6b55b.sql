@@ -16,16 +16,13 @@ CREATE TABLE IF NOT EXISTS public.cobrancas_inter (
   updated_at TIMESTAMPTZ DEFAULT now(),
   created_by UUID REFERENCES auth.users(id)
 );
-
 -- Índices para performance
 CREATE INDEX idx_cobrancas_inter_titulo ON cobrancas_inter(titulo_id);
 CREATE INDEX idx_cobrancas_inter_loja ON cobrancas_inter(loja_id);
 CREATE INDEX idx_cobrancas_inter_codigo ON cobrancas_inter(codigo_solicitacao);
 CREATE INDEX idx_cobrancas_inter_status ON cobrancas_inter(status);
-
 -- RLS Policies
 ALTER TABLE cobrancas_inter ENABLE ROW LEVEL SECURITY;
-
 CREATE POLICY "Cobranças visíveis para usuários da loja"
   ON cobrancas_inter FOR SELECT
   USING (
@@ -34,7 +31,6 @@ CREATE POLICY "Cobranças visíveis para usuários da loja"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Financeiro pode criar cobranças"
   ON cobrancas_inter FOR INSERT
   WITH CHECK (
@@ -47,7 +43,6 @@ CREATE POLICY "Financeiro pode criar cobranças"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Financeiro pode atualizar cobranças"
   ON cobrancas_inter FOR UPDATE
   USING (
@@ -58,7 +53,6 @@ CREATE POLICY "Financeiro pode atualizar cobranças"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Trigger para updated_at
 CREATE TRIGGER update_cobrancas_inter_updated_at
   BEFORE UPDATE ON cobrancas_inter

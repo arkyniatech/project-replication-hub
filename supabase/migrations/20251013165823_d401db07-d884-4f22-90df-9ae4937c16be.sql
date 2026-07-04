@@ -29,9 +29,7 @@ BEGIN
   WHERE ur.user_id = target_user_id;
 END;
 $$;
-
 -- Executar e exibir resultado
 SELECT * FROM public.ensure_user_roles_v3();
-
 -- Cleanup
 DROP FUNCTION IF EXISTS public.ensure_user_roles_v3();

@@ -2,14 +2,12 @@
 ALTER TABLE grupos_equipamentos DROP CONSTRAINT IF EXISTS grupos_equipamentos_codigo_numerico_check;
 ALTER TABLE grupos_equipamentos DROP CONSTRAINT IF EXISTS grupos_equipamentos_codigo_numerico_unique;
 ALTER TABLE grupos_equipamentos DROP CONSTRAINT IF EXISTS grupos_equipamentos_codigo_numerico_key;
-
 -- Criar tabela temporária com os grupos padrão
 CREATE TEMP TABLE temp_grupos_padrao (
   nome TEXT PRIMARY KEY,
   codigo_numerico INTEGER,
   descricao TEXT
 );
-
 INSERT INTO temp_grupos_padrao (nome, codigo_numerico, descricao) VALUES
   ('Marteletes', 1, 'Marteletes e perfuradores'),
   ('Rompedores', 2, 'Rompedores e britadeiras'),
@@ -37,12 +35,10 @@ INSERT INTO temp_grupos_padrao (nome, codigo_numerico, descricao) VALUES
   ('Pneumáticos', 24, 'Equipamentos pneumáticos'),
   ('Ferramentas Industriais', 25, 'Ferramentas industriais'),
   ('Escavadeira', 26, 'Escavadeiras e retroescavadeiras');
-
 -- Mover códigos existentes temporariamente para faixa 1000+ para evitar conflitos
 UPDATE grupos_equipamentos 
 SET codigo_numerico = codigo_numerico + 1000
 WHERE codigo_numerico < 1000;
-
 -- Atualizar grupos que já existem pelo nome
 UPDATE grupos_equipamentos g
 SET 
@@ -52,7 +48,6 @@ SET
   updated_at = now()
 FROM temp_grupos_padrao t
 WHERE g.nome = t.nome;
-
 -- Inserir novos grupos que não existem
 INSERT INTO grupos_equipamentos (nome, codigo_numerico, ativo, descricao)
 SELECT t.nome, t.codigo_numerico, true, t.descricao
@@ -61,14 +56,11 @@ WHERE NOT EXISTS (
   SELECT 1 FROM grupos_equipamentos g 
   WHERE g.nome = t.nome
 );
-
 -- Grupos que não estão na lista padrão mantêm seus códigos originais (ajustar para faixa 100+)
 UPDATE grupos_equipamentos
 SET codigo_numerico = (codigo_numerico - 1000) + 100
 WHERE codigo_numerico >= 1000;
-
 DROP TABLE temp_grupos_padrao;
-
 -- Recriar constraints
 ALTER TABLE grupos_equipamentos ADD CONSTRAINT grupos_equipamentos_codigo_numerico_unique UNIQUE (codigo_numerico);
 ALTER TABLE grupos_equipamentos ADD CONSTRAINT grupos_equipamentos_codigo_numerico_check CHECK (codigo_numerico >= 1 AND codigo_numerico <= 199);

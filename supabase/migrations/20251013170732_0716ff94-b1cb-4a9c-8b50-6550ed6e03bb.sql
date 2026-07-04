@@ -24,7 +24,6 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 -- 2. Atualizar função suspender_usuario_pessoa_inativa com validação
 CREATE OR REPLACE FUNCTION suspender_usuario_pessoa_inativa()
 RETURNS TRIGGER AS $$
@@ -47,13 +46,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
 -- 3. Adicionar comentários de auditoria nas funções críticas
 COMMENT ON FUNCTION recalcular_saldo_equipamento() IS 
 'SECURITY: Requer role admin, vendedor ou gestor. Recalcula saldos de equipamentos.';
-
 COMMENT ON FUNCTION suspender_usuario_pessoa_inativa() IS 
 'SECURITY: Requer role admin ou rh. Desativa usuário quando pessoa é inativada.';
-
 COMMENT ON FUNCTION has_role(uuid, app_role) IS 
 'SECURITY: Função SECURITY DEFINER para verificar roles sem recursão RLS. CRÍTICA para autenticação.';

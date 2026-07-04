@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS public.equipamentos (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by UUID REFERENCES auth.users(id)
 );
-
 -- Índices
 CREATE INDEX idx_equipamentos_grupo ON public.equipamentos(grupo_id);
 CREATE INDEX idx_equipamentos_modelo ON public.equipamentos(modelo_id);
@@ -59,10 +58,8 @@ CREATE INDEX idx_equipamentos_codigo ON public.equipamentos(codigo_interno);
 CREATE INDEX idx_equipamentos_tipo ON public.equipamentos(tipo);
 CREATE INDEX idx_equipamentos_status ON public.equipamentos(status_global);
 CREATE INDEX idx_equipamentos_serie ON public.equipamentos(numero_serie) WHERE numero_serie IS NOT NULL;
-
 -- RLS
 ALTER TABLE public.equipamentos ENABLE ROW LEVEL SECURITY;
-
 -- Políticas de SELECT (todos autenticados podem ver equipamentos ativos)
 CREATE POLICY "Equipamentos visíveis para usuários da loja"
   ON public.equipamentos FOR SELECT
@@ -73,7 +70,6 @@ CREATE POLICY "Equipamentos visíveis para usuários da loja"
     )
     AND ativo = true
   );
-
 -- Políticas de INSERT (vendedor, gestor e admin)
 CREATE POLICY "Vendedor pode criar equipamentos"
   ON public.equipamentos FOR INSERT
@@ -87,7 +83,6 @@ CREATE POLICY "Vendedor pode criar equipamentos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de UPDATE (vendedor, gestor e admin)
 CREATE POLICY "Vendedor pode atualizar equipamentos"
   ON public.equipamentos FOR UPDATE
@@ -101,12 +96,10 @@ CREATE POLICY "Vendedor pode atualizar equipamentos"
       WHERE user_id = auth.uid()
     )
   );
-
 -- Políticas de DELETE (apenas admin)
 CREATE POLICY "Admin pode deletar equipamentos"
   ON public.equipamentos FOR DELETE
   USING (has_role(auth.uid(), 'admin'::app_role));
-
 -- 2. TRIGGERS
 -- =====================================================
 CREATE TRIGGER update_equipamentos_updated_at

@@ -11,6 +11,5 @@ BEGIN
     COMMENT ON COLUMN public.obras.is_padrao IS 'Indica se esta é a obra padrão do cliente';
   END IF;
 END $$;
-
 -- Criar índice para is_padrao se não existir
 CREATE INDEX IF NOT EXISTS idx_obras_padrao ON public.obras(cliente_id, is_padrao) WHERE is_padrao = true;

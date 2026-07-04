@@ -1,12 +1,10 @@
 -- Adicionar campo CPF na tabela fornecedores
 ALTER TABLE public.fornecedores
 ADD COLUMN cpf TEXT;
-
 -- Adicionar constraint para garantir que pelo menos CPF ou CNPJ seja preenchido
 ALTER TABLE public.fornecedores
 ADD CONSTRAINT fornecedor_documento_required 
 CHECK (cpf IS NOT NULL OR cnpj IS NOT NULL);
-
 -- Criar função para gerar fornecedor automaticamente a partir de pessoa
 CREATE OR REPLACE FUNCTION public.criar_fornecedor_automatico_por_pessoa()
 RETURNS TRIGGER
@@ -56,7 +54,6 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 -- Criar trigger na tabela pessoas
 CREATE TRIGGER on_pessoa_created_or_updated
 AFTER INSERT OR UPDATE ON public.pessoas

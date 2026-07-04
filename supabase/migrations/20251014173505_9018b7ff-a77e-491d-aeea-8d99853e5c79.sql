@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS public.solicitacao_manutencao (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ
 );
-
 -- 2) Itens da Solicitação
 CREATE TABLE IF NOT EXISTS public.solicitacao_item (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -36,7 +35,6 @@ CREATE TABLE IF NOT EXISTS public.solicitacao_item (
   qtd NUMERIC(12,3) NOT NULL DEFAULT 1,
   codigo_interno TEXT
 );
-
 -- 3) Timeline (auditoria imutável)
 CREATE TABLE IF NOT EXISTS public.solicitacao_timeline (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -46,7 +44,6 @@ CREATE TABLE IF NOT EXISTS public.solicitacao_timeline (
   acao TEXT NOT NULL,
   payload JSONB
 );
-
 -- 4) Anexos (metadados)
 CREATE TABLE IF NOT EXISTS public.solicitacao_anexo (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -58,7 +55,6 @@ CREATE TABLE IF NOT EXISTS public.solicitacao_anexo (
   created_by UUID NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- 5) Event-bus para integrações internas
 CREATE TABLE IF NOT EXISTS public.manut_event_bus (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,14 +64,12 @@ CREATE TABLE IF NOT EXISTS public.manut_event_bus (
   payload JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- ETAPA 2: Enable RLS
 ALTER TABLE public.solicitacao_manutencao ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.solicitacao_item ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.solicitacao_timeline ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.solicitacao_anexo ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.manut_event_bus ENABLE ROW LEVEL SECURITY;
-
 -- ETAPA 3: RLS Policies
 
 -- Solicitação Manutenção
@@ -84,7 +78,6 @@ ON public.solicitacao_manutencao FOR SELECT
 USING (loja_id IN (
   SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()
 ));
-
 CREATE POLICY "Vendedor pode criar solicitações"
 ON public.solicitacao_manutencao FOR INSERT
 WITH CHECK (
@@ -93,7 +86,6 @@ WITH CHECK (
    has_role(auth.uid(), 'admin'::app_role)) AND
   loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
 );
-
 CREATE POLICY "Usuário pode atualizar solicitações da loja"
 ON public.solicitacao_manutencao FOR UPDATE
 USING (loja_id IN (
@@ -102,14 +94,12 @@ USING (loja_id IN (
 WITH CHECK (loja_id IN (
   SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()
 ));
-
 CREATE POLICY "Admin/Gestor podem deletar solicitações"
 ON public.solicitacao_manutencao FOR DELETE
 USING (
   (has_role(auth.uid(), 'gestor'::app_role) OR has_role(auth.uid(), 'admin'::app_role)) AND
   loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
 );
-
 -- Itens (herdam restrição por join)
 CREATE POLICY "Itens visíveis via solicitação"
 ON public.solicitacao_item FOR ALL
@@ -123,7 +113,6 @@ WITH CHECK (EXISTS (
   WHERE s.id = solicitacao_id 
   AND s.loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
 ));
-
 -- Timeline (herdam restrição por join)
 CREATE POLICY "Timeline visível via solicitação"
 ON public.solicitacao_timeline FOR ALL
@@ -137,7 +126,6 @@ WITH CHECK (EXISTS (
   WHERE s.id = solicitacao_id 
   AND s.loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
 ));
-
 -- Anexos (herdam restrição por join)
 CREATE POLICY "Anexos visíveis via solicitação"
 ON public.solicitacao_anexo FOR ALL
@@ -151,7 +139,6 @@ WITH CHECK (EXISTS (
   WHERE s.id = solicitacao_id 
   AND s.loja_id IN (SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid())
 ));
-
 -- Event Bus
 CREATE POLICY "Event bus visível por loja"
 ON public.manut_event_bus FOR ALL
@@ -161,7 +148,6 @@ USING (loja_id IN (
 WITH CHECK (loja_id IN (
   SELECT loja_id FROM user_lojas_permitidas WHERE user_id = auth.uid()
 ));
-
 -- ETAPA 4: RPCs para regras de negócio
 
 -- RPC 1: Criar Solicitação
@@ -236,7 +222,6 @@ BEGIN
   RETURN v_id;
 END;
 $$;
-
 -- RPC 2: Mudar Status
 CREATE OR REPLACE FUNCTION public.rpc_mudar_status(p JSONB)
 RETURNS VOID
@@ -284,7 +269,6 @@ BEGIN
   END IF;
 END;
 $$;
-
 -- RPC 3: Registrar Laudo
 CREATE OR REPLACE FUNCTION public.rpc_registrar_laudo(p JSONB)
 RETURNS VOID
@@ -317,7 +301,6 @@ BEGIN
   END IF;
 END;
 $$;
-
 -- RPC 4: Criar OS de Solicitação
 CREATE OR REPLACE FUNCTION public.rpc_criar_os_de_solicitacao(p JSONB)
 RETURNS UUID
@@ -351,7 +334,6 @@ BEGIN
   RETURN v_os;
 END;
 $$;
-
 -- RPC 5: Aplicar Substituição
 CREATE OR REPLACE FUNCTION public.rpc_aplicar_substituicao(p JSONB)
 RETURNS VOID
@@ -376,7 +358,6 @@ BEGIN
   VALUES (v_id, auth.uid(), 'SUBSTITUICAO_APLICADA', p);
 END;
 $$;
-
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_solicitacao_loja_status ON public.solicitacao_manutencao(loja_id, status);
 CREATE INDEX IF NOT EXISTS idx_solicitacao_contrato ON public.solicitacao_manutencao(contrato_id);

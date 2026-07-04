@@ -51,6 +51,8 @@ interface FinanceiroCompactoProps {
   parcelas: ParcelaDTO[];
   previsoesNaoFaturadas?: PrevisaoDTO[];
   saldoAtraso: number;
+  /** Saldo aberto do contrato ainda não representado em títulos (dados legados) */
+  saldoAbertoSemCobranca?: number;
   totalPrevisoes?: number;
   onSegundaVia: (id: string) => void;
   onReceber: (id: string) => void;
@@ -67,6 +69,7 @@ export function FinanceiroCompacto({
   parcelas,
   previsoesNaoFaturadas = [],
   saldoAtraso,
+  saldoAbertoSemCobranca = 0,
   totalPrevisoes = 0,
   onSegundaVia,
   onReceber,
@@ -268,6 +271,12 @@ export function FinanceiroCompacto({
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">Nenhuma parcela gerada ainda.</p>
+              {saldoAbertoSemCobranca > 0 && (
+                <p className="text-xs mt-2 text-amber-600 font-medium">
+                  Há saldo aberto de R$ {saldoAbertoSemCobranca.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} sem
+                  cobrança gerada — use "Gerar Cobrança" acima para lançá-lo em Contas a Receber.
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

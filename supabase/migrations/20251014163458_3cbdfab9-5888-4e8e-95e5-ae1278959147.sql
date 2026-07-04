@@ -2,7 +2,6 @@
 INSERT INTO sequenciais_fornecedores (id, proximo_sequencial, updated_at)
 VALUES ('00000000-0000-0000-0000-000000000001'::uuid, 1, now())
 ON CONFLICT (id) DO NOTHING;
-
 -- Recriar a função gerar_codigo_fornecedor com lógica corrigida
 CREATE OR REPLACE FUNCTION public.gerar_codigo_fornecedor()
 RETURNS text

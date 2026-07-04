@@ -4,22 +4,16 @@
 
 -- ENUM para status de caixa
 CREATE TYPE status_caixa AS ENUM ('ABERTO', 'FECHADO');
-
 -- ENUM para tipo de movimento
 CREATE TYPE tipo_movimento_caixa AS ENUM ('ENTRADA', 'SAIDA');
-
 -- ENUM para formas de pagamento
 CREATE TYPE forma_pagamento AS ENUM ('PIX', 'CARTAO', 'DINHEIRO', 'BOLETO', 'TRANSFERENCIA');
-
 -- ENUM para status de transferência
 CREATE TYPE status_transferencia AS ENUM ('CRIADA', 'EM_TRANSITO', 'RECEBIDA', 'RECUSADA', 'CANCELADA');
-
 -- ENUM para tipo de item de transferência
 CREATE TYPE tipo_item_transferencia AS ENUM ('SERIAL', 'SALDO');
-
 -- ENUM para motivo de recusa
 CREATE TYPE motivo_recusa_transferencia AS ENUM ('NUMERACAO', 'DANO', 'DESTINO', 'OUTRO');
-
 -- ======================================
 -- TABELA: caixa
 -- ======================================
@@ -39,10 +33,8 @@ CREATE TABLE IF NOT EXISTS public.caixa (
   
   UNIQUE(loja_id, usuario_id, data_iso, status)
 );
-
 CREATE INDEX idx_caixa_ativo ON public.caixa(loja_id, usuario_id, status) WHERE status = 'ABERTO';
 CREATE INDEX idx_caixa_data ON public.caixa(loja_id, data_iso DESC);
-
 -- ======================================
 -- TABELA: movimentos_caixa
 -- ======================================
@@ -63,10 +55,8 @@ CREATE TABLE IF NOT EXISTS public.movimentos_caixa (
   refs JSONB,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
-
 CREATE INDEX idx_movimentos_caixa_caixa ON public.movimentos_caixa(caixa_id, ts DESC);
 CREATE INDEX idx_movimentos_caixa_loja ON public.movimentos_caixa(loja_id, ts DESC);
-
 -- ======================================
 -- TABELA: transferencias
 -- ======================================
@@ -86,11 +76,9 @@ CREATE TABLE IF NOT EXISTS public.transferencias (
   
   CHECK (origem_loja_id != destino_loja_id)
 );
-
 CREATE INDEX idx_transferencias_origem ON public.transferencias(origem_loja_id, status, created_at DESC);
 CREATE INDEX idx_transferencias_destino ON public.transferencias(destino_loja_id, status, created_at DESC);
 CREATE INDEX idx_transferencias_numero ON public.transferencias(numero);
-
 -- ======================================
 -- TABELA: transferencia_itens
 -- ======================================
@@ -108,9 +96,7 @@ CREATE TABLE IF NOT EXISTS public.transferencia_itens (
   
   CHECK (tipo = 'SALDO' OR (tipo = 'SERIAL' AND codigo_interno IS NOT NULL))
 );
-
 CREATE INDEX idx_transferencia_itens_transferencia ON public.transferencia_itens(transferencia_id);
-
 -- ======================================
 -- TABELA: transferencia_logs
 -- ======================================
@@ -123,9 +109,7 @@ CREATE TABLE IF NOT EXISTS public.transferencia_logs (
   acao TEXT NOT NULL,
   detalhe TEXT
 );
-
 CREATE INDEX idx_transferencia_logs_transferencia ON public.transferencia_logs(transferencia_id, em DESC);
-
 -- ======================================
 -- ROW LEVEL SECURITY (RLS)
 -- ======================================
@@ -135,7 +119,6 @@ ALTER TABLE public.movimentos_caixa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transferencias ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transferencia_itens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transferencia_logs ENABLE ROW LEVEL SECURITY;
-
 -- ======================================
 -- POLÍTICAS RLS: caixa
 -- ======================================
@@ -148,7 +131,6 @@ CREATE POLICY "Usuários veem caixas de suas lojas"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Vendedor/Gestor podem criar caixa"
   ON public.caixa FOR INSERT
   WITH CHECK (
@@ -159,7 +141,6 @@ CREATE POLICY "Vendedor/Gestor podem criar caixa"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Usuário pode atualizar seu próprio caixa"
   ON public.caixa FOR UPDATE
   USING (
@@ -169,11 +150,9 @@ CREATE POLICY "Usuário pode atualizar seu próprio caixa"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin pode deletar caixas"
   ON public.caixa FOR DELETE
   USING (has_role(auth.uid(), 'admin'));
-
 -- ======================================
 -- POLÍTICAS RLS: movimentos_caixa
 -- ======================================
@@ -186,7 +165,6 @@ CREATE POLICY "Usuários veem movimentos de suas lojas"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Vendedor/Gestor podem criar movimentos"
   ON public.movimentos_caixa FOR INSERT
   WITH CHECK (
@@ -197,11 +175,9 @@ CREATE POLICY "Vendedor/Gestor podem criar movimentos"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Admin pode deletar movimentos"
   ON public.movimentos_caixa FOR DELETE
   USING (has_role(auth.uid(), 'admin'));
-
 -- ======================================
 -- POLÍTICAS RLS: transferencias
 -- ======================================
@@ -218,7 +194,6 @@ CREATE POLICY "Usuários veem transferências de suas lojas"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Vendedor/Gestor podem criar transferências"
   ON public.transferencias FOR INSERT
   WITH CHECK (
@@ -228,7 +203,6 @@ CREATE POLICY "Vendedor/Gestor podem criar transferências"
       WHERE user_id = auth.uid()
     )
   );
-
 CREATE POLICY "Vendedor/Gestor podem atualizar transferências"
   ON public.transferencias FOR UPDATE
   USING (
@@ -244,11 +218,9 @@ CREATE POLICY "Vendedor/Gestor podem atualizar transferências"
       )
     )
   );
-
 CREATE POLICY "Admin pode deletar transferências"
   ON public.transferencias FOR DELETE
   USING (has_role(auth.uid(), 'admin'));
-
 -- ======================================
 -- POLÍTICAS RLS: transferencia_itens
 -- ======================================
@@ -268,23 +240,19 @@ CREATE POLICY "Usuários veem itens de transferências permitidas"
       )
     )
   );
-
 CREATE POLICY "Vendedor/Gestor podem criar itens de transferência"
   ON public.transferencia_itens FOR INSERT
   WITH CHECK (
     (has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
   );
-
 CREATE POLICY "Vendedor/Gestor podem atualizar itens"
   ON public.transferencia_itens FOR UPDATE
   USING (
     (has_role(auth.uid(), 'vendedor') OR has_role(auth.uid(), 'gestor') OR has_role(auth.uid(), 'admin'))
   );
-
 CREATE POLICY "Admin pode deletar itens"
   ON public.transferencia_itens FOR DELETE
   USING (has_role(auth.uid(), 'admin'));
-
 -- ======================================
 -- POLÍTICAS RLS: transferencia_logs
 -- ======================================
@@ -304,11 +272,9 @@ CREATE POLICY "Usuários veem logs de transferências permitidas"
       )
     )
   );
-
 CREATE POLICY "Sistema pode criar logs"
   ON public.transferencia_logs FOR INSERT
   WITH CHECK (true);
-
 -- ======================================
 -- TRIGGERS
 -- ======================================
@@ -317,7 +283,6 @@ CREATE TRIGGER update_caixa_updated_at
   BEFORE UPDATE ON public.caixa
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
-
 CREATE TRIGGER update_transferencias_updated_at
   BEFORE UPDATE ON public.transferencias
   FOR EACH ROW

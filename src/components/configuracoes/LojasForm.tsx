@@ -19,6 +19,14 @@ interface Loja {
   codigo_numerico?: number;
   ativo: boolean;
   grupo_id?: string | null;
+  // Dados fiscais/contato — usados no cabeçalho do contrato PDF
+  razao_social?: string | null;
+  cnpj?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+  horario_funcionamento?: string | null;
 }
 
 // Valor sentinela do <select> para "criar novo grupo"
@@ -72,6 +80,13 @@ export function LojasForm() {
           codigo_numerico: nextCodigoNumerico,
           ativo: loja.ativo,
           grupo_id: loja.grupo_id ?? null,
+          razao_social: loja.razao_social?.trim() || null,
+          cnpj: loja.cnpj?.trim() || null,
+          endereco: loja.endereco?.trim() || null,
+          cidade: loja.cidade?.trim() || null,
+          telefone: loja.telefone?.trim() || null,
+          email: loja.email?.trim() || null,
+          horario_funcionamento: loja.horario_funcionamento?.trim() || null,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any])
         .select()
@@ -111,6 +126,13 @@ export function LojasForm() {
           nome: loja.nome,
           ativo: loja.ativo,
           grupo_id: loja.grupo_id ?? null,
+          razao_social: loja.razao_social?.trim() || null,
+          cnpj: loja.cnpj?.trim() || null,
+          endereco: loja.endereco?.trim() || null,
+          cidade: loja.cidade?.trim() || null,
+          telefone: loja.telefone?.trim() || null,
+          email: loja.email?.trim() || null,
+          horario_funcionamento: loja.horario_funcionamento?.trim() || null,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
         .eq('id', loja.id!)
@@ -399,7 +421,7 @@ export function LojasForm() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingLoja?.id ? 'Editar Loja' : 'Nova Loja'}
@@ -464,6 +486,78 @@ export function LojasForm() {
                   />
                 </div>
               )}
+
+              {/* Dados fiscais/contato — cabeçalho do contrato PDF */}
+              <div className="space-y-3 rounded-md border p-3">
+                <p className="text-sm font-medium">Dados do contrato (cabeçalho)</p>
+                <div className="space-y-2">
+                  <Label htmlFor="razaoSocial">Razão Social</Label>
+                  <Input
+                    id="razaoSocial"
+                    value={editingLoja.razao_social || ''}
+                    onChange={(e) => setEditingLoja({ ...editingLoja, razao_social: e.target.value })}
+                    placeholder="Ex: LOCAACAO OURO FINO ALUGUEL DE EQUIPAMENTOS E MAQUINAS LTDA"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="cnpjLoja">CNPJ</Label>
+                    <Input
+                      id="cnpjLoja"
+                      value={editingLoja.cnpj || ''}
+                      onChange={(e) => setEditingLoja({ ...editingLoja, cnpj: e.target.value })}
+                      placeholder="00.000.000/0000-00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="telefoneLoja">Telefone</Label>
+                    <Input
+                      id="telefoneLoja"
+                      value={editingLoja.telefone || ''}
+                      onChange={(e) => setEditingLoja({ ...editingLoja, telefone: e.target.value })}
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="enderecoLoja">Endereço</Label>
+                  <Input
+                    id="enderecoLoja"
+                    value={editingLoja.endereco || ''}
+                    onChange={(e) => setEditingLoja({ ...editingLoja, endereco: e.target.value })}
+                    placeholder="Ex: AVENIDA DELFIM MOREIRA, 466 - OURO FINO/MG"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="cidadeLoja">Cidade</Label>
+                    <Input
+                      id="cidadeLoja"
+                      value={editingLoja.cidade || ''}
+                      onChange={(e) => setEditingLoja({ ...editingLoja, cidade: e.target.value })}
+                      placeholder="Ex: Ouro Fino"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="emailLoja">E-mail</Label>
+                    <Input
+                      id="emailLoja"
+                      value={editingLoja.email || ''}
+                      onChange={(e) => setEditingLoja({ ...editingLoja, email: e.target.value })}
+                      placeholder="loja@locaacao.com.br"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="horarioLoja">Horário de funcionamento</Label>
+                  <Input
+                    id="horarioLoja"
+                    value={editingLoja.horario_funcionamento || ''}
+                    onChange={(e) => setEditingLoja({ ...editingLoja, horario_funcionamento: e.target.value })}
+                    placeholder="Ex: Segunda a Sexta das 07:15 as 17:30"
+                  />
+                </div>
+              </div>
 
               <div className="flex items-center justify-between">
                 <Label htmlFor="ativo">Loja Ativa</Label>

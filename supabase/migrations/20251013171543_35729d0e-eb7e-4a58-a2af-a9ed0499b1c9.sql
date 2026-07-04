@@ -45,7 +45,6 @@ BEGIN
   RETURN v_codigo_final;
 END;
 $$;
-
 -- 2. gerar_codigo_equipamento(uuid, uuid) - Validar acesso à loja
 CREATE OR REPLACE FUNCTION gerar_codigo_equipamento(p_loja_id uuid, p_grupo_id uuid)
 RETURNS text
@@ -98,7 +97,6 @@ BEGIN
   RETURN v_codigo_final;
 END;
 $$;
-
 -- 3. incrementar_contador - Validar permissão
 CREATE OR REPLACE FUNCTION incrementar_contador(p_loja_id uuid, p_tipo text, p_chave_contador text)
 RETURNS integer
@@ -129,7 +127,6 @@ BEGIN
   RETURN v_novo_contador;
 END;
 $$;
-
 -- 4. recalcular_saldo_equipamento_direto - Validar permissão
 CREATE OR REPLACE FUNCTION recalcular_saldo_equipamento_direto(p_equipamento_id uuid)
 RETURNS void
@@ -194,7 +191,6 @@ BEGIN
   WHERE id = p_equipamento_id;
 END;
 $$;
-
 -- 5. recalcular_kpis_equipamento - Validar permissão
 CREATE OR REPLACE FUNCTION recalcular_kpis_equipamento(p_equipamento_id uuid)
 RETURNS void
@@ -249,19 +245,14 @@ BEGIN
   WHERE id = p_equipamento_id;
 END;
 $$;
-
 -- 6. Adicionar comentários de auditoria
 COMMENT ON FUNCTION gerar_codigo_equipamento(uuid) IS 
 'SECURITY: Validar acesso à loja antes de gerar código. Requer permissão na loja.';
-
 COMMENT ON FUNCTION gerar_codigo_equipamento(uuid, uuid) IS 
 'SECURITY: Validar acesso à loja antes de gerar código. Requer permissão na loja.';
-
 COMMENT ON FUNCTION incrementar_contador(uuid, text, text) IS 
 'SECURITY: Validar acesso à loja antes de incrementar contador.';
-
 COMMENT ON FUNCTION recalcular_saldo_equipamento_direto(uuid) IS 
 'SECURITY: Requer role admin, vendedor ou gestor para recalcular saldos.';
-
 COMMENT ON FUNCTION recalcular_kpis_equipamento(uuid) IS 
 'SECURITY: Requer role admin, vendedor ou gestor para recalcular KPIs.';
