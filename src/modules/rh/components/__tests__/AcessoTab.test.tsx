@@ -3,8 +3,8 @@
  *  1) hidrata os papéis e lojas atuais ao abrir (evita "perder" configs);
  *  2) o botão "Aplicar Senha" chama a edge function `update-user-password`
  *     com o payload correto;
- *  3) "Salvar Alterações" chama updateProfile/updateRoles/updateLojas
- *     com o payload esperado.
+ *  3) "Salvar Alterações" chama a edge function `update-user-access`
+ *     com o payload esperado (profile + roles + lojas).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -52,19 +52,28 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
+// IMPORTANTE: referências ESTÁVEIS (módulo-level). O componente tem um
+// useEffect com `profiles` nas dependências — um array recriado a cada
+// render causa loop infinito de render/efeito no teste.
+const PROFILES_MOCK = [
+  {
+    id: 'user-1',
+    pessoa_id: 'pessoa-1',
+    username: 'ana.silva',
+    loja_padrao_id: 'loja-1',
+    two_fa_enabled: false,
+    exige_troca_senha: false,
+    ativo: true,
+  },
+];
+const LOJAS_MOCK = [
+  { id: 'loja-1', nome: 'Matriz', codigo: 'M01' },
+  { id: 'loja-2', nome: 'Filial', codigo: 'F01' },
+];
+
 vi.mock('../../hooks/useSupabaseUserProfiles', () => ({
   useSupabaseUserProfiles: () => ({
-    profiles: [
-      {
-        id: 'user-1',
-        pessoa_id: 'pessoa-1',
-        username: 'ana.silva',
-        loja_padrao_id: 'loja-1',
-        two_fa_enabled: false,
-        exige_troca_senha: false,
-        ativo: true,
-      },
-    ],
+    profiles: PROFILES_MOCK,
     updateProfile: { mutateAsync: updateProfileMutate },
   }),
 }));
@@ -81,10 +90,7 @@ vi.mock('../../hooks/useSupabaseUserLojas', () => ({
 }));
 vi.mock('../../hooks/useSupabaseLojas', () => ({
   useSupabaseLojas: () => ({
-    lojas: [
-      { id: 'loja-1', nome: 'Matriz', codigo: 'M01' },
-      { id: 'loja-2', nome: 'Filial', codigo: 'F01' },
-    ],
+    lojas: LOJAS_MOCK,
   }),
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -154,7 +160,7 @@ describe('AcessoTab', () => {
     expect(invokeFn).not.toHaveBeenCalled();
   });
 
-  it('"Salvar Alterações" propaga profile + roles + lojas para os hooks', async () => {
+  it('"Salvar Alterações" chama update-user-access com profile + roles + lojas', async () => {
     render(<AcessoTab pessoa={pessoa} />);
 
     // Aguarda hidratação
@@ -165,21 +171,21 @@ describe('AcessoTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
 
-    await waitFor(() => expect(updateProfileMutate).toHaveBeenCalled());
-    expect(updateRolesMutate).toHaveBeenCalledWith({
-      userId: 'user-1',
+    await waitFor(() => expect(invokeFn).toHaveBeenCalledTimes(1));
+    const [fnName, fnArgs] = invokeFn.mock.calls[0];
+    expect(fnName).toBe('update-user-access');
+    expect(fnArgs.body).toMatchObject({
+      user_id: 'user-1',
+      profile_updates: expect.objectContaining({
+        username: 'ana.silva',
+        loja_padrao_id: 'loja-1',
+      }),
       roles: expect.arrayContaining(['gestor', 'vendedor']),
-    });
-    expect(updateLojasMutate).toHaveBeenCalledWith({
-      userId: 'user-1',
-      lojaIds: expect.arrayContaining(['loja-1', 'loja-2']),
+      loja_ids: expect.arrayContaining(['loja-1', 'loja-2']),
     });
 
-    const profileArgs = updateProfileMutate.mock.calls[0][0];
-    expect(profileArgs.id).toBe('user-1');
-    expect(profileArgs.updates).toMatchObject({
-      username: 'ana.silva',
-      loja_padrao_id: 'loja-1',
-    });
+    // Mutations client-side NÃO devem mais ser usadas (RLS bloquearia master/rh)
+    expect(updateRolesMutate).not.toHaveBeenCalled();
+    expect(updateLojasMutate).not.toHaveBeenCalled();
   });
 });

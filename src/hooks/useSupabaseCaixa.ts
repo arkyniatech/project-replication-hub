@@ -26,11 +26,13 @@ export function useSupabaseCaixa(lojaId?: string) {
         .eq('loja_id', lojaId)
         .eq('usuario_id', user.id)
         .eq('status', 'ABERTO')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
-        console.error('Erro ao buscar caixa ativo:', error);
-        throw error;
+      if (error) {
+        // Não propagar: sem caixa ativo é um estado válido do dashboard.
+        // (ex.: PGRST205 = tabela ausente quando as migrations não foram aplicadas)
+        console.error('Erro ao buscar caixa ativo:', error.message || error);
+        return null;
       }
 
       return data as Caixa | null;

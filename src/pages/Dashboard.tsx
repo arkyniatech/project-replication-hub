@@ -67,11 +67,11 @@ export default function Dashboard() {
       .sort((a, b) => new Date(a.data_fim).getTime() - new Date(b.data_fim).getTime())
       .slice(0, 3);
 
-    // Clientes inadimplentes
+    // Clientes inadimplentes (cliente pode vir undefined quando o join falha)
     const clientesInadimplentes = titulos
-      .filter(t => t.saldo > 0 && new Date(t.vencimento) < hoje)
+      .filter(t => t.saldo > 0 && new Date(t.vencimento) < hoje && t.cliente)
       .map(t => t.cliente)
-      .filter((cliente, index, self) => self.findIndex(c => c.id === cliente.id) === index)
+      .filter((cliente, index, self) => self.findIndex(c => c?.id === cliente?.id) === index)
       .slice(0, 3);
 
     // Equipamentos em manutenção (usando Supabase)

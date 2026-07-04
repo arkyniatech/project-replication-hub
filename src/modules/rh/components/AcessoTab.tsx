@@ -11,8 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useSupabaseUserProfiles, UserProfile } from '../hooks/useSupabaseUserProfiles';
-import { useSupabaseUserRoles, AppRole } from '../hooks/useSupabaseUserRoles';
-import { useSupabaseUserLojas } from '../hooks/useSupabaseUserLojas';
+import { AppRole } from '../hooks/useSupabaseUserRoles';
 import { useSupabaseLojas } from '../hooks/useSupabaseLojas';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -33,9 +32,7 @@ const ROLES_DISPONIVEIS: { value: AppRole; label: string; description: string }[
 
 export function AcessoTab({ pessoa }: AcessoTabProps) {
   const { toast } = useToast();
-  const { profiles, updateProfile } = useSupabaseUserProfiles();
-  const { addRoles, updateRoles } = useSupabaseUserRoles();
-  const { updateLojas: updateLojasPermitidas } = useSupabaseUserLojas();
+  const { profiles } = useSupabaseUserProfiles();
   const { lojas } = useSupabaseLojas();
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);

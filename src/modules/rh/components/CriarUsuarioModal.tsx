@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, X } from 'lucide-react';
+import { Check, Copy, KeyRound, Loader2, UserPlus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSupabaseUserProfiles } from '../hooks/useSupabaseUserProfiles';
-import { useSupabaseUserRoles, type AppRole } from '../hooks/useSupabaseUserRoles';
-import { useSupabaseUserLojas } from '../hooks/useSupabaseUserLojas';
+import { type AppRole } from '../hooks/useSupabaseUserRoles';
 import { useSupabaseLojas } from '../hooks/useSupabaseLojas';
 import { logAction } from '@/services/logger';
 import type { Pessoa } from '../types';
@@ -51,9 +51,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioModalProps) {
   const { toast } = useToast();
-  const { createProfile } = useSupabaseUserProfiles();
-  const { addRoles } = useSupabaseUserRoles();
-  const { addLojas } = useSupabaseUserLojas();
+  const queryClient = useQueryClient();
   const { lojas } = useSupabaseLojas();
 
   // Detectar se o usuário logado é master para mostrar a opção master
@@ -82,11 +80,22 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
 
-  // Gerar email e username automaticamente quando pessoa mudar
+  // Credenciais geradas exibidas após a criação (quando senha automática)
+  const [credenciaisCriadas, setCredenciaisCriadas] = useState<{
+    nome: string;
+    email: string;
+    senha: string;
+  } | null>(null);
+  const [senhaCopiada, setSenhaCopiada] = useState(false);
+
+  // Preencher email e username automaticamente quando pessoa mudar.
+  // E-mail: usa o e-mail real do cadastro RH quando existir; caso contrário,
+  // sugere primeironome.sobrenome (que vira @dominio padrão).
   useEffect(() => {
     if (pessoa) {
       const usernameAuto = gerarUsername(pessoa.nome);
-      setEmail(usernameAuto);
+      const emailReal = pessoa.email?.trim().toLowerCase();
+      setEmail(emailReal && EMAIL_REGEX.test(emailReal) ? emailReal : usernameAuto);
       setUsername(usernameAuto);
 
       const roleSugerida = sugerirRolePorCargo(pessoa.cargo);
@@ -270,12 +279,23 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
         exigeTrocaSenha,
       });
 
-      toast({
-        title: 'Usuário criado com sucesso!',
-        description: senhaManual
-          ? `Acesso criado para ${pessoa.nome}. Use a senha definida no formulário para o primeiro login.`
-          : `Acesso criado para ${pessoa.nome}. Uma senha temporária foi gerada — anote e repasse ao usuário.`,
-      });
+      // Atualizar lista de usuários do sistema
+      queryClient.invalidateQueries({ queryKey: ['user_profiles'] });
+
+      if (senhaManual) {
+        toast({
+          title: 'Usuário criado com sucesso!',
+          description: `Acesso criado para ${pessoa.nome}. Use a senha definida no formulário para o primeiro login.`,
+        });
+      } else {
+        // Exibir a senha gerada — sem isso o admin não tem como repassá-la
+        setSenhaCopiada(false);
+        setCredenciaisCriadas({
+          nome: pessoa.nome,
+          email: emailFinal,
+          senha: senhaFinal,
+        });
+      }
 
       onOpenChange(false);
 
@@ -327,9 +347,23 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
     }
   };
 
+  const copiarCredenciais = async () => {
+    if (!credenciaisCriadas) return;
+    try {
+      await navigator.clipboard.writeText(
+        `Acesso ao sistema\nUsuário: ${credenciaisCriadas.email}\nSenha temporária: ${credenciaisCriadas.senha}`
+      );
+      setSenhaCopiada(true);
+      toast({ title: 'Credenciais copiadas!', description: 'Cole e repasse ao usuário com segurança.' });
+    } catch {
+      toast({ title: 'Não foi possível copiar', description: 'Copie manualmente os dados exibidos.', variant: 'destructive' });
+    }
+  };
+
   if (!pessoa) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -562,5 +596,58 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Dialog de credenciais geradas — exibido após criação com senha automática */}
+    <Dialog
+      open={!!credenciaisCriadas}
+      onOpenChange={(aberto) => {
+        if (!aberto) setCredenciaisCriadas(null);
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="w-5 h-5" />
+            Usuário criado com sucesso!
+          </DialogTitle>
+          <DialogDescription>
+            Anote ou copie a senha temporária de {credenciaisCriadas?.nome}. Ela não será exibida novamente.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Usuário (e-mail)</Label>
+            <Input readOnly value={credenciaisCriadas?.email ?? ''} onFocus={(e) => e.target.select()} />
+          </div>
+          <div className="space-y-1">
+            <Label>Senha temporária</Label>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                className="font-mono"
+                value={credenciaisCriadas?.senha ?? ''}
+                onFocus={(e) => e.target.select()}
+              />
+              <Button type="button" variant="outline" size="icon" onClick={copiarCredenciais} title="Copiar credenciais">
+                {senhaCopiada ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+          <Alert>
+            <AlertDescription className="text-xs">
+              Repasse essas credenciais ao usuário por um canal seguro. Ao fechar esta janela, a senha não poderá ser recuperada — apenas redefinida.
+            </AlertDescription>
+          </Alert>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" onClick={() => setCredenciaisCriadas(null)}>
+            Concluir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

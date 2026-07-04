@@ -3,12 +3,13 @@
  * `app_role` do banco (que originava "invalid input value for enum app_role").
  *
  * Estratégia: render integrado do modal com todos os hooks/supabase mockados.
- * Capturamos os args de `addRoles.mutateAsync` (o payload que iria para
- * `user_roles.insert`) e validamos contra `VALID_APP_ROLES`.
+ * Capturamos o body enviado à Edge Function `create-user` (que é quem insere
+ * em `user_roles` via service_role) e validamos contra `VALID_APP_ROLES`.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom/vitest';
 import { VALID_APP_ROLES, SELECTABLE_ROLES } from '../../utils/roleMapping';
 
@@ -75,6 +76,12 @@ const pessoa: any = {
   matricula: '123',
 };
 
+// O modal usa useQueryClient para invalidar a lista de usuários após criar
+function renderModal(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 describe('CriarUsuarioModal — payload de roles conforme enum app_role', () => {
   beforeEach(() => {
     addRolesMutate.mockClear();
@@ -83,7 +90,7 @@ describe('CriarUsuarioModal — payload de roles conforme enum app_role', () => 
   });
 
   it('submete com perfis válidos (gestor + vendedor) e NÃO envia valores fora do enum', async () => {
-    render(<CriarUsuarioModal open onOpenChange={() => {}} pessoa={pessoa} />);
+    renderModal(<CriarUsuarioModal open onOpenChange={() => {}} pessoa={pessoa} />);
 
     // Selecionar loja obrigatória
     fireEvent.click(await screen.findByText('Matriz'));
@@ -97,15 +104,14 @@ describe('CriarUsuarioModal — payload de roles conforme enum app_role', () => 
     fireEvent.click(screen.getByRole('button', { name: /criar usuário/i }));
 
     await waitFor(() => expect(invokeFn).toHaveBeenCalled(), { timeout: 3000 });
-    await waitFor(() => expect(addRolesMutate).toHaveBeenCalled(), { timeout: 3000 });
 
     // (a) create-user chamado
     const [fnName, fnArgs] = invokeFn.mock.calls[0];
     expect(fnName).toBe('create-user');
     expect(fnArgs.body).toMatchObject({ pessoa_id: 'p-1' });
 
-    // (b) roles passados a addRoles pertencem ao enum
-    const rolesArg: string[] = addRolesMutate.mock.calls[0][0].roles;
+    // (b) roles enviadas no body da Edge Function pertencem ao enum
+    const rolesArg: string[] = fnArgs.body.roles;
     expect(Array.isArray(rolesArg)).toBe(true);
     expect(rolesArg.length).toBeGreaterThan(0);
     for (const r of rolesArg) {
@@ -120,14 +126,14 @@ describe('CriarUsuarioModal — payload de roles conforme enum app_role', () => 
   });
 
   it('submete com "Operação" e "Usuário" e envia operacao/usuario (valores válidos)', async () => {
-    render(<CriarUsuarioModal open onOpenChange={() => {}} pessoa={{ ...pessoa, cargo: '' }} />);
+    renderModal(<CriarUsuarioModal open onOpenChange={() => {}} pessoa={{ ...pessoa, cargo: '' }} />);
     fireEvent.click(await screen.findByText('Matriz'));
     fireEvent.click(screen.getByText('Operação'));
     fireEvent.click(screen.getByText('Usuário'));
     fireEvent.click(screen.getByRole('button', { name: /criar usuário/i }));
 
-    await waitFor(() => expect(addRolesMutate).toHaveBeenCalled(), { timeout: 3000 });
-    const rolesArg: string[] = addRolesMutate.mock.calls[0][0].roles;
+    await waitFor(() => expect(invokeFn).toHaveBeenCalled(), { timeout: 3000 });
+    const rolesArg: string[] = invokeFn.mock.calls[0][1].body.roles;
     expect(rolesArg).toEqual(expect.arrayContaining(['operacao', 'usuario']));
     // jamais os valores errados
     expect(rolesArg).not.toContain('user');

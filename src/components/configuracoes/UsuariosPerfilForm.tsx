@@ -17,25 +17,59 @@ import { useSupabaseUserProfiles } from "@/modules/rh/hooks/useSupabaseUserProfi
 import { CriarUsuarioModal } from "@/modules/rh/components/CriarUsuarioModal";
 import type { Usuario, Perfil, PermissoesPerfil, AppConfig, LogAuditoria } from "@/types";
 import type { Pessoa } from "@/modules/rh/types";
-import { useSupabaseUserRoles, AppRole } from "@/modules/rh/hooks/useSupabaseUserRoles";
-import { useSupabaseUserLojas } from "@/modules/rh/hooks/useSupabaseUserLojas";
+import { AppRole } from "@/modules/rh/hooks/useSupabaseUserRoles";
 import { useSupabaseLojas } from "@/modules/rh/hooks/useSupabaseLojas";
+import { useQueryClient } from "@tanstack/react-query";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // Storage functions
 const STORAGE_KEY = 'erp-config';
 
+// Perfis padrão exibidos no painel "Perfis & Permissões" quando ainda não há
+// configuração salva (antes disso o painel aparecia vazio).
+type NivelAcesso = 'total' | 'gestao' | 'operacional' | 'leitura';
+
+function criarPermissoes(nivel: NivelAcesso): PermissoesPerfil {
+  const total = nivel === 'total';
+  const gestao = total || nivel === 'gestao';
+  const operacional = gestao || nivel === 'operacional';
+
+  return {
+    clientes: { ver: operacional, criar: gestao, editar: gestao, excluir: total },
+    equipamentos: { ver: operacional, criar: gestao, editar: gestao, excluir: total },
+    contratos: { ver: operacional, criar: gestao, editar: gestao, excluir: total, renovar: gestao, devolverSubstituir: operacional },
+    financeiro: { ver: gestao, criar: gestao, editar: gestao, excluir: total, emitirFatura: gestao, receberPagamento: gestao },
+    inadimplencia: { ver: gestao, criar: gestao, editar: gestao, excluir: total, enviarMensagens: gestao },
+    manutencaoOS: { ver: operacional, criar: operacional, editar: operacional, excluir: total },
+    logistica: { ver: operacional, criar: operacional, editar: operacional, excluir: total },
+    caixa: { ver: gestao, gerirCaixa: gestao },
+    configuracoes: { gerirConfiguracoes: total },
+  };
+}
+
+const DEFAULT_PERFIS: Record<string, Perfil> = {
+  admin: { id: 'admin', nome: 'Admin', bloqueado: true, permissoes: criarPermissoes('total') },
+  gerente: { id: 'gerente', nome: 'Gerente', permissoes: criarPermissoes('gestao') },
+  financeiro: { id: 'financeiro', nome: 'Financeiro', permissoes: criarPermissoes('gestao') },
+  vendedor: { id: 'vendedor', nome: 'Vendedor', permissoes: criarPermissoes('operacional') },
+  operacao: { id: 'operacao', nome: 'Operação', permissoes: criarPermissoes('operacional') },
+  usuario: { id: 'usuario', nome: 'Usuário', permissoes: criarPermissoes('leitura') },
+};
+
 function getAppConfig(): AppConfig {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const config = JSON.parse(stored);
+      const perfisSalvos = config.perfis && Object.keys(config.perfis).length > 0
+        ? config.perfis
+        : DEFAULT_PERFIS;
       return {
         organizacao: config.organizacao || {},
         seguranca: config.seguranca || {},
         usuarios: config.usuarios || [],
-        perfis: config.perfis || {},
+        perfis: perfisSalvos,
         lojas: config.lojas || [],
         logsAuditoria: config.logsAuditoria || []
       } as AppConfig;
@@ -47,7 +81,7 @@ function getAppConfig(): AppConfig {
     organizacao: {} as any,
     seguranca: {} as any,
     usuarios: [],
-    perfis: {},
+    perfis: DEFAULT_PERFIS,
     lojas: [],
     logsAuditoria: []
   };
@@ -138,10 +172,8 @@ export function UsuariosPerfilForm() {
   const [isSavingAccess, setIsSavingAccess] = useState(false);
 
   // Hooks Supabase adicionais
-  const { updateRoles } = useSupabaseUserRoles();
-  const { updateLojas: updateLojasPermitidas } = useSupabaseUserLojas();
   const { lojas } = useSupabaseLojas();
-  const { updateProfile } = useSupabaseUserProfiles();
+  const queryClientPerfis = useQueryClient();
 
   // Filtrar colaboradores ativos sem acesso ao sistema
   const colaboradoresAtivos = pessoas.filter(p => p.situacao === 'ativo');
@@ -220,34 +252,32 @@ export function UsuariosPerfilForm() {
 
     setIsSavingAccess(true);
     try {
-      // 1. Atualizar lojas permitidas primeiro (sem problema de recursão)
-      await updateLojasPermitidas.mutateAsync({
-        userId: usuarioEditandoAcesso.id,
-        lojaIds: editSelectedLojas,
-      });
-
-      // 2. Atualizar roles (DELETE + INSERT)
-      await updateRoles.mutateAsync({
-        userId: usuarioEditandoAcesso.id,
-        roles: editSelectedRoles,
-      });
-
-      // 3. Atualizar perfil por último
-      await updateProfile.mutateAsync({
-        id: usuarioEditandoAcesso.id,
-        updates: {
-          username: editUsername,
-          loja_padrao_id: editLojaPadrao || null,
-          two_fa_enabled: editTwoFaEnabled,
-          exige_troca_senha: editExigeTrocaSenha,
+      // Atualização via Edge Function (service_role): evita bloqueio de RLS
+      // em user_roles/user_lojas_permitidas e centraliza as regras de
+      // privilégio (ex.: só master concede master/admin).
+      const { data, error } = await supabase.functions.invoke('update-user-access', {
+        body: {
+          user_id: usuarioEditandoAcesso.id,
+          profile_updates: {
+            username: editUsername,
+            loja_padrao_id: editLojaPadrao || null,
+            two_fa_enabled: editTwoFaEnabled,
+            exige_troca_senha: editExigeTrocaSenha,
+          },
+          roles: editSelectedRoles,
+          loja_ids: editSelectedLojas,
         },
       });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
+      queryClientPerfis.invalidateQueries({ queryKey: ['user_profiles'] });
       toast.success('Acesso atualizado com sucesso!');
       setShowEditarAcessoDrawer(false);
     } catch (error) {
       console.error('Erro ao salvar acesso:', error);
-      toast.error('Falha ao atualizar acesso. Tente novamente.');
+      const mensagem = error instanceof Error ? error.message : 'tente novamente';
+      toast.error(`Falha ao atualizar acesso: ${mensagem}`);
     } finally {
       setIsSavingAccess(false);
     }

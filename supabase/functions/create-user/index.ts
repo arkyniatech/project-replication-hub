@@ -57,6 +57,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Permissão negada' }, { status: 403, headers: corsHeaders });
     }
 
+    const callerIsMaster = roles.some((r: { role: string }) => r.role === 'master');
+
     // Obter dados do body
     const {
       email,
@@ -73,6 +75,15 @@ Deno.serve(async (req) => {
     // Validação básica
     if (!email || !password || !username || !pessoa_id) {
       return Response.json({ error: 'Dados incompletos' }, { status: 400, headers: corsHeaders });
+    }
+
+    // Guarda de privilégio: somente master pode conceder master/admin
+    // (mesma regra da edge function update-user-access)
+    if (Array.isArray(userRoles) && userRoles.some((r: string) => r === 'master' || r === 'admin') && !callerIsMaster) {
+      return Response.json({
+        error: 'Apenas master pode atribuir os papéis master/admin',
+        code: 'FORBIDDEN_ROLE_GRANT',
+      }, { status: 403, headers: corsHeaders });
     }
 
     // Criar usuário via Admin API
@@ -93,6 +104,20 @@ Deno.serve(async (req) => {
 
     const newUserId = userData.user.id;
 
+    // Rollback helper: se qualquer etapa após createUser falhar, remove o
+    // usuário auth (e cascatas) para não deixar usuário "meio-criado" que
+    // aparece na lista mas não tem roles/lojas.
+    const rollback = async (step: string, cause: unknown) => {
+      console.error(`❌ Falha na etapa "${step}", executando rollback do usuário ${newUserId}:`, cause);
+      await supabaseAdmin.from('user_lojas_permitidas').delete().eq('user_id', newUserId);
+      await supabaseAdmin.from('user_roles').delete().eq('user_id', newUserId);
+      await supabaseAdmin.from('user_profiles').delete().eq('id', newUserId);
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      if (deleteError) {
+        console.error('⚠️ Rollback parcial - falha ao deletar auth user:', deleteError);
+      }
+    };
+
     // Criar user_profile
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
@@ -107,8 +132,11 @@ Deno.serve(async (req) => {
       });
 
     if (profileError) {
-      console.error('Erro ao criar perfil:', profileError);
-      throw profileError;
+      await rollback('user_profiles', profileError);
+      return Response.json({
+        error: `Erro ao criar perfil do usuário: ${profileError.message}`,
+        code: 'PROFILE_INSERT_ERROR',
+      }, { status: 400, headers: corsHeaders });
     }
 
     // Inserir roles (se fornecidas)
@@ -123,11 +151,13 @@ Deno.serve(async (req) => {
         .insert(roleInserts);
 
       if (rolesError) {
-        console.error('Erro ao inserir roles:', rolesError);
-        // Non-fatal: log but continue
-      } else {
-        console.log(`✅ Roles inseridas: ${userRoles.join(', ')}`);
+        await rollback('user_roles', rolesError);
+        return Response.json({
+          error: `Erro ao atribuir perfis ao usuário: ${rolesError.message}`,
+          code: 'ROLES_INSERT_ERROR',
+        }, { status: 400, headers: corsHeaders });
       }
+      console.log(`✅ Roles inseridas: ${userRoles.join(', ')}`);
     }
 
     // Inserir lojas_permitidas (se fornecidas)
@@ -142,10 +172,13 @@ Deno.serve(async (req) => {
         .insert(lojaInserts);
 
       if (lojasError) {
-        console.error('Erro ao inserir lojas permitidas:', lojasError);
-      } else {
-        console.log(`✅ Lojas permitidas inseridas: ${lojas_permitidas.length}`);
+        await rollback('user_lojas_permitidas', lojasError);
+        return Response.json({
+          error: `Erro ao vincular lojas permitidas: ${lojasError.message}`,
+          code: 'LOJAS_INSERT_ERROR',
+        }, { status: 400, headers: corsHeaders });
       }
+      console.log(`✅ Lojas permitidas inseridas: ${lojas_permitidas.length}`);
     }
 
     console.log(`✅ Usuário criado com sucesso: ${newUserId} (${email})`);
