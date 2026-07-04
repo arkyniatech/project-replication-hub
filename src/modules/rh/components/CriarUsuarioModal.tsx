@@ -12,6 +12,7 @@ import { Check, Copy, KeyRound, Loader2, UserPlus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { type AppRole } from '../hooks/useSupabaseUserRoles';
 import { useSupabaseLojas } from '../hooks/useSupabaseLojas';
+import { useGruposLojas } from '@/hooks/useGruposLojas';
 import { logAction } from '@/services/logger';
 import type { Pessoa } from '../types';
 // crypto and bcrypt removed as they are Node.js modules not suitable for browser
@@ -39,7 +40,7 @@ function gerarSenhaSegura(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-const DOMINIO_PADRAO = 'locacaoerp.com';
+const DOMINIO_PADRAO = 'locaacao.com.br';
 
 function montarEmailFinal(input: string): string {
   const valor = input.trim().toLowerCase();
@@ -53,6 +54,8 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { lojas } = useSupabaseLojas();
+  const { grupos } = useGruposLojas();
+  const gruposAtivos = grupos.filter(g => g.ativo);
 
   // Detectar se o usuário logado é master para mostrar a opção master
   const [isMaster, setIsMaster] = useState(false);
@@ -72,6 +75,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
   const [username, setUsername] = useState('');
   const [rolesSelecionadas, setRolesSelecionadas] = useState<AppRole[]>([]);
   const [lojasSelecionadas, setLojasSelecionadas] = useState<string[]>([]);
+  const [gruposSelecionados, setGruposSelecionados] = useState<string[]>([]);
   const [lojaPadrao, setLojaPadrao] = useState<string>('');
   const [twoFA, setTwoFA] = useState(false);
   const [exigeTrocaSenha, setExigeTrocaSenha] = useState(true);
@@ -102,6 +106,30 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       setRolesSelecionadas(roleSugerida ? [roleSugerida] : []);
     }
   }, [pessoa]);
+
+  // Com um único grupo ativo (caso comum), pré-seleciona
+  useEffect(() => {
+    if (open && gruposAtivos.length === 1 && gruposSelecionados.length === 0) {
+      setGruposSelecionados([gruposAtivos[0].id]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, grupos]);
+
+  const toggleGrupo = (grupoId: string) => {
+    setGruposSelecionados(prev =>
+      prev.includes(grupoId)
+        ? prev.filter(g => g !== grupoId)
+        : [...prev, grupoId]
+    );
+  };
+
+  // Lojas cobertas pelos grupos selecionados (acesso automático)
+  const lojasViaGrupo = new Set(
+    lojas
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((l: any) => l.grupo_id && gruposSelecionados.includes(l.grupo_id))
+      .map(l => l.id)
+  );
 
   const toggleRole = (role: AppRole) => {
     setRolesSelecionadas(prev =>
@@ -149,12 +177,12 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       toast({ title: 'Erro', description: 'Selecione pelo menos um perfil', variant: 'destructive' });
       return;
     }
-    if (lojasSelecionadas.length === 0) {
-      toast({ title: 'Erro', description: 'Selecione pelo menos uma loja', variant: 'destructive' });
+    if (lojasSelecionadas.length === 0 && gruposSelecionados.length === 0) {
+      toast({ title: 'Erro', description: 'Selecione pelo menos um grupo ou uma loja', variant: 'destructive' });
       return;
     }
-    if (lojaPadrao && !lojasSelecionadas.includes(lojaPadrao)) {
-      toast({ title: 'Erro', description: 'Loja padrão deve estar nas lojas permitidas', variant: 'destructive' });
+    if (lojaPadrao && !lojasSelecionadas.includes(lojaPadrao) && !lojasViaGrupo.has(lojaPadrao)) {
+      toast({ title: 'Erro', description: 'Loja padrão deve estar nas lojas permitidas (individuais ou via grupo)', variant: 'destructive' });
       return;
     }
     if (senhaManual) {
@@ -207,6 +235,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
           loja_padrao_id: lojaPadrao || null,
           roles: rolesSelecionadas,
           lojas_permitidas: lojasSelecionadas,
+          grupo_ids: gruposSelecionados,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -274,6 +303,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
         pessoaId: pessoa.id,
         roles: rolesSelecionadas,
         lojas: lojasSelecionadas,
+        grupos: gruposSelecionados,
         lojaPadrao,
         twoFA,
         exigeTrocaSenha,
@@ -304,6 +334,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       setUsername('');
       setRolesSelecionadas([]);
       setLojasSelecionadas([]);
+      setGruposSelecionados([]);
       setLojaPadrao('');
       setTwoFA(false);
       setExigeTrocaSenha(true);
@@ -499,28 +530,58 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
             </div>
           </div>
 
+          {/* Grupos */}
+          {gruposAtivos.length > 0 && (
+            <div className="space-y-3">
+              <Label>Grupos *</Label>
+              <div className="flex flex-wrap gap-2">
+                {gruposAtivos.map(grupo => (
+                  <Badge
+                    key={grupo.id}
+                    variant={gruposSelecionados.includes(grupo.id) ? 'default' : 'outline'}
+                    className="cursor-pointer"
+                    onClick={() => toggleGrupo(grupo.id)}
+                  >
+                    {grupo.nome}
+                    {gruposSelecionados.includes(grupo.id) && (
+                      <X className="w-3 h-3 ml-1" />
+                    )}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Quem pertence a um grupo acessa todas as lojas dele — inclusive franquias adicionadas depois
+              </p>
+            </div>
+          )}
+
           {/* Lojas */}
           <div className="space-y-3">
-            <Label>Lojas Permitidas *</Label>
+            <Label>{gruposAtivos.length > 0 ? 'Lojas Adicionais (fora dos grupos)' : 'Lojas Permitidas *'}</Label>
             <div className="flex flex-wrap gap-2">
-              {lojas.map(loja => (
-                <Badge
-                  key={loja.id}
-                  variant={lojasSelecionadas.includes(loja.id) ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => toggleLoja(loja.id)}
-                >
-                  {loja.nome}
-                  {lojasSelecionadas.includes(loja.id) && (
-                    <X className="w-3 h-3 ml-1" />
-                  )}
-                </Badge>
-              ))}
+              {lojas.map(loja => {
+                const viaGrupo = lojasViaGrupo.has(loja.id);
+                return (
+                  <Badge
+                    key={loja.id}
+                    variant={viaGrupo || lojasSelecionadas.includes(loja.id) ? 'default' : 'outline'}
+                    className={viaGrupo ? 'opacity-60 cursor-default' : 'cursor-pointer'}
+                    onClick={() => !viaGrupo && toggleLoja(loja.id)}
+                  >
+                    {loja.nome}
+                    {viaGrupo ? (
+                      <span className="ml-1 text-[10px]">(grupo)</span>
+                    ) : (
+                      lojasSelecionadas.includes(loja.id) && <X className="w-3 h-3 ml-1" />
+                    )}
+                  </Badge>
+                );
+              })}
             </div>
           </div>
 
           {/* Loja Padrão */}
-          {lojasSelecionadas.length > 0 && (
+          {(lojasSelecionadas.length > 0 || lojasViaGrupo.size > 0) && (
             <div className="space-y-2">
               <Label htmlFor="lojaPadrao">Loja Padrão (opcional)</Label>
               <select
@@ -531,7 +592,7 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
               >
                 <option value="">Selecione...</option>
                 {lojas
-                  .filter(l => lojasSelecionadas.includes(l.id))
+                  .filter(l => lojasSelecionadas.includes(l.id) || lojasViaGrupo.has(l.id))
                   .map(loja => (
                     <option key={loja.id} value={loja.id}>
                       {loja.nome}

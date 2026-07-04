@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
       profile_updates,
       roles: newRoles,
       loja_ids,
+      grupo_ids,
     } = body as {
       user_id: string;
       profile_updates?: {
@@ -55,6 +56,7 @@ Deno.serve(async (req) => {
       };
       roles?: string[];
       loja_ids?: string[];
+      grupo_ids?: string[];
     };
 
     if (!user_id) {
@@ -102,13 +104,34 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3) Substitui lojas permitidas
+    // 3) Substitui grupos (delete + insert) — triggers do banco
+    //    sincronizam as lojas concedidas por grupo automaticamente
+    if (Array.isArray(grupo_ids)) {
+      const { error: delErr } = await admin.from('user_grupos').delete().eq('user_id', user_id);
+      if (delErr) throw delErr;
+      if (grupo_ids.length > 0) {
+        const rows = grupo_ids.map((grupo_id) => ({ user_id, grupo_id }));
+        const { error: insErr } = await admin.from('user_grupos').insert(rows);
+        if (insErr) throw insErr;
+      }
+    }
+
+    // 4) Substitui lojas permitidas INDIVIDUAIS (origem_grupo_id IS NULL).
+    //    Linhas concedidas por grupo são gerenciadas pelos triggers e
+    //    não são tocadas aqui.
     if (Array.isArray(loja_ids)) {
-      const { error: delErr } = await admin.from('user_lojas_permitidas').delete().eq('user_id', user_id);
+      const { error: delErr } = await admin
+        .from('user_lojas_permitidas')
+        .delete()
+        .eq('user_id', user_id)
+        .is('origem_grupo_id', null);
       if (delErr) throw delErr;
       if (loja_ids.length > 0) {
         const rows = loja_ids.map((loja_id) => ({ user_id, loja_id }));
-        const { error: insErr } = await admin.from('user_lojas_permitidas').insert(rows);
+        // upsert: a loja pode já estar concedida via grupo — não é erro
+        const { error: insErr } = await admin
+          .from('user_lojas_permitidas')
+          .upsert(rows, { onConflict: 'user_id,loja_id', ignoreDuplicates: true });
         if (insErr) throw insErr;
       }
     }

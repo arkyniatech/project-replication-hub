@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Building2, Plus, Pencil, Trash2, Save, X } from 'lucide-react';
+import { Building2, FolderKanban, Plus, Pencil, Trash2, Save, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useGruposLojas } from '@/hooks/useGruposLojas';
 
 interface Loja {
   id?: string;
@@ -16,12 +18,23 @@ interface Loja {
   nome: string;
   codigo_numerico?: number;
   ativo: boolean;
+  grupo_id?: string | null;
 }
+
+// Valor sentinela do <select> para "criar novo grupo"
+const NOVO_GRUPO = '__novo__';
 
 export function LojasForm() {
   const queryClient = useQueryClient();
   const [editingLoja, setEditingLoja] = useState<Loja | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Grupos de lojas (franquias)
+  const { grupos, createGrupo, updateGrupo } = useGruposLojas();
+  const [grupoSelecionado, setGrupoSelecionado] = useState<string>('');
+  const [novoGrupoNome, setNovoGrupoNome] = useState('');
+  const [editandoGrupo, setEditandoGrupo] = useState<{ id: string; nome: string } | null>(null);
+  const [novoGrupoCard, setNovoGrupoCard] = useState('');
 
   // Buscar lojas
   const { data: lojas = [], isLoading } = useQuery({
@@ -57,8 +70,10 @@ export function LojasForm() {
           codigo: loja.codigo,
           nome: loja.nome,
           codigo_numerico: nextCodigoNumerico,
-          ativo: loja.ativo
-        }])
+          ativo: loja.ativo,
+          grupo_id: loja.grupo_id ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any])
         .select()
         .single();
       
@@ -94,8 +109,10 @@ export function LojasForm() {
         .update({
           codigo: loja.codigo,
           nome: loja.nome,
-          ativo: loja.ativo
-        })
+          ativo: loja.ativo,
+          grupo_id: loja.grupo_id ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
         .eq('id', loja.id!)
         .select()
         .single();
@@ -133,7 +150,7 @@ export function LojasForm() {
     }
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editingLoja) return;
 
     if (!editingLoja.codigo || !editingLoja.nome) {
@@ -141,10 +158,31 @@ export function LojasForm() {
       return;
     }
 
-    if (editingLoja.id) {
-      updateMutation.mutate(editingLoja);
+    // Resolver grupo: existente, novo ou nenhum
+    let grupoId: string | null = null;
+    if (grupoSelecionado === NOVO_GRUPO) {
+      if (!novoGrupoNome.trim()) {
+        toast.error('Informe o nome do novo grupo');
+        return;
+      }
+      try {
+        const novoGrupo = await createGrupo.mutateAsync({ nome: novoGrupoNome });
+        grupoId = novoGrupo.id;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        toast.error(`Erro ao criar grupo: ${error.message}`);
+        return;
+      }
+    } else if (grupoSelecionado) {
+      grupoId = grupoSelecionado;
+    }
+
+    const lojaFinal = { ...editingLoja, grupo_id: grupoId };
+
+    if (lojaFinal.id) {
+      updateMutation.mutate(lojaFinal);
     } else {
-      createMutation.mutate(editingLoja);
+      createMutation.mutate(lojaFinal);
     }
   };
 
@@ -154,11 +192,16 @@ export function LojasForm() {
       nome: '',
       ativo: true
     });
+    // Pré-seleciona o único grupo existente (caso comum: um grupo só)
+    setGrupoSelecionado(grupos.length === 1 ? grupos[0].id : '');
+    setNovoGrupoNome('');
     setIsDialogOpen(true);
   };
 
   const handleEdit = (loja: Loja) => {
     setEditingLoja(loja);
+    setGrupoSelecionado(loja.grupo_id || '');
+    setNovoGrupoNome('');
     setIsDialogOpen(true);
   };
 
@@ -202,7 +245,15 @@ export function LojasForm() {
                 <div className="flex items-center gap-4">
                   <Building2 className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <div className="font-medium">{loja.nome}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {loja.nome}
+                      {(loja as Loja).grupo_id && (
+                        <Badge variant="outline" className="text-xs font-normal">
+                          <FolderKanban className="h-3 w-3 mr-1" />
+                          {grupos.find(g => g.id === (loja as Loja).grupo_id)?.nome || 'Grupo'}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       Código: {loja.codigo} {loja.codigo_numerico && `• Nº ${String(loja.codigo_numerico).padStart(3, '0')}`}
                     </div>
@@ -240,6 +291,113 @@ export function LojasForm() {
         </CardContent>
       </Card>
 
+      {/* Grupos de Lojas */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FolderKanban className="h-5 w-5" />
+            Grupos de Lojas
+          </CardTitle>
+          <CardDescription>
+            Agrupe franquias — funcionários vinculados a um grupo enxergam todas as lojas dele, inclusive novas
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            {grupos.map(grupo => {
+              const lojasDoGrupo = lojas.filter((l) => (l as Loja).grupo_id === grupo.id);
+              const emEdicao = editandoGrupo?.id === grupo.id;
+              return (
+                <div key={grupo.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    {emEdicao ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editandoGrupo.nome}
+                          onChange={(e) => setEditandoGrupo({ ...editandoGrupo, nome: e.target.value })}
+                          className="max-w-xs"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            if (!editandoGrupo.nome.trim()) return;
+                            try {
+                              await updateGrupo.mutateAsync({ id: grupo.id, updates: { nome: editandoGrupo.nome.trim() } });
+                              toast.success('Grupo renomeado!');
+                              setEditandoGrupo(null);
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            } catch (error: any) {
+                              toast.error(`Erro ao renomear: ${error.message}`);
+                            }
+                          }}
+                        >
+                          <Save className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditandoGrupo(null)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="font-medium flex items-center gap-2">
+                          {grupo.nome}
+                          {!grupo.ativo && <Badge variant="secondary" className="text-xs">Inativo</Badge>}
+                        </div>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {lojasDoGrupo.length === 0
+                            ? 'Nenhuma loja'
+                            : lojasDoGrupo.map(l => l.nome).join(', ')}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {!emEdicao && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditandoGrupo({ id: grupo.id, nome: grupo.nome })}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+            {grupos.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground text-sm">
+                Nenhum grupo criado ainda.
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 pt-2 border-t">
+            <Input
+              value={novoGrupoCard}
+              onChange={(e) => setNovoGrupoCard(e.target.value)}
+              placeholder="Nome do novo grupo"
+              className="max-w-xs"
+            />
+            <Button
+              variant="outline"
+              disabled={!novoGrupoCard.trim() || createGrupo.isPending}
+              onClick={async () => {
+                try {
+                  await createGrupo.mutateAsync({ nome: novoGrupoCard });
+                  toast.success('Grupo criado!');
+                  setNovoGrupoCard('');
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } catch (error: any) {
+                  toast.error(`Erro ao criar grupo: ${error.message}`);
+                }
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Grupo
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -273,6 +431,39 @@ export function LojasForm() {
                   placeholder="Ex: Loja São Paulo"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="grupo">Grupo</Label>
+                <select
+                  id="grupo"
+                  value={grupoSelecionado}
+                  onChange={(e) => setGrupoSelecionado(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background"
+                >
+                  <option value="">— Sem grupo —</option>
+                  {grupos.filter(g => g.ativo).map(grupo => (
+                    <option key={grupo.id} value={grupo.id}>
+                      {grupo.nome}
+                    </option>
+                  ))}
+                  <option value={NOVO_GRUPO}>+ Criar novo grupo...</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Funcionários do grupo passam a ver esta loja automaticamente
+                </p>
+              </div>
+
+              {grupoSelecionado === NOVO_GRUPO && (
+                <div className="space-y-2">
+                  <Label htmlFor="novoGrupoNome">Nome do novo grupo *</Label>
+                  <Input
+                    id="novoGrupoNome"
+                    value={novoGrupoNome}
+                    onChange={(e) => setNovoGrupoNome(e.target.value)}
+                    placeholder="Ex: Grupo Sul de Minas"
+                  />
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <Label htmlFor="ativo">Loja Ativa</Label>

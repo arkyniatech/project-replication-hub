@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
       loja_padrao_id,
       roles: userRoles,
       lojas_permitidas,
+      grupo_ids,
     } = await req.json();
 
     // Validação básica
@@ -109,6 +110,7 @@ Deno.serve(async (req) => {
     // aparece na lista mas não tem roles/lojas.
     const rollback = async (step: string, cause: unknown) => {
       console.error(`❌ Falha na etapa "${step}", executando rollback do usuário ${newUserId}:`, cause);
+      await supabaseAdmin.from('user_grupos').delete().eq('user_id', newUserId);
       await supabaseAdmin.from('user_lojas_permitidas').delete().eq('user_id', newUserId);
       await supabaseAdmin.from('user_roles').delete().eq('user_id', newUserId);
       await supabaseAdmin.from('user_profiles').delete().eq('id', newUserId);
@@ -160,16 +162,40 @@ Deno.serve(async (req) => {
       console.log(`✅ Roles inseridas: ${userRoles.join(', ')}`);
     }
 
-    // Inserir lojas_permitidas (se fornecidas)
+    // Inserir grupos (se fornecidos) — triggers do banco concedem
+    // automaticamente as lojas de cada grupo (origem_grupo_id preenchido)
+    if (grupo_ids && Array.isArray(grupo_ids) && grupo_ids.length > 0) {
+      const grupoInserts = grupo_ids.map((grupo_id: string) => ({
+        user_id: newUserId,
+        grupo_id,
+      }));
+
+      const { error: gruposError } = await supabaseAdmin
+        .from('user_grupos')
+        .insert(grupoInserts);
+
+      if (gruposError) {
+        await rollback('user_grupos', gruposError);
+        return Response.json({
+          error: `Erro ao vincular grupos: ${gruposError.message}`,
+          code: 'GRUPOS_INSERT_ERROR',
+        }, { status: 400, headers: corsHeaders });
+      }
+      console.log(`✅ Grupos vinculados: ${grupo_ids.length}`);
+    }
+
+    // Inserir lojas_permitidas individuais (se fornecidas)
     if (lojas_permitidas && Array.isArray(lojas_permitidas) && lojas_permitidas.length > 0) {
       const lojaInserts = lojas_permitidas.map((loja_id: string) => ({
         user_id: newUserId,
         loja_id,
       }));
 
+      // upsert com ignoreDuplicates: a loja pode já ter sido concedida
+      // pelo trigger de grupo — não é erro.
       const { error: lojasError } = await supabaseAdmin
         .from('user_lojas_permitidas')
-        .insert(lojaInserts);
+        .upsert(lojaInserts, { onConflict: 'user_id,loja_id', ignoreDuplicates: true });
 
       if (lojasError) {
         await rollback('user_lojas_permitidas', lojasError);

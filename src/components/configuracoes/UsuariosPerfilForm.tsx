@@ -19,7 +19,9 @@ import type { Usuario, Perfil, PermissoesPerfil, AppConfig, LogAuditoria } from 
 import type { Pessoa } from "@/modules/rh/types";
 import { AppRole } from "@/modules/rh/hooks/useSupabaseUserRoles";
 import { useSupabaseLojas } from "@/modules/rh/hooks/useSupabaseLojas";
+import { useGruposLojas } from "@/hooks/useGruposLojas";
 import { useQueryClient } from "@tanstack/react-query";
+import { FolderKanban } from "lucide-react";
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -166,6 +168,7 @@ export function UsuariosPerfilForm() {
   const [editUsername, setEditUsername] = useState('');
   const [editSelectedRoles, setEditSelectedRoles] = useState<AppRole[]>([]);
   const [editSelectedLojas, setEditSelectedLojas] = useState<string[]>([]);
+  const [editSelectedGrupos, setEditSelectedGrupos] = useState<string[]>([]);
   const [editLojaPadrao, setEditLojaPadrao] = useState<string>('');
   const [editTwoFaEnabled, setEditTwoFaEnabled] = useState(false);
   const [editExigeTrocaSenha, setEditExigeTrocaSenha] = useState(false);
@@ -173,7 +176,16 @@ export function UsuariosPerfilForm() {
 
   // Hooks Supabase adicionais
   const { lojas } = useSupabaseLojas();
+  const { grupos } = useGruposLojas();
   const queryClientPerfis = useQueryClient();
+
+  // Lojas cobertas pelos grupos selecionados (informativo — acesso automático)
+  const lojasViaGrupo = new Set(
+    lojas
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((l: any) => l.grupo_id && editSelectedGrupos.includes(l.grupo_id))
+      .map((l) => l.id)
+  );
 
   // Filtrar colaboradores ativos sem acesso ao sistema
   const colaboradoresAtivos = pessoas.filter(p => p.situacao === 'ativo');
@@ -193,24 +205,38 @@ export function UsuariosPerfilForm() {
     setEditTwoFaEnabled(profile.two_fa_enabled || false);
     setEditExigeTrocaSenha(profile.exige_troca_senha || false);
 
-    // Buscar roles e lojas do usuário
+    // Buscar roles, grupos e lojas do usuário
     try {
       const { data: rolesData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', profile.id);
 
-      const { data: lojasData } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data: lojasData } = await db
         .from('user_lojas_permitidas')
-        .select('loja_id')
+        .select('loja_id, origem_grupo_id')
+        .eq('user_id', profile.id);
+
+      const { data: gruposData } = await db
+        .from('user_grupos')
+        .select('grupo_id')
         .eq('user_id', profile.id);
 
       setEditSelectedRoles(rolesData?.map(r => r.role as AppRole) || []);
-      setEditSelectedLojas(lojasData?.map(l => l.loja_id) || []);
+      // Apenas lojas INDIVIDUAIS são editáveis aqui; as de grupo são automáticas
+      setEditSelectedLojas(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (lojasData || []).filter((l: any) => !l.origem_grupo_id).map((l: any) => l.loja_id)
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setEditSelectedGrupos((gruposData || []).map((g: any) => g.grupo_id));
     } catch (error) {
-      console.error('Erro ao buscar roles e lojas:', error);
+      console.error('Erro ao buscar roles, grupos e lojas:', error);
       setEditSelectedRoles([]);
       setEditSelectedLojas([]);
+      setEditSelectedGrupos([]);
     }
 
     setShowEditarAcessoDrawer(true);
@@ -232,6 +258,14 @@ export function UsuariosPerfilForm() {
     );
   };
 
+  const handleToggleEditGrupo = (grupoId: string) => {
+    setEditSelectedGrupos(prev =>
+      prev.includes(grupoId)
+        ? prev.filter(id => id !== grupoId)
+        : [...prev, grupoId]
+    );
+  };
+
   const handleSaveAcesso = async () => {
     if (!usuarioEditandoAcesso) return;
 
@@ -240,13 +274,13 @@ export function UsuariosPerfilForm() {
       return;
     }
 
-    if (editSelectedLojas.length === 0) {
-      toast.error('Selecione ao menos uma loja permitida.');
+    if (editSelectedLojas.length === 0 && editSelectedGrupos.length === 0) {
+      toast.error('Selecione ao menos um grupo ou uma loja permitida.');
       return;
     }
 
-    if (editLojaPadrao && !editSelectedLojas.includes(editLojaPadrao)) {
-      toast.error('A loja padrão deve estar entre as lojas permitidas.');
+    if (editLojaPadrao && !editSelectedLojas.includes(editLojaPadrao) && !lojasViaGrupo.has(editLojaPadrao)) {
+      toast.error('A loja padrão deve estar entre as lojas permitidas (individuais ou via grupo).');
       return;
     }
 
@@ -266,12 +300,14 @@ export function UsuariosPerfilForm() {
           },
           roles: editSelectedRoles,
           loja_ids: editSelectedLojas,
+          grupo_ids: editSelectedGrupos,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       queryClientPerfis.invalidateQueries({ queryKey: ['user_profiles'] });
+      queryClientPerfis.invalidateQueries({ queryKey: ['user_grupos'] });
       toast.success('Acesso atualizado com sucesso!');
       setShowEditarAcessoDrawer(false);
     } catch (error) {
@@ -862,40 +898,104 @@ export function UsuariosPerfilForm() {
               </CardContent>
             </Card>
 
+            {/* Grupos */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FolderKanban className="h-4 w-4" />
+                  Grupos
+                </CardTitle>
+                <CardDescription>
+                  Quem pertence a um grupo enxerga todas as lojas dele — inclusive franquias adicionadas depois
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {grupos.filter(g => g.ativo).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum grupo criado. Crie grupos em Configurações → Lojas.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {grupos.filter(g => g.ativo).map((grupo) => {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const lojasDoGrupo = lojas.filter((l: any) => l.grupo_id === grupo.id);
+                      return (
+                        <div
+                          key={grupo.id}
+                          className={`p-3 border rounded-lg cursor-pointer transition-all ${editSelectedGrupos.includes(grupo.id)
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                            }`}
+                          onClick={() => handleToggleEditGrupo(grupo.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={editSelectedGrupos.includes(grupo.id)}
+                              onCheckedChange={() => handleToggleEditGrupo(grupo.id)}
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{grupo.nome}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {lojasDoGrupo.length === 0
+                                  ? 'Sem lojas'
+                                  : lojasDoGrupo.map(l => l.nome).join(', ')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Lojas Permitidas */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Lojas Permitidas
+                  Lojas Adicionais
                 </CardTitle>
                 <CardDescription>
-                  Selecione as lojas que o usuário pode acessar
+                  Acessos individuais fora dos grupos — lojas já cobertas por grupo aparecem marcadas automaticamente
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {lojas.map((loja) => (
-                    <div
-                      key={loja.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-all ${editSelectedLojas.includes(loja.id)
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                        }`}
-                      onClick={() => handleToggleEditLoja(loja.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={editSelectedLojas.includes(loja.id)}
-                          onCheckedChange={() => handleToggleEditLoja(loja.id)}
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{loja.nome}</p>
-                          <p className="text-xs text-muted-foreground">Código: {loja.codigo}</p>
+                  {lojas.map((loja) => {
+                    const viaGrupo = lojasViaGrupo.has(loja.id);
+                    const selecionada = editSelectedLojas.includes(loja.id) || viaGrupo;
+                    return (
+                      <div
+                        key={loja.id}
+                        className={`p-3 border rounded-lg transition-all ${viaGrupo
+                          ? 'border-primary/40 bg-primary/5 opacity-80'
+                          : selecionada
+                            ? 'border-primary bg-primary/5 cursor-pointer'
+                            : 'border-border hover:border-primary/50 cursor-pointer'
+                          }`}
+                        onClick={() => !viaGrupo && handleToggleEditLoja(loja.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={selecionada}
+                            disabled={viaGrupo}
+                            onCheckedChange={() => !viaGrupo && handleToggleEditLoja(loja.id)}
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium text-sm flex items-center gap-2">
+                              {loja.nome}
+                              {viaGrupo && (
+                                <Badge variant="outline" className="text-[10px] font-normal">via grupo</Badge>
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Código: {loja.codigo}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <Separator />
@@ -908,7 +1008,7 @@ export function UsuariosPerfilForm() {
                     </SelectTrigger>
                     <SelectContent>
                       {lojas
-                        .filter((loja) => editSelectedLojas.includes(loja.id))
+                        .filter((loja) => editSelectedLojas.includes(loja.id) || lojasViaGrupo.has(loja.id))
                         .map((loja) => (
                           <SelectItem key={loja.id} value={loja.id}>
                             {loja.nome} ({loja.codigo})
