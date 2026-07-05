@@ -100,7 +100,7 @@ export default function VeiculosCadastros() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Button asChild variant="default">
-              <Link to="/veiculos" className="flex items-center gap-2">
+              <Link to="/veiculos?novo=1" className="flex items-center gap-2">
                 <Plus size={16} />
                 Novo Veículo
               </Link>

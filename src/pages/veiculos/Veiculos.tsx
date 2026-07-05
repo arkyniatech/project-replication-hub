@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { Search, Filter, Car, Truck, Bike, Package } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, Filter, Car, Truck, Bike, Package, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +40,24 @@ export default function Veiculos() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosVeiculos>({});
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Abrir o cadastro direto quando navegado com ?novo=1
+  // (ex.: botão "Novo Veículo" da tela de Cadastros)
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') {
+      setEditingId(null);
+      setShowForm(true);
+      searchParams.delete('novo');
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleNovoVeiculo = () => {
+    setEditingId(null);
+    setShowForm(true);
+  };
 
   // Mock da loja ativa - em produção viria do contexto
   const lojaAtiva = '1';
@@ -117,6 +136,14 @@ export default function Veiculos() {
 
   return (
     <div className="space-y-6">
+      {/* Ações */}
+      <div className="flex justify-end">
+        <Button onClick={handleNovoVeiculo}>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Veículo
+        </Button>
+      </div>
+
       {/* Filtros Globais */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
