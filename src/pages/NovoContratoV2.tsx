@@ -21,7 +21,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Cliente, Equipamento, ItemContrato, Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
-import { validarBloqueioCliente, precoTabela, reservarItens, liberarReserva, verificarDisponibilidade, gerarOSEntrega, gerarTitulosFechamento, agruparCobrancaCliente, autoIncrementContrato, calcularTotalContrato } from "@/lib/contratos-v2-utils";
+import { validarBloqueioCliente, precoTabela, reservarItens, liberarReserva, verificarDisponibilidade, gerarOSEntrega, gerarTitulosFechamento, agruparCobrancaCliente, calcularTotalContrato } from "@/lib/contratos-v2-utils";
 import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
 import { aplicarPolitica, ResultadoPolitica } from "@/services/politicasEngine";
 import { ClienteBlockedModal } from "@/components/contratos/ClienteBlockedModal";
@@ -742,8 +742,21 @@ export default function NovoContratoV2() {
         valorTotal: valorTotalCalculado
       }));
 
-      // Gerar número do contrato
-      const numeroContrato = autoIncrementContrato(contrato.lojaId);
+      // Gerar número do contrato a partir do BANCO (max + 1 por loja).
+      // O contador antigo ficava no localStorage de cada navegador e colidia
+      // com números já existentes → "duplicate key contratos_loja_id_numero_key" (#35).
+      const gerarProximoNumero = async (): Promise<number> => {
+        const { data: existentes } = await supabase
+          .from('contratos')
+          .select('numero')
+          .eq('loja_id', contrato.lojaId);
+        const maior = (existentes || [])
+          .map((c: any) => parseInt(c.numero, 10))
+          .filter((n: number) => !isNaN(n))
+          .reduce((max: number, n: number) => Math.max(max, n), 0);
+        return maior + 1;
+      };
+      let numeroContrato = await gerarProximoNumero();
       console.log('[FINALIZACAO] Número do contrato gerado:', numeroContrato);
 
       // Calcular data de fim do contrato
@@ -807,14 +820,27 @@ export default function NovoContratoV2() {
       console.log('[FINALIZACAO] Tipo do status:', typeof contratoData.status);
       console.log('[FINALIZACAO] Dados completos do contrato:', JSON.stringify(contratoData, null, 2));
 
-      // Salvar contrato no Supabase
-      const { data: contratoSupabase, error: contratoError } = await supabase
-        .from('contratos')
-        .insert(contratoData)
-        .select()
-        .single();
+      // Salvar contrato no Supabase — com retry se o número colidir
+      // (outra pessoa criando contrato na mesma loja ao mesmo tempo)
+      let contratoSupabase: any = null;
+      for (let tentativa = 1; tentativa <= 3; tentativa++) {
+        const { data, error: contratoError } = await supabase
+          .from('contratos')
+          .insert({ ...contratoData, numero: numeroContrato.toString() })
+          .select()
+          .single();
 
-      if (contratoError) {
+        if (!contratoError) {
+          contratoSupabase = data;
+          break;
+        }
+
+        if (contratoError.code === '23505' && tentativa < 3) {
+          console.warn(`[FINALIZACAO] Número ${numeroContrato} já existe, recalculando (tentativa ${tentativa})...`);
+          numeroContrato = await gerarProximoNumero();
+          continue;
+        }
+
         console.error('[FINALIZACAO] Erro ao criar contrato no Supabase:', contratoError);
         throw contratoError;
       }

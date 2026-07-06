@@ -340,16 +340,22 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
         meta: { dataRetirada: new Date().toISOString() }
       };
 
-      const { error: updateContratoError } = await supabase
+      // .select() para detectar update silenciosamente bloqueado por RLS
+      // (0 linhas afetadas mostrava "sucesso" sem mudar o status — bug #33)
+      const { data: atualizado, error: updateContratoError } = await supabase
         .from('contratos')
         .update({
           status: 'ATIVO',
           timeline: [...timeline, novoEvento],
           updated_at: new Date().toISOString()
         })
-        .eq('id', contratoId);
+        .eq('id', contratoId)
+        .select('id');
 
       if (updateContratoError) throw updateContratoError;
+      if (!atualizado || atualizado.length === 0) {
+        throw new Error('Não foi possível atualizar o contrato — verifique suas permissões e lojas vinculadas.');
+      }
 
       // 4. Atualizar status dos itens para LOCADO
       const { error: updateItensError } = await supabase

@@ -277,7 +277,7 @@ export default function RenovarContratoModal({
     setPoliticaAplicada(valorRenovacao.politica);
   }, [valorRenovacao.politica]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (ignorarInadimplencia = false) => {
     if (!contrato) {
       toast({
         title: "Erro",
@@ -293,10 +293,13 @@ export default function RenovarContratoModal({
       return;
     }
 
-    if (clienteInadimplente) {
+    // Renovação automática (#36): com ignorarInadimplencia a renovação segue
+    // sem baixa — o novo título fica em aberto e as pendências continuam
+    // cobráveis em Contas a Receber.
+    if (clienteInadimplente && !ignorarInadimplencia) {
       toast({
         title: "Cliente inadimplente",
-        description: "Este cliente possui títulos vencidos. Utilize 'Pagar e Renovar' ou quite as pendências primeiro.",
+        description: "Este cliente possui títulos vencidos. Use 'Pagar e Renovar' ou 'Renovar sem pagamento'.",
         variant: "destructive"
       });
       return;
@@ -759,17 +762,22 @@ export default function RenovarContratoModal({
             Cancelar
           </Button>
           {clienteInadimplente ? (
-            <Button variant="destructive" disabled>
-              Pagar e Renovar
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => handleSubmit(true)}
+                disabled={loading || !contrato}
+                title="Renova o contrato sem baixa — as pendências continuam em Contas a Receber"
+              >
+                {loading ? "Processando..." : "🔄 Renovar sem pagamento"}
+              </Button>
+              <Button onClick={handlePagarERenovar} className="ml-2" disabled={loading}>
+                💵 Pagar e Renovar
+              </Button>
+            </>
           ) : (
-            <Button onClick={handleSubmit} disabled={loading || !contrato} data-renovar-focus>
+            <Button onClick={() => handleSubmit()} disabled={loading || !contrato} data-renovar-focus>
               {loading ? "Processando..." : "Confirmar Renovação"}
-            </Button>
-          )}
-          {clienteInadimplente && (
-            <Button onClick={handlePagarERenovar} className="ml-2">
-              💵 Pagar e Renovar
             </Button>
           )}
         </DialogFooter>

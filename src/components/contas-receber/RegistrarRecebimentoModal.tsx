@@ -54,10 +54,12 @@ export default function RegistrarRecebimentoModal({
       return;
     }
 
-    if (valorLiquido > (titulo.saldo || 0)) {
+    // Valida contra o que abate a dívida (valor a receber, sem juros —
+    // juros/multa podem ultrapassar o saldo legitimamente)
+    if (valorReceberNum > (titulo.saldo || 0)) {
       toast({
         title: "Erro",
-        description: "O valor líquido não pode ser maior que o saldo do título.",
+        description: "O valor a receber não pode ser maior que o saldo do título.",
         variant: "destructive"
       });
       return;
@@ -78,11 +80,16 @@ export default function RegistrarRecebimentoModal({
         observacoes,
       });
 
-      // Atualizar o título
+      // Atualizar o título.
+      // O DESCONTO abate a dívida junto com o valor recebido — antes só o
+      // valor líquido contava e uma baixa total com desconto ficava PARCIAL
+      // com saldo residual igual ao desconto (#34). Juros/multa entram no
+      // caixa mas não alteram o saldo do título.
+      const abatimento = valorLiquido - jurosMultaNum + descontoNum; // = valorReceberNum
       const novoPago = (titulo.pago || 0) + valorLiquido;
-      const novoSaldo = Math.max(0, (titulo.valor || 0) - novoPago);
+      const novoSaldo = Math.max(0, (titulo.saldo ?? titulo.valor ?? 0) - abatimento);
       let novoStatus = titulo.status;
-      
+
       if (novoSaldo === 0) {
         novoStatus = 'QUITADO';
       } else if (novoPago > 0) {

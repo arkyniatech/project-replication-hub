@@ -150,10 +150,26 @@ export default function ConfirmarRetiradaModal({
 
           {/* Checklist */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-warning" />
-              Checklist de Confirmação
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-warning" />
+                Checklist de Confirmação
+              </h3>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => {
+                  const marcarTudo = !podeConfirmar;
+                  setEquipamentosConferidos(marcarTudo);
+                  setDocumentoVerificado(marcarTudo);
+                  setClienteOrientado(marcarTudo);
+                }}
+              >
+                {podeConfirmar ? 'Desmarcar todas' : '✓ Selecionar todas'}
+              </Button>
+            </div>
 
             <div className="space-y-3">
               <div className="flex items-start gap-3">
