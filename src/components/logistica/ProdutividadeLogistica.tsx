@@ -4,9 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSupabaseLogisticaMetricas, useLogisticaKPIs } from "@/hooks/useSupabaseLogisticaMetricas";
+import { useLogisticaKPIs, type LogisticaMetrica } from "@/hooks/useSupabaseLogisticaMetricas";
+import { useSupabaseLogisticaTarefas } from "@/hooks/useSupabaseLogisticaTarefas";
 import { useSupabaseLogisticaMotoristas } from "@/hooks/useSupabaseLogisticaMotoristas";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
+import { toISODateLocal } from "@/lib/date-utils";
 import { 
   BarChart, 
   Bar, 
@@ -72,18 +74,55 @@ export function ProdutividadeLogistica() {
     }
 
     return {
-      dataInicio: inicio.toISOString().split('T')[0],
-      dataFim: fim.toISOString().split('T')[0]
+      dataInicio: toISODateLocal(inicio),
+      dataFim: toISODateLocal(fim)
     };
   }, [periodo]);
 
-  // Buscar métricas do Supabase
-  const { data: metricas, isLoading } = useSupabaseLogisticaMetricas({
+  // A produtividade é derivada das TAREFAS reais (logistica_tarefas), não da
+  // tabela de métricas agregadas — que nunca era populada, então os KPIs ficavam
+  // sempre zerados e não refletiam as entregas marcadas no itinerário (bug #45).
+  const { tarefas, isLoading } = useSupabaseLogisticaTarefas({
     lojaId,
-    dataInicio,
-    dataFim,
-    motoristaId: motoristaFiltro && motoristaFiltro !== 'todos' ? motoristaFiltro : undefined
+    dataInicio: `${dataInicio}T00:00:00`,
+    dataFim: `${dataFim}T23:59:59`,
   });
+
+  // Agrega as tarefas por dia no formato LogisticaMetrica esperado pelos KPIs/gráficos.
+  const metricas = useMemo<LogisticaMetrica[]>(() => {
+    const porDia = new Map<string, LogisticaMetrica>();
+    for (const t of tarefas || []) {
+      const dia = toISODateLocal(t.previsto_iso);
+      if (!dia) continue;
+      let m = porDia.get(dia);
+      if (!m) {
+        m = {
+          id: dia,
+          loja_id: lojaId,
+          data_iso: dia,
+          planejadas: 0,
+          concluidas: 0,
+          on_window: 0,
+          reagendadas: 0,
+          km_total: 0,
+          motivos_falha: [],
+        } as LogisticaMetrica;
+        porDia.set(dia, m);
+      }
+      if (t.status !== 'CANCELADO') m.planejadas += 1;
+      if (t.status === 'CONCLUIDO') {
+        m.concluidas += 1;
+        m.on_window += 1; // aproximação: concluída = dentro da janela
+      }
+      if (t.status === 'REAGENDADO') m.reagendadas += 1;
+      if (t.status === 'CANCELADO' && t.motivo_falha) {
+        const existente = m.motivos_falha.find((x) => x.motivo === t.motivo_falha);
+        if (existente) existente.count += 1;
+        else m.motivos_falha.push({ motivo: t.motivo_falha, count: 1 });
+      }
+    }
+    return Array.from(porDia.values()).sort((a, b) => a.data_iso.localeCompare(b.data_iso));
+  }, [tarefas, lojaId]);
 
   // Calcular KPIs agregados
   const kpisData = useLogisticaKPIs(metricas);

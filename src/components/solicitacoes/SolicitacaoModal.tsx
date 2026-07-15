@@ -6,10 +6,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useSupabaseSolicitacoes } from '@/hooks/useSupabaseSolicitacoes';
+import { useSupabaseClientes } from '@/hooks/useSupabaseClientes';
+import { useSupabaseContratos } from '@/hooks/useSupabaseContratos';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { Loader2 } from 'lucide-react';
 import type { CriarSolicitacaoDTO, TipoSolicitacao, PrioridadeSolicitacao } from '@/types/solicitacao-manutencao';
 
@@ -19,64 +21,70 @@ interface SolicitacaoModalProps {
   solicitacaoId?: string;
 }
 
+const nomeCliente = (c: any): string =>
+  c?.tipo === 'PF' ? (c?.nome || c?.nome_razao || 'Cliente') : (c?.razao_social || c?.nome || 'Cliente');
+
 export function SolicitacaoModal({ open, onClose, solicitacaoId }: SolicitacaoModalProps) {
   const { useSolicitacao, criarSolicitacao, isCriando } = useSupabaseSolicitacoes();
   const { data: solicitacao, isLoading } = useSolicitacao(solicitacaoId || '');
 
-  const [formData, setFormData] = useState<Partial<CriarSolicitacaoDTO>>({
-    loja_id: 'loja-mock-id', // Em produção, pegar do contexto
-    tipo: 'SUPORTE_CAMPO',
-    prioridade: 'MEDIA',
-    sintomas: '',
-    cliente_nome: '',
-    itens: [],
-  });
+  const { lojaAtual } = useMultiunidade();
+  const lojaId = lojaAtual?.id || '';
 
+  const [clienteId, setClienteId] = useState('');
+  const [contratoId, setContratoId] = useState('');
+  const [tipo, setTipo] = useState<TipoSolicitacao>('SUPORTE_CAMPO');
+  const [prioridade, setPrioridade] = useState<PrioridadeSolicitacao>('MEDIA');
+  const [sintomas, setSintomas] = useState('');
+
+  const { clientes = [] } = useSupabaseClientes(lojaId);
+  // Contratos do cliente selecionado (para linkar o contrato à solicitação — #44).
+  const { contratos = [] } = useSupabaseContratos(lojaId, clienteId || undefined);
+
+  // Pré-preenche no modo edição
   useEffect(() => {
     if (solicitacao) {
-      setFormData({
-        loja_id: solicitacao.loja_id,
-        contrato_id: solicitacao.contrato_id,
-        cliente_id: solicitacao.cliente_id,
-        cliente_nome: solicitacao.cliente_nome,
-        tipo: solicitacao.tipo,
-        prioridade: solicitacao.prioridade,
-        sintomas: solicitacao.sintomas,
-        itens: solicitacao.itens.map((item) => ({
-          tipo: item.tipo,
-          equip_id: item.equip_id || undefined,
-          modelo_id: item.modelo_id,
-          grupo_id: item.grupo_id,
-          qtd: item.qtd,
-          codigo_interno: item.codigo_interno || undefined,
-        })),
-      });
+      setClienteId(solicitacao.cliente_id || '');
+      setContratoId(solicitacao.contrato_id || '');
+      setTipo(solicitacao.tipo);
+      setPrioridade(solicitacao.prioridade);
+      setSintomas(solicitacao.sintomas);
     }
   }, [solicitacao]);
+
+  // Ao trocar de cliente, limpa o contrato selecionado (não pertence ao novo cliente).
+  const handleClienteChange = (id: string) => {
+    setClienteId(id);
+    setContratoId('');
+  };
+
+  const clienteSelecionado = clientes.find((c: any) => c.id === clienteId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.cliente_nome || !formData.sintomas) {
+    if (!lojaId || !clienteId || !contratoId || !sintomas.trim()) {
       return;
     }
 
     try {
       await criarSolicitacao({
-        loja_id: formData.loja_id!,
-        contrato_id: formData.contrato_id || 'mock-contrato-id', // Mock
-        cliente_id: formData.cliente_id || 'mock-cliente-id', // Mock
-        cliente_nome: formData.cliente_nome,
-        tipo: formData.tipo as TipoSolicitacao,
-        prioridade: formData.prioridade as PrioridadeSolicitacao,
-        sintomas: formData.sintomas,
-        itens: formData.itens || [],
+        loja_id: lojaId,
+        contrato_id: contratoId,
+        cliente_id: clienteId,
+        cliente_nome: nomeCliente(clienteSelecionado),
+        tipo,
+        prioridade,
+        sintomas: sintomas.trim(),
+        itens: [],
       });
       onClose();
     } catch (error) {
       console.error('Erro ao criar solicitação:', error);
     }
   };
+
+  const podeEnviar = !!lojaId && !!clienteId && !!contratoId && !!sintomas.trim() && !isCriando;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -95,14 +103,47 @@ export function SolicitacaoModal({ open, onClose, solicitacaoId }: SolicitacaoMo
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Cliente */}
             <div className="space-y-2">
-              <Label htmlFor="cliente_nome">Cliente *</Label>
-              <Input
-                id="cliente_nome"
-                value={formData.cliente_nome || ''}
-                onChange={(e) => setFormData({ ...formData, cliente_nome: e.target.value })}
-                placeholder="Nome do cliente"
+              <Label htmlFor="cliente">Cliente *</Label>
+              <select
+                id="cliente"
+                value={clienteId}
+                onChange={(e) => handleClienteChange(e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2"
                 required
-              />
+              >
+                <option value="">Selecione o cliente...</option>
+                {clientes.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {nomeCliente(c)}{c.documento ? ` — ${c.documento}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Contrato (linkado ao cliente) */}
+            <div className="space-y-2">
+              <Label htmlFor="contrato">Contrato *</Label>
+              <select
+                id="contrato"
+                value={contratoId}
+                onChange={(e) => setContratoId(e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 disabled:opacity-50"
+                required
+                disabled={!clienteId}
+              >
+                <option value="">
+                  {!clienteId
+                    ? 'Selecione o cliente primeiro'
+                    : contratos.length === 0
+                      ? 'Nenhum contrato para este cliente'
+                      : 'Selecione o contrato...'}
+                </option>
+                {contratos.map((ct: any) => (
+                  <option key={ct.id} value={ct.id}>
+                    {ct.numero}{ct.status ? ` — ${ct.status}` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Tipo */}
@@ -110,8 +151,8 @@ export function SolicitacaoModal({ open, onClose, solicitacaoId }: SolicitacaoMo
               <Label htmlFor="tipo">Tipo de Solicitação *</Label>
               <select
                 id="tipo"
-                value={formData.tipo || 'SUPORTE_CAMPO'}
-                onChange={(e) => setFormData({ ...formData, tipo: e.target.value as TipoSolicitacao })}
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value as TipoSolicitacao)}
                 className="w-full rounded-md border bg-background px-3 py-2"
                 required
               >
@@ -125,8 +166,8 @@ export function SolicitacaoModal({ open, onClose, solicitacaoId }: SolicitacaoMo
               <Label htmlFor="prioridade">Prioridade *</Label>
               <select
                 id="prioridade"
-                value={formData.prioridade || 'MEDIA'}
-                onChange={(e) => setFormData({ ...formData, prioridade: e.target.value as PrioridadeSolicitacao })}
+                value={prioridade}
+                onChange={(e) => setPrioridade(e.target.value as PrioridadeSolicitacao)}
                 className="w-full rounded-md border bg-background px-3 py-2"
                 required
               >
@@ -142,8 +183,8 @@ export function SolicitacaoModal({ open, onClose, solicitacaoId }: SolicitacaoMo
               <Label htmlFor="sintomas">Sintomas / Descrição *</Label>
               <Textarea
                 id="sintomas"
-                value={formData.sintomas || ''}
-                onChange={(e) => setFormData({ ...formData, sintomas: e.target.value })}
+                value={sintomas}
+                onChange={(e) => setSintomas(e.target.value)}
                 placeholder="Descreva o problema relatado..."
                 rows={4}
                 required
@@ -155,7 +196,7 @@ export function SolicitacaoModal({ open, onClose, solicitacaoId }: SolicitacaoMo
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isCriando}>
+              <Button type="submit" disabled={!podeEnviar}>
                 {isCriando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {solicitacaoId ? 'Salvar' : 'Criar Solicitação'}
               </Button>
