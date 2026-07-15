@@ -563,15 +563,15 @@ export default function FaturasTab() {
                 <div className="mb-6">
                   <h4 className="font-semibold mb-2">Referência:</h4>
                   <p>Contrato: {contratoSelecionado.numero}</p>
-                  <p>Período: {new Date(contratoSelecionado.data_inicio).toLocaleDateString('pt-BR')} a {new Date(contratoSelecionado.data_fim).toLocaleDateString('pt-BR')}</p>
+                  <p>Período: {formatDateBR(contratoSelecionado.data_inicio)} a {formatDateBR(contratoSelecionado.data_fim)}</p>
                 </div>
               )}
 
               <div className="mb-6">
                 <h4 className="font-semibold mb-2">Dados da Fatura:</h4>
                 <div className="grid grid-cols-2 gap-4">
-                  <p>Emissão: {new Date(emissao).toLocaleDateString('pt-BR')}</p>
-                  <p>Vencimento: {vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : ''}</p>
+                  <p>Emissão: {formatDateBR(emissao)}</p>
+                  <p>Vencimento: {vencimento ? formatDateBR(vencimento) : ''}</p>
                 </div>
               </div>
 

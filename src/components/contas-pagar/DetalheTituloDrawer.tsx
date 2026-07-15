@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import { formatDateBR } from '@/lib/date-utils';
 import { useSupabaseTitulosPagar } from '@/hooks/useSupabaseTitulosPagar';
 import { useSupabaseParcelasPagar } from '@/hooks/useSupabaseParcelasPagar';
 import { useSupabaseAprovacoesCP } from '@/hooks/useSupabaseAprovacoesCP';
@@ -266,7 +267,7 @@ export function DetalheTituloDrawer({
                         <TableRow key={parcela.id} className={isSuspensa ? 'opacity-50' : ''}>
                           <TableCell>{parcela.numero_parcela}</TableCell>
                           <TableCell>
-                            {new Date(parcela.vencimento).toLocaleDateString('pt-BR')}
+                            {formatDateBR(parcela.vencimento)}
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             {formatCurrency(parcela.valor)}

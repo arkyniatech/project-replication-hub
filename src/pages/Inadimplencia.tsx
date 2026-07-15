@@ -21,6 +21,7 @@ import { useSupabaseClientes } from "@/hooks/useSupabaseClientes";
 import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { toast } from "sonner";
+import { formatDateBR } from "@/lib/date-utils";
 
 // Configurações de juros e multa
 const CONFIG_COBRANCA = {
@@ -702,8 +703,8 @@ export default function Inadimplencia() {
                                   <TableRow key={titulo.id}>
                                     <TableCell className="font-medium">{titulo.numero}</TableCell>
                                     <TableCell>{titulo.contrato?.numero || '-'}</TableCell>
-                                    <TableCell>{new Date(titulo.emissao).toLocaleDateString('pt-BR')}</TableCell>
-                                    <TableCell>{new Date(titulo.vencimento).toLocaleDateString('pt-BR')}</TableCell>
+                                    <TableCell>{formatDateBR(titulo.emissao)}</TableCell>
+                                    <TableCell>{formatDateBR(titulo.vencimento)}</TableCell>
                                     <TableCell>R$ {titulo.valor.toLocaleString('pt-BR')}</TableCell>
                                     <TableCell>R$ {titulo.pago.toLocaleString('pt-BR')}</TableCell>
                                     <TableCell>R$ {titulo.saldo.toLocaleString('pt-BR')}</TableCell>

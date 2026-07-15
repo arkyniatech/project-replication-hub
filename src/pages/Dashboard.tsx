@@ -30,6 +30,7 @@ import AbrirCaixaModal from "@/components/caixa/AbrirCaixaModal";
 import CaixaDoDiaDrawer from "@/components/caixa/CaixaDoDiaDrawer";
 import ConfirmarRetiradaModal from "@/components/modals/ConfirmarRetiradaModal";
 import { SolicitacaoModal } from "@/components/solicitacoes/SolicitacaoModal";
+import { formatDateBR } from "@/lib/date-utils";
 
 // Dashboard principal do vendedor
 export default function Dashboard() {
@@ -176,7 +177,7 @@ export default function Dashboard() {
                 {actionData.contratosParaRenovacao.map((contrato) => (
                   <div key={contrato.id} className="text-xs">
                     <div className="font-medium">{contrato.numero}</div>
-                    <div className="text-muted-foreground">Vence {new Date(contrato.data_fim).toLocaleDateString('pt-BR')}</div>
+                    <div className="text-muted-foreground">Vence {formatDateBR(contrato.data_fim)}</div>
                   </div>
                 ))}
               </div>

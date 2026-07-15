@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import { formatDateBR } from '@/lib/date-utils';
 import { Upload, Calculator, X } from 'lucide-react';
 import { useSupabaseContasFinanceiras } from '@/hooks/useSupabaseContasFinanceiras';
 import { useSupabaseMovimentosPagar } from '@/hooks/useSupabaseMovimentosPagar';
@@ -166,7 +167,7 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
                           </div>
                         </TableCell>
                         <TableCell>
-                          {new Date(parcela.vencimento).toLocaleDateString('pt-BR')}
+                          {formatDateBR(parcela.vencimento)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {formatCurrency(parcela.saldo)}

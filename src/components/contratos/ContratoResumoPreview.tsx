@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { APP_CONFIG } from "@/config/app";
 import { gerarContratoPDFBase64, downloadContratoPDF } from "@/utils/contrato-pdf";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateBR } from "@/lib/date-utils";
 
 interface ContratoRascunho {
   numero?: string;
@@ -210,7 +211,7 @@ export function ContratoResumoPreview({
             <div>
               <h3 className="text-lg font-semibold mb-2">Entrega</h3>
               <div className="space-y-1">
-                <p><strong>Data:</strong> {new Date(contrato.entrega.data).toLocaleDateString('pt-BR')}</p>
+                <p><strong>Data:</strong> {formatDateBR(contrato.entrega.data)}</p>
                 <p><strong>Período:</strong> {contrato.entrega.janela === 'MANHA' ? 'Manhã' : 'Tarde'}</p>
                 {enderecoEntrega && (
                   <p className="text-sm">
@@ -287,7 +288,7 @@ export function ContratoResumoPreview({
             <h3 className="text-lg font-semibold mb-2 text-primary">Condições de Pagamento</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <p><strong>Forma:</strong> {formatarForma(contrato.pagamento.forma)}</p>
-              <p><strong>Vencimento:</strong> {new Date(contrato.pagamento.vencimentoISO).toLocaleDateString('pt-BR')}</p>
+              <p><strong>Vencimento:</strong> {formatDateBR(contrato.pagamento.vencimentoISO)}</p>
             </div>
           </div>
 

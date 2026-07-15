@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import { formatDateBR } from '@/lib/date-utils';
 import { useSupabaseParcelasPagar } from '@/hooks/useSupabaseParcelasPagar';
 import { useSupabaseContasFinanceiras } from '@/hooks/useSupabaseContasFinanceiras';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
@@ -138,7 +139,7 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
                   />
                   {houveMudancaData && (
                     <p className="text-sm text-muted-foreground mt-1">
-                      Data original: {new Date(vencimentoOriginal).toLocaleDateString('pt-BR')}
+                      Data original: {formatDateBR(vencimentoOriginal)}
                     </p>
                   )}
                 </div>
@@ -265,14 +266,14 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
                     <div key={index} className="flex items-start gap-3 p-3 bg-muted rounded">
                       <div className="flex-1">
                         <p className="text-sm font-medium">
-                          {new Date(repr.de).toLocaleDateString('pt-BR')} → 
-                          {new Date(repr.para).toLocaleDateString('pt-BR')}
+                          {formatDateBR(repr.de)} →
+                          {formatDateBR(repr.para)}
                         </p>
                         <p className="text-sm text-muted-foreground">{repr.motivo}</p>
                         <p className="text-xs text-muted-foreground">por {repr.usuario}</p>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(repr.timestamp).toLocaleDateString('pt-BR')}
+                        {formatDateBR(repr.timestamp)}
                       </span>
                     </div>
                   ))}

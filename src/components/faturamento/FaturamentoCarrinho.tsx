@@ -25,6 +25,7 @@ import { useFaturamentoStore } from "@/stores/faturamentoStore";
 import { FaturamentoPreviewModal } from "./FaturamentoPreviewModal";
 import { FaturaPreviewDrawer } from "./FaturamentoTimelineDrawer";
 import { formatCurrency, cn } from "@/lib/utils";
+import { formatDateBR, parseDateLocal, toISODateLocal } from "@/lib/date-utils";
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -152,7 +153,7 @@ export function FaturamentoCarrinho() {
           contrato_id: itensSelecionados[0]?.contratoId || null,
           fatura_id: faturaData.id,
           categoria: 'LOCACAO',
-          emissao: new Date().toISOString().split('T')[0],
+          emissao: toISODateLocal(new Date()),
           vencimento: vencimento,
           valor: totais.total,
           pago: 0,
@@ -369,13 +370,13 @@ export function FaturamentoCarrinho() {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {vencimento ? format(new Date(vencimento), "dd/MM/yyyy") : "Selecione..."}
+                      {vencimento ? formatDateBR(vencimento) : "Selecione..."}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={vencimento ? new Date(vencimento) : undefined}
+                      selected={vencimento ? parseDateLocal(vencimento) ?? undefined : undefined}
                       onSelect={(date) => setVencimento(date ? format(date, 'yyyy-MM-dd') : '')}
                       initialFocus
                       locale={ptBR}
@@ -521,7 +522,7 @@ export function FaturamentoCarrinho() {
                 <div className="text-right">
                   <p className="font-mono font-medium">{formatCurrency(titulo.valor)}</p>
                   <p className="text-xs text-muted-foreground">
-                    Venc: {format(new Date(titulo.vencimento), 'dd/MM/yyyy')}
+                    Venc: {formatDateBR(titulo.vencimento)}
                   </p>
                 </div>
               </div>

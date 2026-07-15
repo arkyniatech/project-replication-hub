@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Calendar, DollarSign } from "lucide-react";
 import { Titulo } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateBR } from "@/lib/date-utils";
 
 interface AgruparFaturaModalProps {
   open: boolean;
@@ -211,7 +212,7 @@ export function AgruparFaturaModal({ open, onClose, titulos }: AgruparFaturaModa
                       <TableCell className="font-medium">{titulo.numero}</TableCell>
                       <TableCell>{titulo.contrato?.numero || '-'}</TableCell>
                       <TableCell>
-                        {new Date(titulo.vencimento).toLocaleDateString('pt-BR')}
+                        {formatDateBR(titulo.vencimento)}
                       </TableCell>
                       <TableCell>
                         <Badge variant={titulo.origem === 'LOGISTICA' ? 'secondary' : 'outline'}>

@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatDateBR, parseDateLocal } from "@/lib/date-utils";
 import { CalendarIcon, Filter, RotateCcw, Save } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -118,13 +119,13 @@ export function FaturamentoFilters() {
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {localFiltros.dtIni ? format(new Date(localFiltros.dtIni), "dd/MM/yyyy") : "Selecione..."}
+                {localFiltros.dtIni ? formatDateBR(localFiltros.dtIni) : "Selecione..."}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={localFiltros.dtIni ? new Date(localFiltros.dtIni) : undefined}
+                selected={localFiltros.dtIni ? parseDateLocal(localFiltros.dtIni) ?? undefined : undefined}
                 onSelect={(date) => setLocalFiltros(prev => ({ 
                   ...prev, 
                   dtIni: date ? format(date, 'yyyy-MM-dd') : prev.dtIni 
@@ -150,13 +151,13 @@ export function FaturamentoFilters() {
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {localFiltros.dtFim ? format(new Date(localFiltros.dtFim), "dd/MM/yyyy") : "Selecione..."}
+                {localFiltros.dtFim ? formatDateBR(localFiltros.dtFim) : "Selecione..."}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={localFiltros.dtFim ? new Date(localFiltros.dtFim) : undefined}
+                selected={localFiltros.dtFim ? parseDateLocal(localFiltros.dtFim) ?? undefined : undefined}
                 onSelect={(date) => setLocalFiltros(prev => ({ 
                   ...prev, 
                   dtFim: date ? format(date, 'yyyy-MM-dd') : prev.dtFim 

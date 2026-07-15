@@ -10,6 +10,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import { formatDateBR } from '@/lib/date-utils';
 import { Calendar, Search, Filter, DollarSign, Download, FileText, CreditCard, AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { PagarModal } from '@/components/contas-pagar/PagarModal';
 import { useSupabaseParcelasPagar } from '@/hooks/useSupabaseParcelasPagar';
@@ -420,7 +421,7 @@ export default function PagarParcelas() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-muted-foreground" />
-                        {new Date(parcela.vencimento).toLocaleDateString('pt-BR')}
+                        {formatDateBR(parcela.vencimento)}
                       </div>
                     </TableCell>
                     <TableCell>

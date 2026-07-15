@@ -19,6 +19,7 @@ import { useSupabaseClientes } from "@/hooks/useSupabaseClientes";
 import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
 import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateBR } from "@/lib/date-utils";
 
 export default function ClienteVisao() {
   const { id } = useParams<{ id: string }>();
@@ -150,7 +151,7 @@ export default function ClienteVisao() {
                           <div>
                             <h4 className="font-semibold">Contrato {contrato.numero}</h4>
                             <p className="text-sm text-muted-foreground">
-                              Início: {new Date(contrato.data_inicio).toLocaleDateString('pt-BR')}
+                              Início: {formatDateBR(contrato.data_inicio)}
                             </p>
                           </div>
                           <div className="text-right">
@@ -197,7 +198,7 @@ export default function ClienteVisao() {
                             {titulo.numero || `Título ${titulo.id.slice(0, 8)}`}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Vencimento: {new Date(titulo.vencimento).toLocaleDateString('pt-BR')}
+                            Vencimento: {formatDateBR(titulo.vencimento)}
                           </p>
                           {new Date(titulo.vencimento) < new Date() && (
                             <div className="flex items-center gap-1 mt-1">

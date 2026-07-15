@@ -38,16 +38,19 @@ import { toast } from "sonner";
 import type { LancamentoFaturavel } from "@/types/faturamento";
 
 export function FaturamentoGrid() {
-  const { filtros } = useFaturamentoStore();
-  
+  const { filtros, setLancamentos } = useFaturamentoStore();
+
   // Destructure filtros to avoid infinite loop in useEffect
   const { dtIni, dtFim, unidadeId, clienteId } = filtros;
-  
+
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  // Use local state for lancamentos to avoid infinite loop
-  const [lancamentosFaturaveis, setLancamentosFaturaveis] = useState<LancamentoFaturavel[]>([]);
-  
+
+  // Lista base construída a partir dos dados; a seleção fica num Set à parte
+  // para NÃO ser zerada quando a lista é reconstruída (bug #47: seleção não
+  // persistia ao clicar).
+  const [baseLancamentos, setBaseLancamentos] = useState<LancamentoFaturavel[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // Buscar contratos ativos do Supabase
   const { contratos = [], isLoading } = useSupabaseContratos(unidadeId);
   
@@ -57,10 +60,10 @@ export function FaturamentoGrid() {
   // Transformar contratos em lançamentos faturáveis
   useEffect(() => {
     if (!contratos || contratos.length === 0) {
-      setLancamentosFaturaveis([]);
+      setBaseLancamentos([]);
       return;
     }
-    
+
     const lancamentos: LancamentoFaturavel[] = [];
     const filtroIni = parseISO(dtIni);
     const filtroFim = parseISO(dtFim);
@@ -152,33 +155,49 @@ export function FaturamentoGrid() {
       });
     });
     
-    // Update only local state - don't sync to store to avoid infinite loop
-    setLancamentosFaturaveis(lancamentos);
+    setBaseLancamentos(lancamentos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contratos, faturas, dtIni, dtFim, clienteId]);
 
-  const todosSelecionados = lancamentosFaturaveis.length > 0 && 
+  // Lista exibida = base + seleção (por id). Reconstruir a base não apaga a seleção.
+  const lancamentosFaturaveis = useMemo(
+    () => baseLancamentos.map(l => ({ ...l, selecionado: selectedIds.has(l.id) })),
+    [baseLancamentos, selectedIds]
+  );
+
+  // Sincroniza a lista+seleção com o store para que o carrinho enxergue os itens
+  // marcados e consiga emitir a fatura. Effect separado do carregamento de dados
+  // (só roda quando base/seleção mudam) para não criar loop de render.
+  useEffect(() => {
+    setLancamentos(lancamentosFaturaveis);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lancamentosFaturaveis]);
+
+  const todosSelecionados = lancamentosFaturaveis.length > 0 &&
     lancamentosFaturaveis.every(l => l.selecionado);
-  
+
   const algunsSelecionados = lancamentosFaturaveis.some(l => l.selecionado);
 
-  // Local selection handlers that work on local state
+  // Seleção mantida num Set local; a lista derivada reflete o estado.
   const handleToggleSelecionado = (lancamentoId: string) => {
-    setLancamentosFaturaveis(prev => 
-      prev.map(l => l.id === lancamentoId ? { ...l, selecionado: !l.selecionado } : l)
-    );
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(lancamentoId) ? next.delete(lancamentoId) : next.add(lancamentoId);
+      return next;
+    });
   };
 
   const handleSelecionarTodos = (checked: boolean) => {
-    setLancamentosFaturaveis(prev => 
-      prev.map(l => ({ ...l, selecionado: checked }))
-    );
+    setSelectedIds(checked ? new Set(baseLancamentos.map(l => l.id)) : new Set());
   };
 
   const handleExcluirDaSelecao = (lancamentoId: string) => {
-    setLancamentosFaturaveis(prev =>
-      prev.map(l => l.id === lancamentoId ? { ...l, selecionado: false } : l)
-    );
-    
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(lancamentoId);
+      return next;
+    });
+
     // Clear previous timeout
     if (undoTimeout) {
       clearTimeout(undoTimeout);

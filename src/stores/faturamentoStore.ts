@@ -45,6 +45,7 @@ interface FaturamentoState {
   recuperarFiltrosPadrao: () => FaturamentoFilters | null;
   
   carregarLancamentos: (filtros: FaturamentoFilters) => void;
+  setLancamentos: (lancamentos: LancamentoFaturavel[]) => void;
   toggleSelecionado: (lancamentoId: string) => void;
   selecionarTodos: (selecionado: boolean) => void;
   excluirDaSelecao: (lancamentoId: string) => void;
@@ -183,7 +184,15 @@ export const useFaturamentoStore = create<FaturamentoState>()(
         // This method now just updates filtros, actual loading happens in component
         set({ lancamentosFaturaveis: [] });
       },
-      
+
+      // Recebe do grid a lista já com a seleção aplicada (o grid é a fonte da
+      // seleção). O carrinho lê daqui para montar a fatura — assim os itens
+      // marcados no grid passam a valer no faturamento (bug #47).
+      setLancamentos: (lancamentos) => {
+        set({ lancamentosFaturaveis: lancamentos });
+        get().calcularKPIs();
+      },
+
       toggleSelecionado: (lancamentoId) => {
         set(state => ({
           lancamentosFaturaveis: state.lancamentosFaturaveis.map(l => 
