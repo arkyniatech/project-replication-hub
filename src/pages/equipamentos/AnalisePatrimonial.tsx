@@ -51,7 +51,7 @@ export default function AnalisePatrimonial() {
   const { modelos } = useSupabaseModelos();
   
   const [searchTerm, setSearchTerm] = useState("");
-  const [grupoFilter, setGrupoFilter] = useState("");
+  const [grupoFilter, setGrupoFilter] = useState("TODOS");
   const [statusFilter, setStatusFilter] = useState<"todos" | "ativo" | "totalmente_depreciado">("todos");
 
   // Query para buscar dados de depreciação
@@ -103,7 +103,7 @@ export default function AnalisePatrimonial() {
       );
     }
 
-    if (grupoFilter) {
+    if (grupoFilter && grupoFilter !== "TODOS") {
       filtered = filtered.filter((eq) => {
         const equipamento = equipamentos.find(e => e.codigo_interno === eq.codigo_interno);
         return equipamento?.grupo_id === grupoFilter;
@@ -295,7 +295,7 @@ export default function AnalisePatrimonial() {
                 <SelectValue placeholder="Todos os Grupos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os Grupos</SelectItem>
+                <SelectItem value="TODOS">Todos os Grupos</SelectItem>
                 {grupos.map((grupo) => (
                   <SelectItem key={grupo.id} value={grupo.id}>
                     {grupo.nome}
@@ -396,7 +396,7 @@ export default function AnalisePatrimonial() {
               <div className="text-center py-12">
                 <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">
-                  {searchTerm || grupoFilter
+                  {searchTerm || grupoFilter !== "TODOS"
                     ? "Nenhum equipamento encontrado com os filtros aplicados"
                     : "Nenhum equipamento com dados patrimoniais cadastrados"}
                 </p>

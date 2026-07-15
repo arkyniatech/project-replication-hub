@@ -35,7 +35,7 @@ export default function ManutencaoLayout() {
     if (path === '/manutencao/solicitacoes') return 'solicitacoes';
     if (path.startsWith('/manutencao/area/')) return 'areas';
     if (path === '/manutencao/produtividade') return 'produtividade';
-    if (path.startsWith('/manutencao/pecas/') || path.startsWith('/manutencao/os/')) return 'pedidos';
+    if (path.startsWith('/manutencao/pecas') || path.startsWith('/manutencao/os/')) return 'pedidos';
     return 'painel';
   };
 

@@ -52,11 +52,11 @@ export function NovaTransferenciaModal({ open, onOpenChange }: NovaTransferencia
 
   const lojasDisponiveis = lojas.filter(l => l.id !== lojaAtiva && l.ativo);
   
-  // Filtrar equipamentos SERIAL disponíveis  
-  const equipamentosDisponiveis = equipamentos.filter(eq => 
-    eq.loja_atual_id === lojaAtiva && 
+  // Filtrar equipamentos SERIALIZADO disponíveis
+  const equipamentosDisponiveis = equipamentos.filter(eq =>
+    eq.loja_atual_id === lojaAtiva &&
     eq.status_global === 'DISPONIVEL' &&
-    eq.tipo === 'SERIAL' && // Apenas SERIAL
+    eq.tipo === 'SERIALIZADO' && // Apenas serializados
     (searchText === '' || 
      eq.codigo_interno?.toLowerCase().includes(searchText.toLowerCase()) ||
      eq.numero_serie?.toLowerCase().includes(searchText.toLowerCase()))

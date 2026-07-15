@@ -217,8 +217,11 @@ export default function EquipamentosLista() {
       </div>
 
       {/* KPIs de Disponibilidade */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        {Object.entries(disponibilidade).map(([status, count]) => {
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {/* Não trabalhamos com reservas — o status RESERVADO não é exibido na gestão. */}
+        {Object.entries(disponibilidade)
+          .filter(([status]) => status !== 'RESERVADO')
+          .map(([status, count]) => {
           const isSelected = selectedStatus === status;
           return (
             <Card 

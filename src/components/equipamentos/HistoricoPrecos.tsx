@@ -35,8 +35,8 @@ export function HistoricoPrecos({ open, onOpenChange, modeloId }: HistoricoPreco
   const { lojas } = useEquipamentosStore();
   const { toast } = useToast();
 
-  const [filtroLoja, setFiltroLoja] = useState("");
-  const [filtroPeriodo, setFiltroPeriodo] = useState("");
+  const [filtroLoja, setFiltroLoja] = useState("TODAS");
+  const [filtroPeriodo, setFiltroPeriodo] = useState("TODOS");
   const [searchText, setSearchText] = useState("");
 
   const modelo = modelos.find(m => m.id === modeloId);
@@ -47,11 +47,11 @@ export function HistoricoPrecos({ open, onOpenChange, modeloId }: HistoricoPreco
 
     let historico = historicoPrecos.filter(h => h.modeloId === modeloId);
 
-    if (filtroLoja) {
+    if (filtroLoja && filtroLoja !== "TODAS") {
       historico = historico.filter(h => h.lojaId === filtroLoja);
     }
 
-    if (filtroPeriodo) {
+    if (filtroPeriodo && filtroPeriodo !== "TODOS") {
       historico = historico.filter(h => h.periodo === filtroPeriodo);
     }
 
@@ -147,7 +147,7 @@ export function HistoricoPrecos({ open, onOpenChange, modeloId }: HistoricoPreco
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas as lojas</SelectItem>
+                      <SelectItem value="TODAS">Todas as lojas</SelectItem>
                       {systemLojas.map(loja => (
                         <SelectItem key={loja.id} value={loja.id}>
                           {loja.nome}
@@ -164,7 +164,7 @@ export function HistoricoPrecos({ open, onOpenChange, modeloId }: HistoricoPreco
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="TODOS">Todos</SelectItem>
                       <SelectItem value="DIARIA">Diária</SelectItem>
                       <SelectItem value="SEMANA">7 dias</SelectItem>
                       <SelectItem value="QUINZENA">14 dias</SelectItem>

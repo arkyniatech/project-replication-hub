@@ -64,7 +64,7 @@ export default function AreaListNew() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [texto, setTexto] = useState("");
-  const [prioridade, setPrioridade] = useState<string>("");
+  const [prioridade, setPrioridade] = useState<string>("TODAS");
 
   const { ordens, isLoading: loadingOS } = useSupabaseOrdensServico(
     slug ? AREA_CONFIG[slug as keyof typeof AREA_CONFIG]?.area : undefined
@@ -112,7 +112,7 @@ export default function AreaListNew() {
     }
     
     // Priority filter
-    if (prioridade && os.prioridade !== prioridade) {
+    if (prioridade && prioridade !== "TODAS" && os.prioridade !== prioridade) {
       return false;
     }
     
@@ -167,7 +167,7 @@ export default function AreaListNew() {
                 <SelectValue placeholder="Prioridade" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="TODAS">Todas</SelectItem>
                 <SelectItem value="BAIXA">Baixa</SelectItem>
                 <SelectItem value="MEDIA">Média</SelectItem>
                 <SelectItem value="ALTA">Alta</SelectItem>
@@ -176,14 +176,14 @@ export default function AreaListNew() {
             </Select>
           </div>
           
-          {(texto || prioridade) && (
+          {(texto || prioridade !== "TODAS") && (
             <div className="mt-4 flex justify-end">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setTexto("");
-                  setPrioridade("");
+                  setPrioridade("TODAS");
                 }}
               >
                 Limpar Filtros

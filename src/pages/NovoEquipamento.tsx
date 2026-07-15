@@ -37,6 +37,7 @@ import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseLojas } from "@/modules/rh/hooks/useSupabaseLojas";
 import { formatMoney, parseMoneyBR } from "@/lib/equipamentos-utils";
 import { statusEquipamentoUiToDb, statusEquipamentoDbToUi, type StatusFormUI } from "@/lib/equipamento-status-utils";
+import { abrirOSManutencao } from "@/lib/abrir-os-manutencao";
 import { DadosTecnicosSection } from "@/components/equipamentos/DadosTecnicosSection";
 import { DadosPatrimoniaisSection } from "@/components/equipamentos/DadosPatrimoniaisSection";
 import { DadosFiscaisSection } from "@/components/equipamentos/DadosFiscaisSection";
@@ -387,6 +388,18 @@ export default function NovoEquipamento() {
 
         await updateEquipamento.mutateAsync(equipamentoData);
 
+        // Ao mover manualmente o equipamento para Manutenção, abrir uma OS na
+        // Área Amarela para que ele apareça na operação de manutenção (bug #48).
+        // O helper evita duplicar caso já exista uma OS ativa.
+        if (statusGlobalDb === 'MANUTENCAO') {
+          await abrirOSManutencao(
+            id,
+            formData.lojaId,
+            null,
+            'Enviado para manutenção pela gestão de equipamentos'
+          );
+        }
+
         toast({
           title: "Equipamento atualizado",
           description: "As alterações foram salvas com sucesso",
@@ -719,7 +732,6 @@ export default function NovoEquipamento() {
                     <SelectContent>
                       <SelectItem value="DISPONIVEL">Disponível</SelectItem>
                       <SelectItem value="MANUTENCAO">Manutenção</SelectItem>
-                      <SelectItem value="RESERVADO">Reservado</SelectItem>
                       <SelectItem value="BAIXADO">Baixado</SelectItem>
                     </SelectContent>
                   </Select>

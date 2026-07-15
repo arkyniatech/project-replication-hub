@@ -140,21 +140,10 @@ export function UsuariosPerfilForm() {
   const [config, setConfig] = useState<AppConfig>(getAppConfig());
   const [selectedPerfilId, setSelectedPerfilId] = useState<string>('admin');
   const [simulatedProfile, setSimulatedProfileState] = useState<string | null>(getSimulatedProfile());
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<Usuario | null>(null);
-  const [newUser, setNewUser] = useState<{
-    nome: string;
-    email: string;
-    perfilId: string;
-    status: 'Ativo' | 'Inativo';
-    lojasPermitidas: string[];
-  }>({
-    nome: '',
-    email: '',
-    perfilId: '',
-    status: 'Ativo',
-    lojasPermitidas: []
-  });
+  // Seletor de colaborador para criar acesso (substitui o antigo modal "Convidar",
+  // que só gravava no localStorage e não criava usuário real no Supabase).
+  const [showConvidarPicker, setShowConvidarPicker] = useState(false);
+  const [convidarSearch, setConvidarSearch] = useState('');
 
   // Hooks Supabase
   const { pessoas, isLoading: loadingPessoas } = useSupabasePessoas();
@@ -195,8 +184,19 @@ export function UsuariosPerfilForm() {
 
   const handleCriarAcesso = (pessoa: Pessoa) => {
     setPessoaSelecionada(pessoa);
+    setShowConvidarPicker(false);
     setShowCriarAcessoModal(true);
   };
+
+  const colaboradoresSemAcessoFiltrados = colaboradoresSemAcesso.filter((pessoa) => {
+    const termo = convidarSearch.trim().toLowerCase();
+    if (!termo) return true;
+    return (
+      pessoa.nome?.toLowerCase().includes(termo) ||
+      pessoa.cpf?.toLowerCase().includes(termo) ||
+      pessoa.cargo?.toLowerCase().includes(termo)
+    );
+  });
 
   const handleEditarAcesso = async (profile: any) => {
     setUsuarioEditandoAcesso(profile);
@@ -386,47 +386,6 @@ export function UsuariosPerfilForm() {
     toast.info("Simulação encerrada");
   };
 
-  const handleSaveUser = () => {
-    if (!newUser.nome || !newUser.email || !newUser.perfilId || !newUser.lojasPermitidas.length) {
-      toast.error("Preencha todos os campos obrigatórios e selecione ao menos uma loja");
-      return;
-    }
-
-    const updatedConfig = { ...config };
-
-    if (editingUser) {
-      const userIndex = updatedConfig.usuarios.findIndex(u => u.id === editingUser.id);
-      if (userIndex >= 0) {
-        updatedConfig.usuarios[userIndex] = {
-          ...editingUser,
-          ...newUser,
-          lojasPermitidas: newUser.lojasPermitidas
-        };
-      }
-    } else {
-      const novoUsuario: Usuario = {
-        id: Date.now().toString(),
-        ...newUser,
-        ultimoAcesso: new Date().toISOString(),
-        lojasPermitidas: newUser.lojasPermitidas
-      };
-      updatedConfig.usuarios.push(novoUsuario);
-    }
-
-    setConfig(updatedConfig);
-    setAppConfig(updatedConfig);
-    setShowUserModal(false);
-    setEditingUser(null);
-    setNewUser({
-      nome: '',
-      email: '',
-      perfilId: '',
-      status: 'Ativo',
-      lojasPermitidas: []
-    });
-    toast.success(editingUser ? "Usuário atualizado!" : "Usuário criado!");
-  };
-
   const selectedPerfil = config.perfis[selectedPerfilId];
 
   return (
@@ -490,113 +449,14 @@ export function UsuariosPerfilForm() {
                 <Users className="w-5 h-5 text-primary" />
                 Usuários do Sistema
               </CardTitle>
-              <Dialog open={showUserModal} onOpenChange={setShowUserModal}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Convidar
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{editingUser ? 'Editar Usuário' : 'Convidar Usuário'}</DialogTitle>
-                    <DialogDescription>
-                      Preencha os dados do usuário abaixo.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="nome">Nome</Label>
-                      <Input
-                        id="nome"
-                        value={newUser.nome}
-                        onChange={(e) => setNewUser({ ...newUser, nome: e.target.value })}
-                        placeholder="Nome completo"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">E-mail/Login</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={newUser.email}
-                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                        placeholder="usuario@empresa.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="perfil">Perfil</Label>
-                      <Select value={newUser.perfilId} onValueChange={(value) => setNewUser({ ...newUser, perfilId: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o perfil" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.values(config.perfis).map((perfil) => (
-                            <SelectItem key={perfil.id} value={perfil.id}>
-                              {perfil.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Lojas Permitidas *</Label>
-                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded p-2">
-                        {lojas?.map((loja) => (
-                          <div key={loja.id} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={`loja-${loja.id}`}
-                              checked={newUser.lojasPermitidas?.includes(loja.id) || false}
-                              onChange={(e) => {
-                                const lojasAtuais = newUser.lojasPermitidas || [];
-                                if (e.target.checked) {
-                                  setNewUser({
-                                    ...newUser,
-                                    lojasPermitidas: [...lojasAtuais, loja.id]
-                                  });
-                                } else {
-                                  setNewUser({
-                                    ...newUser,
-                                    lojasPermitidas: lojasAtuais.filter(id => id !== loja.id)
-                                  });
-                                }
-                              }}
-                              className="rounded border-gray-300"
-                            />
-                            <label htmlFor={`loja-${loja.id}`} className="text-sm">
-                              {loja.nome} ({loja.codigo})
-                            </label>
-                          </div>
-                        ))}
-                        {!lojas?.length && (
-                          <p className="text-sm text-muted-foreground col-span-2">
-                            Nenhuma loja encontrada
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="ativo"
-                        checked={newUser.status === 'Ativo'}
-                        onCheckedChange={(checked) => setNewUser({ ...newUser, status: checked ? 'Ativo' : 'Inativo' })}
-                      />
-                      <Label htmlFor="ativo">Usuário ativo</Label>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowUserModal(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleSaveUser} disabled={!newUser.nome || !newUser.email || !newUser.perfilId || !newUser.lojasPermitidas.length}>
-                      {editingUser ? 'Salvar' : 'Convidar'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setConvidarSearch(''); setShowConvidarPicker(true); }}
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Criar Acesso
+              </Button>
             </CardHeader>
             <CardContent>
               {loadingProfiles ? (
@@ -643,58 +503,6 @@ export function UsuariosPerfilForm() {
                     </div>
                   ))}
 
-                  {/* Usuários do localStorage (legado) */}
-                  {config.usuarios.map((usuario) => (
-                    <div key={usuario.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="font-medium">{usuario.nome}</div>
-                        <div className="text-sm text-muted-foreground">{usuario.email}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {config.perfis[usuario.perfilId]?.nome || usuario.perfilId}
-                          </Badge>
-                          <Badge variant={usuario.status === 'Ativo' ? 'default' : 'destructive'} className="text-xs">
-                            {usuario.status}
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Lojas: {usuario.lojasPermitidas?.map(lojaId => {
-                            const loja = lojas?.find(l => l.id === lojaId);
-                            // Only show if found in real stores list
-                            if (!loja) return null;
-                            return `${loja.nome} (${loja.codigo})`;
-                          }).filter(Boolean).join(', ') || 'Nenhuma'}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleSimulateProfile(usuario.perfilId)}
-                          title="Simular como este perfil"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingUser(usuario);
-                            setNewUser({
-                              nome: usuario.nome,
-                              email: usuario.email,
-                              perfilId: usuario.perfilId,
-                              status: usuario.status,
-                              lojasPermitidas: usuario.lojasPermitidas || []
-                            });
-                            setShowUserModal(true);
-                          }}
-                        >
-                          <Settings2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </CardContent>
@@ -792,6 +600,66 @@ export function UsuariosPerfilForm() {
           </Card>
         </div>
       </div>
+
+      {/* Seletor de colaborador para criar acesso */}
+      <Dialog open={showConvidarPicker} onOpenChange={setShowConvidarPicker}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5" />
+              Criar Acesso ao Sistema
+            </DialogTitle>
+            <DialogDescription>
+              Selecione o colaborador que receberá o acesso. Você definirá e-mail,
+              senha e permissões na próxima etapa.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <Input
+              placeholder="Buscar por nome, CPF ou cargo..."
+              value={convidarSearch}
+              onChange={(e) => setConvidarSearch(e.target.value)}
+            />
+
+            <div className="max-h-72 space-y-2 overflow-y-auto">
+              {loadingPessoas ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">Carregando...</p>
+              ) : colaboradoresSemAcessoFiltrados.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  {colaboradoresSemAcesso.length === 0
+                    ? 'Todos os colaboradores ativos já possuem acesso. Cadastre a pessoa em RH → Pessoas para criar um novo acesso.'
+                    : 'Nenhum colaborador encontrado para a busca.'}
+                </p>
+              ) : (
+                colaboradoresSemAcessoFiltrados.map((pessoa) => (
+                  <div
+                    key={pessoa.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div>
+                      <p className="font-medium">{pessoa.nome}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {pessoa.cargo || 'Sem cargo'} • CPF: {pessoa.cpf}
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={() => handleCriarAcesso(pessoa)}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Criar Acesso
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConvidarPicker(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Criar Acesso */}
       <CriarUsuarioModal

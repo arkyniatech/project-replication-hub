@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { getCurrentUserName } from '@/hooks/useCurrentUserName';
+import { abrirOSManutencao } from '@/lib/abrir-os-manutencao';
 
 type Contrato = Database['public']['Tables']['contratos']['Row'];
 type ContratoInsert = Database['public']['Tables']['contratos']['Insert'];
@@ -446,7 +447,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
           // Adicionar evento na timeline do equipamento
           const { data: equipamento } = await supabase
             .from('equipamentos')
-            .select('historico')
+            .select('historico, loja_atual_id')
             .eq('id', item.equipamento_id)
             .single();
 
@@ -464,6 +465,21 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
             .from('equipamentos')
             .update({ historico: [...historicoAtual, novoEventoEquip] })
             .eq('id', item.equipamento_id);
+
+          // Abrir Ordem de Serviço na Área Amarela (triagem pós-locação).
+          // Sem isso o equipamento fica em MANUTENCAO mas invisível na operação
+          // de manutenção, que é orientada por ordens_servico (bug #48).
+          try {
+            await abrirOSManutencao(
+              item.equipamento_id,
+              equipamento?.loja_atual_id || contrato.loja_id,
+              contratoId,
+              `Devolvido do contrato ${contrato.numero}`
+            );
+          } catch (osErr) {
+            // Não bloquear a devolução caso a criação da OS falhe.
+            console.error('[devolverContrato] Erro ao abrir OS de manutenção:', osErr);
+          }
         }
       }
 
@@ -598,6 +614,8 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
       queryClient.invalidateQueries({ queryKey: ['contrato'] });
       queryClient.invalidateQueries({ queryKey: ['equipamentos'] });
       queryClient.invalidateQueries({ queryKey: ['titulos'] });
+      // Atualiza a operação de manutenção (Painel/Áreas), orientada por OS (#48).
+      queryClient.invalidateQueries({ queryKey: ['ordens-servico'] });
 
       const msg = data.novoStatus === 'ENCERRADO'
         ? `Contrato encerrado! ${data.equipamentosLiberados} equipamento(s) em revisão (área amarela).`

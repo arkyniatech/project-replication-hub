@@ -14,6 +14,9 @@ import {
   Users
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { abrirOSManutencao } from "@/lib/abrir-os-manutencao";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { format } from "date-fns";
@@ -57,9 +60,11 @@ const AREA_CONFIG = {
 
 export default function PainelMecanico() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { can } = usePermissions();
   const [busca, setBusca] = useState("");
   const [maisAntigoFirst, setMaisAntigoFirst] = useState(true);
+  const [abrindoOSId, setAbrindoOSId] = useState<string | null>(null);
 
   const { ordens, isLoading: loadingOS } = useSupabaseOrdensServico();
   const { equipamentos, isLoading: loadingEquip } = useSupabaseEquipamentos();
@@ -89,10 +94,45 @@ export default function PainelMecanico() {
     return acc;
   }, {} as Record<keyof typeof AREA_CONFIG, { total: number; criticos: number; slaMedia: number }>);
 
-  // Get equipment in yellow area
-  const equipamentosAmarela = equipamentos.filter(e => 
-    ordens.some(o => o.equipamento_id === e.id && o.area_atual === 'AMARELA')
+  // Equipamentos em MANUTENCAO que NÃO possuem OS ativa (AMARELA/VERMELHA/AZUL).
+  // Estes ficavam invisíveis na operação de manutenção (#48): status mudava para
+  // MANUTENCAO mas nenhuma OS era aberta. Aqui os surfamos na Área Amarela.
+  const temOSAtiva = (equipId: string) =>
+    ordens.some(o => o.equipamento_id === equipId && ['AMARELA', 'VERMELHA', 'AZUL'].includes(o.area_atual));
+
+  const equipamentosSemOS = equipamentos.filter(
+    e => e.status_global === 'MANUTENCAO' && !temOSAtiva(e.id)
   );
+
+  // Inclui na AMARELA os equipamentos com OS na área + os órfãos em MANUTENCAO.
+  kpis.AMARELA.total += equipamentosSemOS.length;
+
+  // Get equipment in yellow area (com OS AMARELA ou órfãos em MANUTENCAO)
+  const equipamentosAmarela = equipamentos.filter(e =>
+    ordens.some(o => o.equipamento_id === e.id && o.area_atual === 'AMARELA') ||
+    (e.status_global === 'MANUTENCAO' && !temOSAtiva(e.id))
+  );
+
+  const abrirOS = async (equip: any) => {
+    setAbrindoOSId(equip.id);
+    try {
+      const osId = await abrirOSManutencao(
+        equip.id,
+        equip.loja_atual_id,
+        null,
+        'Aberto manualmente no Painel do Mecânico'
+      );
+      if (osId) {
+        await queryClient.invalidateQueries({ queryKey: ['ordens-servico'] });
+        toast.success('OS de manutenção aberta com sucesso!');
+        navigate(`/manutencao/os/${osId}`);
+      } else {
+        toast.error('Não foi possível abrir a OS.');
+      }
+    } finally {
+      setAbrindoOSId(null);
+    }
+  };
 
   const prodToday = produtividadeHoje;
 
@@ -319,14 +359,23 @@ export default function PainelMecanico() {
                     
                     {/* Ações */}
                     <div className="flex items-center gap-1">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => os && navigate(`/manutencao/os/${os.id}`)}
-                        disabled={!os}
-                      >
-                        Ver OS
-                      </Button>
+                      {os ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/manutencao/os/${os.id}`)}
+                        >
+                          Ver OS
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => abrirOS(equip)}
+                          disabled={abrindoOSId === equip.id}
+                        >
+                          {abrindoOSId === equip.id ? 'Abrindo...' : 'Abrir OS'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
