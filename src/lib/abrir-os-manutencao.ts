@@ -32,9 +32,12 @@ export async function abrirOSManutencao(
 
     if (osAbertas && osAbertas.length > 0) return (osAbertas[0] as any).id;
 
-    // Gera número sequencial da OS (mesma RPC usada por createOS)
-    const { data: numeroOS, error: numeroError } = await supabase
-      .rpc('gerar_numero_os', { p_loja_id: lojaId } as any);
+    // Gera número sequencial da OS (mesma RPC usada por createOS).
+    // Cast no nome: a RPC ainda não está nos types gerados.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: numeroOS, error: numeroError } = await (supabase.rpc as any)(
+      'gerar_numero_os', { p_loja_id: lojaId }
+    );
     if (numeroError) throw numeroError;
 
     const { data: novaOS, error: insertError } = await supabase
