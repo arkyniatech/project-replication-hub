@@ -347,6 +347,8 @@ export default function ContratoDetalhes() {
   const clienteData = useMemo(() => {
     if (!contrato) return null;
     return {
+      // id é usado pela Cobrança Única para buscar os títulos reais do cliente
+      id: contrato.cliente.id,
       nome: contrato.cliente.nomeRazao,
       documento: contrato.cliente.documento,
       email: contrato.cliente.email || '',

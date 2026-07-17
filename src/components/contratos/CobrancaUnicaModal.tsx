@@ -8,22 +8,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FileText, Calendar, DollarSign, AlertTriangle, CreditCard } from "lucide-react";
+import { FileText, DollarSign, AlertTriangle, CreditCard, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
-import { aplicarPolitica } from "@/services/politicasEngine";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
+import { useMultiunidade } from "@/hooks/useMultiunidade";
 
 interface TituloAberto {
   id: string;
   numero: string;
-  contratoId: string;
   contratoNumero: string;
+  lojaId: string;
   emissao: string;
   vencimento: string;
   valor: number;
   saldo: number;
-  status: 'EM_ABERTO' | 'VENCIDO';
-  origem: 'CONTRATO' | 'LOGISTICA';
+  vencido: boolean;
+  origem: string;
 }
 
 interface CobrancaUnicaModalProps {
@@ -44,63 +47,49 @@ export function CobrancaUnicaModal({
   clientePolitica
 }: CobrancaUnicaModalProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { lojaAtual } = useMultiunidade();
   const [titulosSelecionados, setTitulosSelecionados] = useState<string[]>([]);
   const [vencimento, setVencimento] = useState('');
   const [formaPagamento, setFormaPagamento] = useState<'BOLETO' | 'PIX' | 'CARTAO'>('BOLETO');
   const [observacoes, setObservacoes] = useState('');
+  const [gerando, setGerando] = useState(false);
 
   // Exibir info da política se aplicável
   const infoPolitica = useMemo(() => {
     if (!clientePolitica) return null;
-    
+
     const politicaNome = clientePolitica === 'P0' ? 'P0 — 5% desconto' :
                         clientePolitica === 'P1' ? 'P1 — 10% desconto' :
                         'P2 — 15% desconto';
-    
+
     return { id: clientePolitica, nome: politicaNome };
   }, [clientePolitica]);
 
-  // Mock data - títulos em aberto do cliente
-  const titulosAbertos: TituloAberto[] = [
-    {
-      id: '1',
-      numero: 'LOC-2024-001-001',
-      contratoId: '001',
-      contratoNumero: 'LOC-2024-001',
-      emissao: '2024-01-15',
-      vencimento: '2024-01-30',
-      valor: 1500.00,
-      saldo: 1500.00,
-      status: 'VENCIDO',
-      origem: 'CONTRATO'
-    },
-    {
-      id: '2',
-      numero: 'LOC-2024-001-002',
-      contratoId: '001',
-      contratoNumero: 'LOC-2024-001',
-      emissao: '2024-02-15',
-      vencimento: '2024-03-01',
-      valor: 1500.00,
-      saldo: 1500.00,
-      status: 'EM_ABERTO',
-      origem: 'CONTRATO'
-    },
-    {
-      id: '3',
-      numero: 'TXD-2024-001',
-      contratoId: '001',
-      contratoNumero: 'LOC-2024-001',
-      emissao: '2024-02-20',
-      vencimento: '2024-02-25',
-      valor: 250.00,
-      saldo: 250.00,
-      status: 'VENCIDO',
-      origem: 'LOGISTICA'
-    }
-  ];
+  // Títulos REAIS em aberto do cliente (antes eram dados de demonstração
+  // hardcoded — ticket #39). Fonte: tabela titulos, a mesma de Contas a Receber.
+  const { titulos: titulosDoCliente = [], isLoading: carregandoTitulos } =
+    useSupabaseTitulos(undefined, clienteId);
 
-  const titulosVencidos = titulosAbertos.filter(t => t.status === 'VENCIDO');
+  const titulosAbertos: TituloAberto[] = useMemo(() => {
+    const hoje = new Date();
+    return (titulosDoCliente as any[])
+      .filter(t => (t.status === 'EM_ABERTO' || t.status === 'PARCIAL') && Number(t.saldo) > 0)
+      .map(t => ({
+        id: t.id,
+        numero: t.numero,
+        contratoNumero: t.contrato?.numero ? `Nº ${t.contrato.numero}` : (t.categoria || '—'),
+        lojaId: t.lojaId,
+        emissao: t.emissao,
+        vencimento: t.vencimento,
+        valor: Number(t.valor),
+        saldo: Number(t.saldo),
+        vencido: new Date(`${t.vencimento}T12:00:00`) < hoje,
+        origem: t.origem || 'CONTRATO',
+      }));
+  }, [titulosDoCliente]);
+
+  const titulosVencidos = titulosAbertos.filter(t => t.vencido);
   const hasVencidos = titulosVencidos.length > 0;
 
   const totalSelecionado = useMemo(() => {
@@ -144,39 +133,99 @@ export function CobrancaUnicaModal({
       return;
     }
 
-    // Gerar fatura única e boleto/PIX
-    const numeroFatura = `FAT-${Date.now()}`;
-    const titulosSelecionadosData = titulosAbertos.filter(t => titulosSelecionados.includes(t.id));
+    const selecionados = titulosAbertos.filter(t => titulosSelecionados.includes(t.id));
+    const lojaId = lojaAtual?.id || selecionados[0]?.lojaId;
+    if (!lojaId) {
+      toast({ title: "Erro", description: "Loja não identificada.", variant: "destructive" });
+      return;
+    }
 
-    // Simular geração de PDF e registro na timeline
-    setTimeout(() => {
+    setGerando(true);
+    try {
+      const numeroFatura = `FAT-U-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-5)}`;
+      const hojeIso = new Date().toISOString().split('T')[0];
+      const listaNumeros = selecionados.map(t => t.numero).join(', ');
+
+      // 1) Fatura agrupada
+      const { data: fatura, error: faturaError } = await (supabase as any)
+        .from('faturas')
+        .insert({
+          numero: numeroFatura,
+          cliente_id: clienteId,
+          loja_id: lojaId,
+          contrato_id: null,
+          tipo: 'COBRANCA_UNICA',
+          emissao: hojeIso,
+          vencimento,
+          total: totalSelecionado,
+          forma_preferida: formaPagamento,
+          observacoes: [`Cobrança única agrupando: ${listaNumeros}`, observacoes].filter(Boolean).join(' — '),
+          itens: selecionados.map(t => ({ titulo_id: t.id, numero: t.numero, saldo: t.saldo })),
+        })
+        .select('id')
+        .single();
+      if (faturaError) throw faturaError;
+
+      // 2) Título único vinculado à fatura
+      const { error: tituloError } = await (supabase as any)
+        .from('titulos')
+        .insert({
+          numero: numeroFatura,
+          cliente_id: clienteId,
+          loja_id: lojaId,
+          fatura_id: fatura.id,
+          categoria: 'Locação',
+          subcategoria: formaPagamento,
+          emissao: hojeIso,
+          vencimento,
+          valor: totalSelecionado,
+          saldo: totalSelecionado,
+          pago: 0,
+          status: 'EM_ABERTO',
+          origem: 'COBRANCA_UNICA',
+          forma: formaPagamento,
+          observacoes: `Agrupa os títulos: ${listaNumeros}`,
+        });
+      if (tituloError) throw tituloError;
+
+      // 3) Cancela os títulos originais (substituídos pela cobrança única)
+      const { error: cancelError } = await (supabase as any)
+        .from('titulos')
+        .update({
+          status: 'CANCELADO',
+          observacoes: `Agrupado na cobrança única ${numeroFatura}`,
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', titulosSelecionados);
+      if (cancelError) throw cancelError;
+
+      queryClient.invalidateQueries({ queryKey: ['titulos'] });
+      queryClient.invalidateQueries({ queryKey: ['faturas'] });
+
       toast({
         title: "Cobrança única gerada!",
-        description: `Fatura ${numeroFatura} criada com ${titulosSelecionadosData.length} títulos (${formatCurrency(totalSelecionado)})`,
+        description: `Fatura ${numeroFatura} criada com ${selecionados.length} título(s) (${formatCurrency(totalSelecionado)}). Os títulos originais foram substituídos.`,
       });
 
-      // Mock: Registrar na timeline do cliente
-      console.log('Timeline do cliente atualizada:', {
-        clienteId,
-        evento: 'COBRANCA_UNICA_GERADA',
-        fatura: numeroFatura,
-        titulos: titulosSelecionadosData.length,
-        valor: totalSelecionado,
-        vencimento,
-        formaPagamento
-      });
-
+      setTitulosSelecionados([]);
       onClose();
-    }, 1000);
+    } catch (error) {
+      console.error('Erro ao gerar cobrança única:', error);
+      const mensagem = error instanceof Error ? error.message : 'Tente novamente';
+      toast({ title: "Erro ao gerar cobrança única", description: mensagem, variant: "destructive" });
+    } finally {
+      setGerando(false);
+    }
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR');
+    if (!dateStr) return '-';
+    return new Date(`${dateStr.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
   };
 
-  const getStatusBadge = (status: string) => {
-    return status === 'VENCIDO' 
-      ? "bg-destructive/10 text-destructive" 
+  const getStatusBadge = (vencido: boolean) => {
+    return vencido
+      ? "bg-destructive/10 text-destructive"
       : "bg-primary/10 text-primary";
   };
 
@@ -261,7 +310,16 @@ export function CobrancaUnicaModal({
 
             <div className="border rounded-lg">
               <div className="max-h-64 overflow-y-auto">
-                {titulosAbertos.map((titulo) => (
+                {carregandoTitulos ? (
+                  <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Carregando títulos do cliente...
+                  </div>
+                ) : titulosAbertos.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    Este cliente não possui títulos em aberto.
+                  </div>
+                ) : titulosAbertos.map((titulo) => (
                   <div key={titulo.id} className="flex items-center space-x-3 p-3 border-b last:border-b-0">
                     <Checkbox
                       checked={titulosSelecionados.includes(titulo.id)}
@@ -280,8 +338,8 @@ export function CobrancaUnicaModal({
                         <p className="text-sm font-medium">{formatCurrency(titulo.saldo)}</p>
                       </div>
                       <div>
-                        <Badge className={getStatusBadge(titulo.status)}>
-                          {titulo.status === 'VENCIDO' ? 'Vencido' : 'Em Aberto'}
+                        <Badge className={getStatusBadge(titulo.vencido)}>
+                          {titulo.vencido ? 'Vencido' : 'Em Aberto'}
                         </Badge>
                       </div>
                       <div>
@@ -352,9 +410,9 @@ export function CobrancaUnicaModal({
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleGerarCobranca} disabled={titulosSelecionados.length === 0 || !vencimento}>
-            <FileText className="h-4 w-4 mr-2" />
-            Gerar Cobrança Única
+          <Button onClick={handleGerarCobranca} disabled={titulosSelecionados.length === 0 || !vencimento || gerando}>
+            {gerando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+            {gerando ? 'Gerando...' : 'Gerar Cobrança Única'}
           </Button>
         </DialogFooter>
       </DialogContent>
