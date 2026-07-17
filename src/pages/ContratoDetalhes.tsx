@@ -852,7 +852,7 @@ export default function ContratoDetalhes() {
 
       {/* Modal de Substituição */}
       <SubstituicaoModal
-        contratoId={contrato?.id?.toString()}
+        contrato={contrato}
         itemId={itemParaSubstituir}
         open={showSubstituicaoModal}
         onOpenChange={setShowSubstituicaoModal}
