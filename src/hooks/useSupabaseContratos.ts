@@ -655,6 +655,110 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
     },
   });
 
+  // Mutation para CANCELAR/REVERTER uma devolução (#41).
+  // A devolução é instantânea (itens → DEVOLVIDO, equipamentos → MANUTENCAO,
+  // contrato possivelmente → ENCERRADO); o cancelamento desfaz tudo isso e
+  // registra o evento na timeline do contrato.
+  const cancelarDevolucao = useMutation({
+    mutationFn: async ({ contratoId, motivo }: { contratoId: string; motivo?: string }) => {
+      // 1. Buscar contrato + itens
+      const { data: contrato, error: contratoError } = await supabase
+        .from('contratos')
+        .select('*, contrato_itens(*)')
+        .eq('id', contratoId)
+        .single();
+      if (contratoError) throw contratoError;
+      if (!contrato) throw new Error('Contrato não encontrado');
+
+      const itensDevolvidos = (contrato.contrato_itens || [])
+        .filter((i: any) => i.status === 'DEVOLVIDO' || i.status === 'EM_REVISAO');
+      if (itensDevolvidos.length === 0) {
+        throw new Error('Este contrato não possui itens devolvidos para reverter.');
+      }
+
+      // 2. Itens voltam para LOCADO
+      const { error: itensError } = await supabase
+        .from('contrato_itens')
+        .update({ status: 'LOCADO', updated_at: new Date().toISOString() })
+        .in('id', itensDevolvidos.map((i: any) => i.id));
+      if (itensError) throw itensError;
+
+      // 3. Equipamentos serializados voltam de MANUTENCAO para LOCADO
+      const equipIds = itensDevolvidos.map((i: any) => i.equipamento_id).filter(Boolean);
+      if (equipIds.length > 0) {
+        const { error: equipError } = await supabase
+          .from('equipamentos')
+          .update({ status_global: 'LOCADO' })
+          .in('id', equipIds)
+          .eq('status_global', 'MANUTENCAO');
+        if (equipError) console.error('[cancelarDevolucao] Erro ao reverter equipamentos:', equipError);
+      }
+
+      // 4. Cancelar tarefa de RETIRADA pendente criada no encerramento
+      await supabase
+        .from('logistica_tarefas')
+        .update({ status: 'CANCELADO', updated_at: new Date().toISOString() })
+        .eq('contrato_id', contratoId)
+        .eq('tipo', 'RETIRADA')
+        .in('status', ['AGENDAR', 'PROGRAMADO', 'REAGENDADO']);
+
+      // 5. Estornar título de encerramento ainda em aberto (se houver)
+      await supabase
+        .from('titulos')
+        .update({
+          status: 'CANCELADO',
+          observacoes: 'Estornado — devolução cancelada',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('contrato_id', contratoId)
+        .eq('numero', `${contrato.numero}/ENC`)
+        .eq('status', 'EM_ABERTO');
+
+      // 6. Contrato volta a ATIVO com evento na timeline
+      const timeline = Array.isArray(contrato.timeline) ? contrato.timeline : [];
+      const novoEvento = {
+        id: `evt-${Date.now()}`,
+        ts: new Date().toISOString(),
+        tipo: 'DEVOLUCAO_CANCELADA',
+        usuarioNome: await getCurrentUserName(),
+        resumo: `Devolução cancelada — ${itensDevolvidos.length} item(ns) retornaram ao contrato`,
+        meta: {
+          itens: itensDevolvidos.map((i: any) => i.id),
+          motivo: motivo || null,
+        },
+      };
+
+      const { data: atualizado, error: updateError } = await supabase
+        .from('contratos')
+        .update({
+          status: 'ATIVO',
+          data_fim: null,
+          timeline: [...timeline, novoEvento],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', contratoId)
+        .select('id');
+      if (updateError) throw updateError;
+      if (!atualizado || atualizado.length === 0) {
+        throw new Error('Não foi possível reativar o contrato — verifique suas permissões.');
+      }
+
+      return { success: true, itensRevertidos: itensDevolvidos.length };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['contratos'] });
+      queryClient.invalidateQueries({ queryKey: ['contrato'] });
+      queryClient.invalidateQueries({ queryKey: ['equipamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['titulos'] });
+      queryClient.invalidateQueries({ queryKey: ['logistica-tarefas-contrato'] });
+      toast.success(`Devolução cancelada! ${data.itensRevertidos} item(ns) retornaram ao contrato.`);
+    },
+    onError: (error: any) => {
+      console.error('[cancelarDevolucao] Erro:', error);
+      toast.error(error.message || 'Erro ao cancelar devolução');
+    },
+  });
+
   // Mutation para atualizar item do contrato
   const updateContratoItem = useMutation({
     mutationFn: async ({ id, ...updates }: ContratoItemUpdate & { id: string }) => {
@@ -717,6 +821,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
     cancelContrato,
     confirmarRetirada,
     devolverContrato,
+    cancelarDevolucao,
     addContratoItem,
     updateContratoItem,
     deleteContratoItem,

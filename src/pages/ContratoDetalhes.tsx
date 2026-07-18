@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ContratoHeader } from "@/components/contratos/ContratoHeader";
 import { FinanceiroCompacto } from "@/components/contratos/FinanceiroCompacto";
 import { LogisticaCard } from "@/components/contratos/LogisticaCard";
+import { OSLogisticaDialog, ReagendarLogisticaDialog } from "@/components/contratos/LogisticaContratoDialogs";
 import { ItensList } from "@/components/contratos/ItensList";
 import { ClienteEObra } from "@/components/contratos/ClienteEObra";
 import { ObservacoesInternas } from "@/components/contratos/ObservacoesInternas";
@@ -41,7 +42,7 @@ export default function ContratoDetalhes() {
   const { toast } = useToast();
   const initialTab = searchParams.get('tab') || 'geral';
   
-  const { useContrato, updateContrato, cancelContrato, confirmarRetirada } = useSupabaseContratos();
+  const { useContrato, updateContrato, cancelContrato, confirmarRetirada, cancelarDevolucao } = useSupabaseContratos();
   const { data: contratoSupabase, isLoading: loading } = useContrato(id || '');
   
   // Buscar faturas, títulos e aditivos do contrato
@@ -292,29 +293,51 @@ export default function ContratoDetalhes() {
     return cliente.inadimplente === true || cliente.status_credito === 'BLOQUEADO';
   }, [contratoSupabase]);
 
-  // Extrair próxima ação da logística
+  // Tarefas de logística REAIS do contrato (entregas/retiradas) — alimentam
+  // o card Logística e os dialogs Abrir OS / Reagendar (#43)
+  const { data: tarefasLogistica = [], isLoading: loadingTarefasLog } = useQuery({
+    queryKey: ['logistica-tarefas-contrato', id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('logistica_tarefas')
+        .select('id, tipo, status, previsto_iso, observacoes')
+        .eq('contrato_id', id)
+        .order('previsto_iso', { ascending: true });
+      return data || [];
+    },
+  });
+
+  // Próxima tarefa pendente (não concluída/cancelada)
+  const tarefaPendente = useMemo(
+    () => (tarefasLogistica as any[]).find(t => !['CONCLUIDO', 'CANCELADO'].includes(t.status)) || null,
+    [tarefasLogistica]
+  );
+
   const proximaAcao = useMemo(() => {
-    if (!contrato?.logistica) return null;
-    const log = contrato.logistica as any;
-    
-    // Verifica se há data de entrega agendada
-    if (log.entrega?.data) {
+    if (tarefaPendente) {
       return {
-        label: 'Entrega agendada',
-        dateISO: log.entrega.data,
+        label: tarefaPendente.tipo === 'RETIRADA' ? 'Retirada agendada' : 'Entrega agendada',
+        dateISO: tarefaPendente.previsto_iso,
       };
     }
-    
-    // Verifica se há data de coleta agendada
-    if (log.coleta?.data) {
-      return {
-        label: 'Coleta agendada',
-        dateISO: log.coleta.data,
-      };
+    // Fallback: dados da logística do contrato (contratos antigos sem tarefa)
+    const log = (contrato?.logistica as any) || {};
+    if (log.entrega?.data || log.data) {
+      return { label: 'Entrega agendada', dateISO: log.entrega?.data || log.data };
     }
-    
     return null;
-  }, [contrato]);
+  }, [tarefaPendente, contrato]);
+
+  const statusOS = useMemo(() => {
+    if (!tarefasLogistica.length) return 'PLANEJADA' as const;
+    if ((tarefasLogistica as any[]).some(t => t.status === 'EM_ROTA')) return 'EM_ROTA' as const;
+    if ((tarefasLogistica as any[]).every(t => ['CONCLUIDO', 'CANCELADO'].includes(t.status))) return 'CONCLUIDA' as const;
+    return 'PLANEJADA' as const;
+  }, [tarefasLogistica]);
+
+  const [showOSDialog, setShowOSDialog] = useState(false);
+  const [showReagendarDialog, setShowReagendarDialog] = useState(false);
 
   const itensContrato = useMemo(() => {
     if (!contrato) return [];
@@ -740,6 +763,21 @@ export default function ContratoDetalhes() {
               ✅ Contrato Encerrado
             </Badge>
           )}
+
+          {/* Cancelar devolução (#41): reverte itens devolvidos e reativa o contrato */}
+          {contrato.itens.some((i: any) => i.statusItem === 'DEVOLVIDO' || i.status === 'DEVOLVIDO') && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (confirm('Cancelar a devolução? Os itens devolvidos retornam ao contrato, a retirada pendente é cancelada e o contrato volta a ficar ATIVO.')) {
+                  cancelarDevolucao.mutate({ contratoId: contrato.id });
+                }
+              }}
+              disabled={cancelarDevolucao.isPending}
+            >
+              ↩️ {cancelarDevolucao.isPending ? 'Cancelando...' : 'Cancelar Devolução'}
+            </Button>
+          )}
           
           {podeCancelar && (
             <Button 
@@ -788,9 +826,15 @@ export default function ContratoDetalhes() {
           {/* Logística */}
           <LogisticaCard
             proximaAcao={proximaAcao}
-            statusOS="PLANEJADA"
-            onAbrirOS={() => toast({ title: "Abrindo OS..." })}
-            onReagendar={() => toast({ title: "Abrindo reagendamento..." })}
+            statusOS={statusOS}
+            onAbrirOS={() => setShowOSDialog(true)}
+            onReagendar={() => {
+              if (!tarefaPendente) {
+                toast({ title: "Nada para reagendar", description: "Não há entrega ou retirada pendente neste contrato." });
+                return;
+              }
+              setShowReagendarDialog(true);
+            }}
           />
 
           {/* Itens do Contrato */}
@@ -850,6 +894,20 @@ export default function ContratoDetalhes() {
         onSuccess={() => {}}
         itensSelecionados={itensSelecionadosDevolucao}
         tipo={tipoDevolucao}
+      />
+
+      {/* Dialogs de Logística (#43) */}
+      <OSLogisticaDialog
+        open={showOSDialog}
+        onOpenChange={setShowOSDialog}
+        tarefas={tarefasLogistica as any}
+        isLoading={loadingTarefasLog}
+        contratoId={contrato.id}
+      />
+      <ReagendarLogisticaDialog
+        open={showReagendarDialog}
+        onOpenChange={setShowReagendarDialog}
+        tarefa={tarefaPendente}
       />
 
       {/* Modal de Substituição */}
