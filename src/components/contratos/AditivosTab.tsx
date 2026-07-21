@@ -2,19 +2,30 @@ import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, Edit2, Trash2, DollarSign, RotateCcw, Calendar, User, Link2, MoreHorizontal, Eye } from "lucide-react";
+import { Plus, FileText, Edit2, Trash2, DollarSign, RotateCcw, Calendar, User, Link2, MoreHorizontal, Eye, Ban } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, AditivoContratual } from "@/types";
 import NovoAditivoModal from "./NovoAditivoModal";
 import VisualizarAditivoModal from "./VisualizarAditivoModal";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSupabaseAditivos } from "@/hooks/useSupabaseAditivos";
+import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AditivosTabProps {
   contrato: Contrato;
@@ -25,10 +36,12 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
   const [showNovoAditivoModal, setShowNovoAditivoModal] = useState(false);
   const [aditivoEditando, setAditivoEditando] = useState<any>(null);
   const [aditivoVisualizando, setAditivoVisualizando] = useState<any>(null);
+  const [renovacaoCancelando, setRenovacaoCancelando] = useState<any>(null);
   const { toast } = useToast();
   const { can } = usePermissions();
-  
+
   const { aditivos: aditivosSupabase, isLoading, deleteAditivo } = useSupabaseAditivos(String(contrato?.id));
+  const { cancelarRenovacao } = useSupabaseContratos();
 
   const aditivos = useMemo(() => {
     if (!aditivosSupabase) return [];
@@ -94,6 +107,21 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
     }
     await deleteAditivo.mutateAsync(aditivoId);
     onContratoUpdate();
+  };
+
+  const handleCancelarRenovacao = async () => {
+    if (!renovacaoCancelando) return;
+    if (!can('contratos', 'editar')) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para cancelar renovações", variant: "destructive" });
+      setRenovacaoCancelando(null);
+      return;
+    }
+    try {
+      await cancelarRenovacao.mutateAsync({ aditivoId: renovacaoCancelando.id });
+      onContratoUpdate();
+    } finally {
+      setRenovacaoCancelando(null);
+    }
   };
 
   const handleGerarPDF = (aditivo: AditivoContratual) => {
@@ -249,6 +277,17 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
                       </Button>
                       {can('contratos', 'editar') && (
                         <>
+                          {aditivo.tipo === 'RENOVACAO' && aditivo.status === 'ATIVO' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => setRenovacaoCancelando(aditivo)}
+                              title="Cancelar renovação"
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -299,6 +338,43 @@ export default function AditivosTab({ contrato, onContratoUpdate }: AditivosTabP
         }}
         itensContrato={contrato.itens}
       />
+
+      <AlertDialog open={!!renovacaoCancelando} onOpenChange={(open) => { if (!open) setRenovacaoCancelando(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar renovação {renovacaoCancelando?.numero}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>Esta ação vai reverter a renovação e:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Voltar a data de término do contrato para o período anterior;</li>
+                  <li>
+                    Estornar{" "}
+                    <span className="font-medium text-foreground">
+                      R$ {Math.abs(Number(renovacaoCancelando?.valor ?? 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>{" "}
+                    do valor acumulado do contrato;
+                  </li>
+                  <li>Cancelar o título financeiro gerado, se ainda não houver pagamento.</li>
+                </ul>
+                <p className="text-muted-foreground">
+                  Só é possível cancelar a renovação mais recente. Esta ação não pode ser desfeita.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelarRenovacao.isPending}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelarRenovacao}
+              disabled={cancelarRenovacao.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelarRenovacao.isPending ? "Cancelando..." : "Cancelar renovação"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

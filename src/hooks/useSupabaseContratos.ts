@@ -809,6 +809,163 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
     },
   });
 
+  // Cancelar renovação (#49): reverte os efeitos de uma renovação —
+  // datas do contrato, valor acumulado e o título financeiro gerado.
+  // Só é permitido cancelar a renovação MAIS RECENTE ainda ativa, porque as
+  // datas são empilhadas (cada renovação move a janela [início, fim] para
+  // frente); reverter uma renovação no meio da pilha corromperia o período.
+  const cancelarRenovacao = useMutation({
+    mutationFn: async ({ aditivoId }: { aditivoId: string }) => {
+      // 1. Buscar o aditivo de renovação
+      const { data: aditivo, error: aditivoError } = await supabase
+        .from('aditivos_contratuais')
+        .select('*')
+        .eq('id', aditivoId)
+        .single();
+      if (aditivoError) throw aditivoError;
+      if (!aditivo) throw new Error('Renovação não encontrada');
+      if (aditivo.tipo !== 'RENOVACAO') throw new Error('Este aditivo não é uma renovação');
+      if (aditivo.status === 'CANCELADO') throw new Error('Esta renovação já foi cancelada');
+
+      const contratoId = String(aditivo.contrato_id);
+
+      // 2. Garantir que é a renovação mais recente ainda ativa
+      const { data: renovacoesAtivas, error: renovError } = await supabase
+        .from('aditivos_contratuais')
+        .select('id, criado_em')
+        .eq('contrato_id', contratoId)
+        .eq('tipo', 'RENOVACAO')
+        .eq('status', 'ATIVO')
+        .order('criado_em', { ascending: false });
+      if (renovError) throw renovError;
+      if (renovacoesAtivas?.[0]?.id !== aditivoId) {
+        throw new Error('Só é possível cancelar a renovação mais recente. Cancele as renovações posteriores primeiro.');
+      }
+
+      // 3. Buscar o contrato
+      const { data: contrato, error: contratoError } = await supabase
+        .from('contratos')
+        .select('*')
+        .eq('id', contratoId)
+        .single();
+      if (contratoError) throw contratoError;
+      if (!contrato) throw new Error('Contrato não encontrado');
+
+      // 4. Reverter as datas. A renovação definiu data_inicio = fim do período
+      // anterior e data_fim = data_inicio + totalDias. Revertendo:
+      //   novo data_fim    = data_inicio atual (fim do período anterior)
+      //   novo data_inicio = novo data_fim - totalDias
+      const match = String(aditivo.descricao || '').match(/(\d+)\s*x\s*(\d+)\s*dias/i);
+      const totalDias = match ? parseInt(match[1], 10) * parseInt(match[2], 10) : null;
+
+      const novaDataFim = contrato.data_inicio; // YYYY-MM-DD
+      let novaDataInicio = contrato.data_inicio;
+      if (totalDias && novaDataFim) {
+        const [a, m, d] = novaDataFim.split('-').map(Number);
+        const dt = new Date(a, m - 1, d);
+        dt.setDate(dt.getDate() - totalDias);
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        novaDataInicio = `${yyyy}-${mm}-${dd}`;
+      }
+
+      // 5. Reverter valor acumulado
+      const valorAtual = Number(contrato.valor_total) || 0;
+      const valorRenovacao = Number(aditivo.valor) || 0;
+      const novoValorTotal = Math.max(0, valorAtual - valorRenovacao);
+
+      // 6. Localizar e cancelar o título financeiro gerado pela renovação.
+      // O título é criado sem aditivo_id, então casamos por contrato +
+      // subcategoria + valor. Só cancelamos títulos SEM pagamento; se houver
+      // baixa, avisamos para o estorno ser tratado manualmente.
+      let tituloAviso: string | null = null;
+      const { data: titulosRenovacao } = await supabase
+        .from('titulos')
+        .select('id, valor, pago, saldo, status')
+        .eq('contrato_id', contratoId)
+        .eq('subcategoria', 'Renovação')
+        .neq('status', 'CANCELADO')
+        .order('created_at', { ascending: false });
+
+      const tituloAlvo = (titulosRenovacao || []).find(
+        (t: any) => Math.abs(Number(t.valor) - valorRenovacao) < 0.01
+      );
+
+      if (tituloAlvo) {
+        if (Number(tituloAlvo.pago) > 0) {
+          tituloAviso = `O título desta renovação já tem R$ ${Number(tituloAlvo.pago).toLocaleString('pt-BR')} recebidos. Ele NÃO foi cancelado — registre o estorno manualmente.`;
+        } else {
+          const { error: tituloError } = await supabase
+            .from('titulos')
+            .update({ status: 'CANCELADO', saldo: 0 })
+            .eq('id', tituloAlvo.id)
+            .select('id');
+          if (tituloError) throw tituloError;
+        }
+      }
+
+      // 7. Atualizar o contrato (datas, valor, timeline). O .select() detecta
+      // update silenciosamente bloqueado por RLS (0 linhas afetadas — bug #33).
+      const timeline = Array.isArray(contrato.timeline) ? contrato.timeline : [];
+      const novoEvento = {
+        id: `evt-${Date.now()}`,
+        ts: new Date().toISOString(),
+        tipo: 'RENOVACAO_CANCELADA',
+        usuarioNome: await getCurrentUserName(),
+        resumo: `Renovação ${aditivo.numero} cancelada — R$ ${valorRenovacao.toLocaleString('pt-BR')} estornado do total`,
+        meta: {
+          aditivoId,
+          numeroRenovacao: aditivo.numero,
+          valorRevertido: valorRenovacao,
+          dataFimAnterior: contrato.data_fim,
+          dataFimRevertida: novaDataFim,
+        },
+      };
+
+      const { data: contratoAtualizado, error: updateError } = await supabase
+        .from('contratos')
+        .update({
+          data_inicio: novaDataInicio,
+          data_fim: novaDataFim,
+          data_prevista_fim: novaDataFim,
+          valor_total: novoValorTotal,
+          timeline: [...timeline, novoEvento],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', contratoId)
+        .select('id');
+      if (updateError) throw updateError;
+      if (!contratoAtualizado || contratoAtualizado.length === 0) {
+        throw new Error('Não foi possível atualizar o contrato (verifique as permissões).');
+      }
+
+      // 8. Soft-cancel do aditivo de renovação
+      const { error: cancelAditivoError } = await supabase
+        .from('aditivos_contratuais')
+        .update({ status: 'CANCELADO' })
+        .eq('id', aditivoId)
+        .select('id');
+      if (cancelAditivoError) throw cancelAditivoError;
+
+      return { tituloAviso };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['contratos'] });
+      queryClient.invalidateQueries({ queryKey: ['contrato'] });
+      queryClient.invalidateQueries({ queryKey: ['aditivos'] });
+      queryClient.invalidateQueries({ queryKey: ['titulos'] });
+      toast.success('Renovação cancelada com sucesso!');
+      if (result?.tituloAviso) {
+        toast.warning(result.tituloAviso, { duration: 8000 });
+      }
+    },
+    onError: (error: any) => {
+      console.error('Erro ao cancelar renovação:', error);
+      toast.error(error.message || 'Erro ao cancelar renovação');
+    },
+  });
+
   return {
     contratos,
     aditivos,
@@ -822,6 +979,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
     confirmarRetirada,
     devolverContrato,
     cancelarDevolucao,
+    cancelarRenovacao,
     addContratoItem,
     updateContratoItem,
     deleteContratoItem,
