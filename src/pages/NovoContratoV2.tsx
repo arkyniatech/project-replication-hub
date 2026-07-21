@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { validarBloqueioCliente, precoTabela, reservarItens, liberarReserva, verificarDisponibilidade, gerarOSEntrega, gerarTitulosFechamento, agruparCobrancaCliente, calcularTotalContrato } from "@/lib/contratos-v2-utils";
 import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
+import { proximoDiaUtil } from "@/lib/date-utils";
 import { aplicarPolitica, ResultadoPolitica } from "@/services/politicasEngine";
 import { ClienteBlockedModal } from "@/components/contratos/ClienteBlockedModal";
 import { AssistenteHorarios } from "@/components/contratos/AssistenteHorarios";
@@ -728,8 +729,12 @@ export default function NovoContratoV2() {
     const dataFim = new Date(dataInicioDate);
     dataFim.setDate(dataFim.getDate() + diasParaAdicionar);
 
-    // Retornar no formato ISO YYYY-MM-DD
-    return `${dataFim.getFullYear()}-${String(dataFim.getMonth() + 1).padStart(2, '0')}-${String(dataFim.getDate()).padStart(2, '0')}`;
+    const dataFimISO = `${dataFim.getFullYear()}-${String(dataFim.getMonth() + 1).padStart(2, '0')}-${String(dataFim.getDate()).padStart(2, '0')}`;
+
+    // #40: não trabalhamos sábado/domingo. Se o fim cair no fim de semana,
+    // rola para a segunda-feira — ex.: diária feita na sexta termina na
+    // segunda (mesma diária), pois o cliente usa durante o fim de semana.
+    return proximoDiaUtil(dataFimISO);
   };
   const finalizarContrato = async (mode: 'assinatura' | 'pdf' | 'imprimir' = 'assinatura') => {
     try {

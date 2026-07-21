@@ -53,3 +53,19 @@ export function toISODateLocal(input: string | Date | null | undefined): string 
   if (!p) return '';
   return `${p.y}-${pad(p.m)}-${pad(p.d)}`;
 }
+
+/**
+ * Rola uma data para o próximo dia útil se cair no fim de semana (#40).
+ * Não trabalhamos sábado/domingo — sábado e domingo viram a segunda seguinte.
+ * Uma locação de diária feita na sexta termina na segunda (mesma diária),
+ * pois o cliente usa o equipamento durante o fim de semana.
+ */
+export function proximoDiaUtil(input: string | Date | null | undefined): string {
+  const p = parts(input);
+  if (!p) return '';
+  const d = new Date(p.y, p.m - 1, p.d);
+  const dow = d.getDay(); // 0 = domingo, 6 = sábado
+  if (dow === 6) d.setDate(d.getDate() + 2);
+  else if (dow === 0) d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
