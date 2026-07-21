@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { UtilizacaoTab } from "@/components/relatorios/UtilizacaoTab";
+import { DescontosTab } from "@/components/relatorios/DescontosTab";
 import { useRelatorioUtilizacaoStore } from "@/stores/relatorioUtilizacaoStore";
 import { useNavigate } from "react-router-dom";
 import { FaturasFilters } from "@/components/relatorios/FaturasFilters";
@@ -38,6 +39,7 @@ export default function Relatorios() {
   });
   const [activeEquipTab, setActiveEquipTab] = useState('resumo');
   const [activeFinanceiroTab, setActiveFinanceiroTab] = useState('resumo');
+  const [activeContratosTab, setActiveContratosTab] = useState('resumo');
   
   // Estados para filtros de faturas
   const [faturasDateRange, setFaturasDateRange] = useState<DateRange | undefined>({
@@ -289,7 +291,7 @@ export default function Relatorios() {
     {
       id: 'contratos',
       titulo: 'Relatório de Contratos',
-      descricao: 'Lista completa de contratos por período, cliente ou status',
+      descricao: 'Contratos por período e análise de vendas com/sem desconto',
       icone: FileText,
       cor: 'bg-blue-500',
     },
@@ -528,6 +530,31 @@ export default function Relatorios() {
                         <Download className="w-3 h-3 mr-1.5" /> Excel
                       </Button>
                     </div>
+                  </TabsContent>
+                </Tabs>
+              ) : relatorio.id === 'contratos' ? (
+                <Tabs value={activeContratosTab} onValueChange={setActiveContratosTab}>
+                  <TabsList className="grid w-full grid-cols-2 mb-3 h-8">
+                    <TabsTrigger value="resumo" className="text-xs">Resumo</TabsTrigger>
+                    <TabsTrigger value="descontos" className="text-xs">Descontos</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="resumo" className="space-y-3 mt-0">
+                    <p className="text-xs text-muted-foreground">
+                      Período: {new Date(dateRange.inicio).toLocaleDateString('pt-BR')} — {new Date(dateRange.fim).toLocaleDateString('pt-BR')}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'PDF')}>
+                        <Download className="w-3 h-3 mr-1.5" /> PDF
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => generateReport(relatorio.titulo, 'Excel')}>
+                        <Download className="w-3 h-3 mr-1.5" /> Excel
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="descontos" className="space-y-3 mt-0">
+                    <DescontosTab periodo={dateRange} />
                   </TabsContent>
                 </Tabs>
               ) : relatorio.id === 'financeiro' ? (
