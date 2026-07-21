@@ -15,6 +15,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface TituloAberto {
   id: string;
@@ -54,6 +64,7 @@ export function CobrancaUnicaModal({
   const [formaPagamento, setFormaPagamento] = useState<'BOLETO' | 'PIX' | 'CARTAO'>('BOLETO');
   const [observacoes, setObservacoes] = useState('');
   const [gerando, setGerando] = useState(false);
+  const [confirmarGeracao, setConfirmarGeracao] = useState(false);
 
   // Exibir info da política se aplicável
   const infoPolitica = useMemo(() => {
@@ -410,12 +421,42 @@ export function CobrancaUnicaModal({
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleGerarCobranca} disabled={titulosSelecionados.length === 0 || !vencimento || gerando}>
+          <Button onClick={() => setConfirmarGeracao(true)} disabled={titulosSelecionados.length === 0 || !vencimento || gerando}>
             {gerando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
             {gerando ? 'Gerando...' : 'Gerar Cobrança Única'}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmarGeracao} onOpenChange={setConfirmarGeracao}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar geração da cobrança única?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Será gerado um título único de{" "}
+                  <span className="font-medium text-foreground">{formatCurrency(totalSelecionado)}</span>{" "}
+                  agrupando <span className="font-medium text-foreground">{titulosSelecionados.length}</span> título(s)
+                  {clienteNome ? <> de <span className="font-medium text-foreground">{clienteNome}</span></> : null}.
+                </p>
+                <p className="text-muted-foreground">
+                  Os títulos originais serão substituídos por esta cobrança. Confirme para gerar.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={gerando}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setConfirmarGeracao(false); handleGerarCobranca(); }}
+              disabled={gerando}
+            >
+              Gerar cobrança
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

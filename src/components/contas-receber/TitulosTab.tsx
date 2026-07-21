@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Search, ChevronDown, ChevronRight, Download, CheckCircle, DollarSign, Send, FileText, QrCode, Copy, ExternalLink } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Download, CheckCircle, DollarSign, Send, FileText, QrCode, Copy, ExternalLink, Trash2 } from "lucide-react";
 import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,16 @@ import { EmitirBolePixModal } from "@/components/bolepix/EmitirBolePixModal";
 import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
 import { toast as sonnerToast } from "sonner";
 import { formatDateBR } from "@/lib/date-utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function TitulosTab() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -27,10 +37,11 @@ export default function TitulosTab() {
   const [showAgruparModal, setShowAgruparModal] = useState(false);
   const [showRecebimentoModal, setShowRecebimentoModal] = useState(false);
   const [showBolePixModal, setShowBolePixModal] = useState(false);
+  const [tituloExcluindo, setTituloExcluindo] = useState<any>(null);
   const { toast } = useToast();
   const { lojaAtual } = useMultiunidade();
-  
-  const { titulos = [], updateTitulo, isLoading, error } = useSupabaseTitulos(lojaAtual?.id);
+
+  const { titulos = [], updateTitulo, deleteTitulo, isLoading, error } = useSupabaseTitulos(lojaAtual?.id);
   const { cobrancas, createCobranca } = useSupabaseCobrancasInter(lojaAtual?.id);
 
   // Map titulo_id → latest cobranca for Inter status display
@@ -208,6 +219,26 @@ export default function TitulosTab() {
   const onRecebimentoSuccess = () => {
     setShowRecebimentoModal(false);
     setSelectedTitulo(null);
+  };
+
+  const handleExcluirTitulo = async () => {
+    if (!tituloExcluindo) return;
+    // Não permitir excluir título que já tem pagamento — nesse caso o correto
+    // é cancelar o recebimento antes (evita apagar histórico financeiro).
+    if (Number(tituloExcluindo.pago) > 0) {
+      toast({
+        title: "Não é possível excluir",
+        description: "Este título já tem pagamento registrado. Cancele o recebimento antes de excluí-lo.",
+        variant: "destructive",
+      });
+      setTituloExcluindo(null);
+      return;
+    }
+    try {
+      await deleteTitulo.mutateAsync(tituloExcluindo.id);
+    } finally {
+      setTituloExcluindo(null);
+    }
   };
 
   const handleEmitirBolePix = (titulo: any) => {
@@ -494,8 +525,8 @@ export default function TitulosTab() {
                         )}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => handleNotificar(titulo)}
                             >
@@ -504,6 +535,21 @@ export default function TitulosTab() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>Enviar notificação ao cliente</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setTituloExcluindo(titulo)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Excluir título</p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -575,6 +621,39 @@ export default function TitulosTab() {
         onClose={() => setShowAgruparModal(false)}
         titulos={titulos.filter(t => selectedTitulos.includes(t.id))}
       />
+
+      <AlertDialog open={!!tituloExcluindo} onOpenChange={(open) => { if (!open) setTituloExcluindo(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir título {tituloExcluindo?.numero}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  O título de{" "}
+                  <span className="font-medium text-foreground">
+                    R$ {Number(tituloExcluindo?.valor ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>{" "}
+                  {tituloExcluindo?.cliente?.nome || tituloExcluindo?.cliente?.razao_social
+                    ? <>do cliente <span className="font-medium text-foreground">{tituloExcluindo?.cliente?.nome || tituloExcluindo?.cliente?.razao_social}</span> </>
+                    : null}
+                  será removido permanentemente do financeiro.
+                </p>
+                <p className="text-muted-foreground">Esta ação não pode ser desfeita.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteTitulo.isPending}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleExcluirTitulo}
+              disabled={deleteTitulo.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteTitulo.isPending ? "Excluindo..." : "Excluir título"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </TooltipProvider>
   );

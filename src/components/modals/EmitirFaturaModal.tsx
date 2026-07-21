@@ -11,6 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Contrato, ItemFatura } from "@/types";
 import { FaturaPreviewDrawer } from "@/components/faturamento/FaturamentoTimelineDrawer";
 import { useNumeracao } from "@/hooks/useNumeracao";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EmitirFaturaModalProps {
   contrato?: Contrato;
@@ -36,6 +46,7 @@ export default function EmitirFaturaModal({
   const [loading, setLoading] = useState(false);
   const [faturaEmitida, setFaturaEmitida] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [confirmarEmissao, setConfirmarEmissao] = useState(false);
   const { toast } = useToast();
   const { createFatura } = useSupabaseFaturas();
   const { createTitulo } = useSupabaseTitulos();
@@ -446,11 +457,40 @@ export default function EmitirFaturaModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={loading || !contrato || itens.length === 0}>
+          <Button onClick={() => setConfirmarEmissao(true)} disabled={loading || !contrato || itens.length === 0}>
             {loading ? "Emitindo..." : "Emitir"}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmarEmissao} onOpenChange={setConfirmarEmissao}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar emissão da fatura?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Será gerado um título no financeiro no valor de{" "}
+                  <span className="font-medium text-foreground">
+                    R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                  {contrato?.cliente?.nomeRazao ? <> para <span className="font-medium text-foreground">{contrato.cliente.nomeRazao}</span></> : null}.
+                </p>
+                <p className="text-muted-foreground">Confirme para emitir.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setConfirmarEmissao(false); handleSubmit(); }}
+              disabled={loading}
+            >
+              Emitir fatura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
 
     <FaturaPreviewDrawer
