@@ -68,6 +68,29 @@ export function useSupabaseRecebimentos(lojaId?: string, tituloId?: string) {
     },
   });
 
+  const updateRecebimento = useMutation({
+    mutationFn: async ({ id, ...updates }: any) => {
+      const { data, error } = await (supabase as any)
+        .from('recebimentos')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recebimentos'] });
+      queryClient.invalidateQueries({ queryKey: ['titulos'] });
+      toast.success('Recebimento atualizado com sucesso!');
+    },
+    onError: (error: any) => {
+      console.error('Erro ao atualizar recebimento:', error);
+      toast.error(error.message || 'Erro ao atualizar recebimento');
+    },
+  });
+
   const deleteRecebimento = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any)
@@ -92,6 +115,7 @@ export function useSupabaseRecebimentos(lojaId?: string, tituloId?: string) {
     recebimentos,
     isLoading,
     createRecebimento,
+    updateRecebimento,
     deleteRecebimento,
   };
 }

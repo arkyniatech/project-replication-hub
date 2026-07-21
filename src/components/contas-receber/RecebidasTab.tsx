@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Search, Download, CalendarClock } from "lucide-react";
 import { useSupabaseRecebimentos } from "@/hooks/useSupabaseRecebimentos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useToast } from "@/hooks/use-toast";
@@ -13,10 +15,27 @@ export default function RecebidasTab() {
   const [formaFilter, setFormaFilter] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [recebimentoEditando, setRecebimentoEditando] = useState<any>(null);
+  const [novaData, setNovaData] = useState("");
   const { toast } = useToast();
   const { lojaAtual } = useMultiunidade();
-  
-  const { recebimentos: recebimentosData = [] } = useSupabaseRecebimentos(lojaAtual?.id);
+
+  const { recebimentos: recebimentosData = [], updateRecebimento } = useSupabaseRecebimentos(lojaAtual?.id);
+
+  const abrirEdicaoData = (recebimento: any) => {
+    setRecebimentoEditando(recebimento);
+    setNovaData((recebimento.data || "").slice(0, 10));
+  };
+
+  const salvarData = async () => {
+    if (!recebimentoEditando || !novaData) return;
+    try {
+      await updateRecebimento.mutateAsync({ id: recebimentoEditando.id, data: novaData });
+      setRecebimentoEditando(null);
+    } catch {
+      // erro já tratado no hook (toast)
+    }
+  };
 
   const filteredRecebimentos = useMemo(() => {
     let filtered = recebimentosData;
@@ -189,18 +208,28 @@ export default function RecebidasTab() {
                   </TableCell>
                   <TableCell>{recebimento.usuario || 'N/A'}</TableCell>
                   <TableCell>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        toast({
-                          title: "Link do título",
-                          description: `Abrindo título ${recebimento.titulo?.numero || 'N/A'}...`,
-                        });
-                      }}
-                    >
-                      Ver Título
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => abrirEdicaoData(recebimento)}
+                        title="Editar data do recebimento"
+                      >
+                        <CalendarClock className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "Link do título",
+                            description: `Abrindo título ${recebimento.titulo?.numero || 'N/A'}...`,
+                          });
+                        }}
+                      >
+                        Ver Título
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -217,6 +246,38 @@ export default function RecebidasTab() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!recebimentoEditando} onOpenChange={(open) => { if (!open) setRecebimentoEditando(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar data do recebimento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Título {recebimentoEditando?.titulo?.numero || 'N/A'} ·{" "}
+              {recebimentoEditando?.titulo?.cliente?.nome || recebimentoEditando?.titulo?.cliente?.razao_social || 'Cliente'}
+            </p>
+            <div>
+              <Label htmlFor="novaDataRecebimento">Data do recebimento</Label>
+              <Input
+                id="novaDataRecebimento"
+                type="date"
+                value={novaData}
+                onChange={(e) => setNovaData(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRecebimentoEditando(null)} disabled={updateRecebimento.isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarData} disabled={!novaData || updateRecebimento.isPending}>
+              {updateRecebimento.isPending ? "Salvando..." : "Salvar data"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

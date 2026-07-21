@@ -1,12 +1,14 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Search, ChevronDown, ChevronRight, Download, CheckCircle, DollarSign, Send, FileText, QrCode, Copy, ExternalLink, Trash2 } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, Download, CheckCircle, DollarSign, Send, FileText, QrCode, Copy, ExternalLink, Trash2, CalendarClock } from "lucide-react";
 import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +40,8 @@ export default function TitulosTab() {
   const [showRecebimentoModal, setShowRecebimentoModal] = useState(false);
   const [showBolePixModal, setShowBolePixModal] = useState(false);
   const [tituloExcluindo, setTituloExcluindo] = useState<any>(null);
+  const [tituloEditandoVenc, setTituloEditandoVenc] = useState<any>(null);
+  const [novoVencimento, setNovoVencimento] = useState("");
   const { toast } = useToast();
   const { lojaAtual } = useMultiunidade();
 
@@ -219,6 +223,42 @@ export default function TitulosTab() {
   const onRecebimentoSuccess = () => {
     setShowRecebimentoModal(false);
     setSelectedTitulo(null);
+  };
+
+  const abrirEdicaoVencimento = (titulo: any) => {
+    setTituloEditandoVenc(titulo);
+    setNovoVencimento((titulo.vencimento || "").slice(0, 10));
+  };
+
+  const salvarVencimento = async () => {
+    if (!tituloEditandoVenc || !novoVencimento) return;
+    const anterior = (tituloEditandoVenc.vencimento || "").slice(0, 10);
+    if (novoVencimento === anterior) {
+      setTituloEditandoVenc(null);
+      return;
+    }
+    const novoEvento = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      tipo: 'vencimento_editado' as const,
+      descricao: `Vencimento alterado de ${formatDate(anterior)} para ${formatDate(novoVencimento)}`,
+      usuario: 'Admin',
+    };
+    try {
+      await updateTitulo.mutateAsync({
+        id: tituloEditandoVenc.id,
+        vencimento: novoVencimento,
+        timeline: [...(tituloEditandoVenc.timeline || []), novoEvento],
+        updated_at: new Date().toISOString(),
+      });
+      toast({
+        title: "Vencimento atualizado",
+        description: `Título ${tituloEditandoVenc.numero} agora vence em ${formatDate(novoVencimento)}.`,
+      });
+      setTituloEditandoVenc(null);
+    } catch {
+      // erro já tratado no hook (toast)
+    }
   };
 
   const handleExcluirTitulo = async () => {
@@ -542,6 +582,20 @@ export default function TitulosTab() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => abrirEdicaoVencimento(titulo)}
+                            >
+                              <CalendarClock className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Editar data de vencimento</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => setTituloExcluindo(titulo)}
                               className="text-destructive hover:text-destructive"
                             >
@@ -621,6 +675,38 @@ export default function TitulosTab() {
         onClose={() => setShowAgruparModal(false)}
         titulos={titulos.filter(t => selectedTitulos.includes(t.id))}
       />
+
+      <Dialog open={!!tituloEditandoVenc} onOpenChange={(open) => { if (!open) setTituloEditandoVenc(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar data de vencimento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Título {tituloEditandoVenc?.numero || 'N/A'} ·{" "}
+              {tituloEditandoVenc?.cliente?.nome || tituloEditandoVenc?.cliente?.razao_social || 'Cliente'}
+            </p>
+            <div>
+              <Label htmlFor="novoVencimento">Data de vencimento</Label>
+              <Input
+                id="novoVencimento"
+                type="date"
+                value={novoVencimento}
+                onChange={(e) => setNovoVencimento(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTituloEditandoVenc(null)} disabled={updateTitulo.isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarVencimento} disabled={!novoVencimento || updateTitulo.isPending}>
+              {updateTitulo.isPending ? "Salvando..." : "Salvar data"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!tituloExcluindo} onOpenChange={(open) => { if (!open) setTituloExcluindo(null); }}>
         <AlertDialogContent>
