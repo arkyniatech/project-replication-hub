@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { RequireAuth } from "./components/auth/RequireAuth";
+import { RequirePerms } from "@/components/rbac";
 import { DevRbacSwitcher } from "./components/dev/DevRbacSwitcher";
 import { lazy, Suspense, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
@@ -108,6 +109,11 @@ const RhPortalHolerites = lazy(() => import("./modules/rh/pages/portal/Holerites
 const RhPortalHoras = lazy(() => import("./modules/rh/pages/portal/Horas"));
 const RhPortalFerias = lazy(() => import("./modules/rh/pages/portal/Ferias"));
 const RhPortalSolicitacoes = lazy(() => import("./modules/rh/pages/portal/Solicitacoes"));
+
+// A4: a área administrativa de RH exige ao menos uma claim de RH.
+// Cobertura em ROLE_TO_CLAIMS (useRbac): admin, gestor (rh:users), rh e master passam;
+// vendedor/motorista/mecanico/financeiro/operacao/usuario são negados.
+const RH_ADMIN_CLAIMS = ['rh:users', 'rh:permissions', 'rh:pessoas_edit', 'rh:ponto_aprovar'] as const;
 
 // Lazy imports para Compras & Estoque
 const ComprasLayout = lazy(() => import("./layouts/ComprasLayout"));
@@ -365,32 +371,39 @@ const App = () => {
                   <RhModuleLayout />
                 </Suspense>
               }>
-                <Route index element={<RhDashboard />} />
-                <Route path="pessoas" element={<RhPessoas />} />
-                <Route path="pessoas/:id" element={<RhPessoaDetalhes />} />
-                <Route path="vagas" element={<RhVagas />} />
-                <Route path="candidatos" element={<RhCandidatos />} />
-                <Route path="admissoes" element={<RhAdmissoes />} />
-                <Route path="ponto" element={<RhPonto />} />
-                <Route path="banco-horas" element={<RhBancoHoras />} />
-                <Route path="ferias" element={<RhFerias />} />
-                <Route path="ausencias" element={<RhAusencias />} />
-                <Route path="holerites" element={<RhHolerites />} />
-                <Route path="beneficios" element={<RhBeneficios />} />
-                <Route path="ssma" element={<RhSSMA />} />
-                <Route path="documentos" element={<RhDocumentos />} />
-                <Route path="offboarding" element={<RhOffboarding />} />
-                <Route path="relatorios/executivo" element={<RhRelatorioExecutivo />} />
-                <Route path="relatorios/rs" element={<RhRelatorioRS />} />
-                <Route path="relatorios/jornada" element={<RhRelatorioJornada />} />
-                <Route path="relatorios/compliance" element={<RhRelatorioCompliance />} />
-                <Route path="relatorios/financeiro" element={<RhRelatorioFinanceiro />} />
-                <Route path="aprovacoes" element={<RhAprovacoes />} />
+                {/* Portal do colaborador — autoatendimento: só exige autenticação
+                    (guardá-lo com claim administrativa trancaria o funcionário do
+                    próprio holerite). */}
                 <Route path="portal" element={<RhPortal />} />
                 <Route path="portal/holerites" element={<RhPortalHolerites />} />
                 <Route path="portal/horas" element={<RhPortalHoras />} />
                 <Route path="portal/ferias" element={<RhPortalFerias />} />
                 <Route path="portal/solicitacoes" element={<RhPortalSolicitacoes />} />
+
+                {/* Área administrativa de RH — exige ao menos uma claim de RH (A4) */}
+                <Route element={<RequirePerms any={[...RH_ADMIN_CLAIMS]}><Outlet /></RequirePerms>}>
+                  <Route index element={<RhDashboard />} />
+                  <Route path="pessoas" element={<RhPessoas />} />
+                  <Route path="pessoas/:id" element={<RhPessoaDetalhes />} />
+                  <Route path="vagas" element={<RhVagas />} />
+                  <Route path="candidatos" element={<RhCandidatos />} />
+                  <Route path="admissoes" element={<RhAdmissoes />} />
+                  <Route path="ponto" element={<RhPonto />} />
+                  <Route path="banco-horas" element={<RhBancoHoras />} />
+                  <Route path="ferias" element={<RhFerias />} />
+                  <Route path="ausencias" element={<RhAusencias />} />
+                  <Route path="holerites" element={<RhHolerites />} />
+                  <Route path="beneficios" element={<RhBeneficios />} />
+                  <Route path="ssma" element={<RhSSMA />} />
+                  <Route path="documentos" element={<RhDocumentos />} />
+                  <Route path="offboarding" element={<RhOffboarding />} />
+                  <Route path="relatorios/executivo" element={<RhRelatorioExecutivo />} />
+                  <Route path="relatorios/rs" element={<RhRelatorioRS />} />
+                  <Route path="relatorios/jornada" element={<RhRelatorioJornada />} />
+                  <Route path="relatorios/compliance" element={<RhRelatorioCompliance />} />
+                  <Route path="relatorios/financeiro" element={<RhRelatorioFinanceiro />} />
+                  <Route path="aprovacoes" element={<RhAprovacoes />} />
+                </Route>
               </Route>
 
               {/* Catch-all routes */}

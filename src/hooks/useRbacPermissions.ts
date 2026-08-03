@@ -56,7 +56,10 @@ export function useRbacPermissions() {
     getEffectivePermissions,
     isMultiLoja,
     canTrocarLoja,
-    currentUser
+    currentUser,
+    // Repassado do useRbac: os guards de rota precisam esperar o carregamento
+    // das roles antes de negar acesso (senão jogam todo mundo pro /403 no 1º render).
+    isLoading,
   };
 }
 

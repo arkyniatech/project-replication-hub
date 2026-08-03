@@ -12,12 +12,18 @@ interface ProtectedRouteProps {
 /**
  * Wrapper para proteger rotas inteiras por permissão
  */
-export function ProtectedRoute({ 
-  children, 
-  perm, 
-  redirectTo = '/403' 
+export function ProtectedRoute({
+  children,
+  perm,
+  redirectTo = '/403'
 }: ProtectedRouteProps) {
-  const { can } = useRbacPermissions();
+  const { can, isLoading } = useRbacPermissions();
+
+  // Enquanto as roles do usuário carregam, claimsAtivas=[] — não redirecionar
+  // ainda, senão o usuário legítimo pisca no /403 antes das claims chegarem.
+  if (isLoading) {
+    return <div className="p-6 text-muted-foreground">Carregando…</div>;
+  }
 
   if (!can(perm)) {
     return <Navigate to={redirectTo} replace />;
@@ -42,7 +48,12 @@ export function RequirePerms({
   all,
   redirectTo = '/403'
 }: RequirePermsProps) {
-  const { canAny, canAll } = useRbacPermissions();
+  const { canAny, canAll, isLoading } = useRbacPermissions();
+
+  // Espera o carregamento das roles antes de decidir (evita flash de /403).
+  if (isLoading) {
+    return <div className="p-6 text-muted-foreground">Carregando…</div>;
+  }
 
   let hasPermission = false;
 
