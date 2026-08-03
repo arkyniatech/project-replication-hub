@@ -125,7 +125,9 @@ export function useMultiunidade() {
   const getLojasPermitidas = (): Loja[] => {
     // Master/admin/gestor veem TODAS as lojas, independente de user_lojas_permitidas
     if (canViewAllLojas()) return lojas;
-    if (userLojas.length === 0) return lojas; // Fallback: sem restrições
+    // Sem vínculo em user_lojas_permitidas => sem acesso (fail-closed).
+    // Antes retornava todas as lojas, o que vazava lojas de outros franqueados na UI.
+    if (userLojas.length === 0) return [];
     return lojas.filter(loja => userLojas.includes(loja.id));
   };
 

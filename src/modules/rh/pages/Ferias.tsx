@@ -30,9 +30,13 @@ export default function FeriasPage() {
       toast({ title: 'Erro', description: 'Preencha todos os campos obrigatórios.', variant: 'destructive' });
       return;
     }
-    toast({ title: 'Férias solicitadas', description: 'Solicitação de férias enviada para aprovação.' });
-    setShowSolicitarModal(false);
-    setFormData({ pessoaId: '', dateRange: undefined, observacao: '' });
+    // TODO(RH-E2): persistir em ferias_periodos/ferias_agendamentos. Enquanto não grava,
+    // não confirmar sucesso — evita que o RH acredite que a solicitação foi registrada.
+    toast({
+      title: 'Funcionalidade em desenvolvimento',
+      description: 'A solicitação de férias ainda não é gravada — nenhum dado foi salvo.',
+      variant: 'destructive',
+    });
   };
 
   return (

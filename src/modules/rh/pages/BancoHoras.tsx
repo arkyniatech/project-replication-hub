@@ -22,11 +22,8 @@ export default function BancoHoras() {
       toast.error('Preencha todos os campos');
       return;
     }
-    toast.success('Movimento lançado com sucesso');
-    setIsModalOpen(false);
-    setSelectedPessoa('');
-    setHoras('');
-    setMotivo('');
+    // TODO(RH-E4): persistir em banco_horas_movimentos. Enquanto não grava, não confirmar sucesso.
+    toast.error('Funcionalidade em desenvolvimento — o movimento ainda não é gravado. Nenhum dado foi salvo.');
   };
 
   const pessoasAtivas = pessoas.filter(p => p.situacao === 'ativo');

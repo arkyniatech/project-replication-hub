@@ -17,8 +17,12 @@ export default function Holerites() {
       toast({ title: 'Erro', description: 'Informe a competência.', variant: 'destructive' });
       return;
     }
-    toast({ title: 'Lote criado com sucesso', description: `Holerites da competência ${formData.competencia} foram publicados.` });
-    setShowCriarLoteModal(false);
+    // TODO(RH-E6): criar holerite_lotes + upload/publicação. Enquanto não grava, não confirmar sucesso.
+    toast({
+      title: 'Funcionalidade em desenvolvimento',
+      description: 'A publicação de holerites ainda não é implementada — nenhum lote foi criado.',
+      variant: 'destructive',
+    });
   };
 
   return (

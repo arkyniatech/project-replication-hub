@@ -204,14 +204,6 @@ export function CriarUsuarioModal({ open, onOpenChange, pessoa }: CriarUsuarioMo
       // Obter token de autenticação atual
       const { data: { session } } = await supabase.auth.getSession();
 
-      console.log('--- FRONTEND TOKEN DIAGNOSTICS ---');
-      if (session) {
-        console.log(`Token length: ${session.access_token.length}`);
-        console.log(`Token starts with: ${session.access_token.substring(0, 20)}...`);
-      } else {
-        console.warn('No active session found!');
-      }
-
       if (!session) {
         toast({
           title: 'Erro de Autenticação',
