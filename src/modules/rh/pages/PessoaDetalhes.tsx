@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, FileText, TrendingUp, Plus } from 'lucide-react';
+import { ArrowLeft, User, FileText, TrendingUp, Plus, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,10 +8,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
 import { useSupabasePessoaMovimentos } from '../hooks/useSupabasePessoaMovimentos';
+import { useSupabasePessoaVinculo } from '../hooks/useSupabasePessoaVinculo';
 import { OcorrenciaModal } from '../components/OcorrenciaModal';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+const formatBRL = (v?: number | null) =>
+  v == null ? '—' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+const formatDateSafe = (d?: string | null) =>
+  d ? format(parseISO(d), 'dd/MM/yyyy', { locale: ptBR }) : '—';
 
 export default function PessoaDetalhes() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +25,7 @@ export default function PessoaDetalhes() {
   const { toast } = useToast();
   const { pessoas, isLoading: loadingPessoas } = useSupabasePessoas();
   const { movimentos, isLoading: loadingMovimentos } = useSupabasePessoaMovimentos(id);
+  const { vinculos, vinculoVigente, isLoading: loadingVinculo } = useSupabasePessoaVinculo(id);
   
   const [ocorrenciaModalOpen, setOcorrenciaModalOpen] = useState(false);
   
@@ -76,6 +83,10 @@ export default function PessoaDetalhes() {
           <TabsTrigger value="resumo">
             <User className="h-4 w-4 mr-2" />
             Resumo
+          </TabsTrigger>
+          <TabsTrigger value="vinculo">
+            <Briefcase className="h-4 w-4 mr-2" />
+            Vínculo
           </TabsTrigger>
           <TabsTrigger value="documentos">
             <FileText className="h-4 w-4 mr-2" />
@@ -144,6 +155,73 @@ export default function PessoaDetalhes() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="vinculo" className="space-y-4">
+          {loadingVinculo ? (
+            <Skeleton className="h-40 w-full" />
+          ) : vinculoVigente ? (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vínculo vigente</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Cargo</p>
+                    <p className="font-medium">{vinculoVigente.cargo?.nome ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Loja</p>
+                    <p className="font-medium">{vinculoVigente.loja?.nome ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Empresa</p>
+                    <p className="font-medium">{vinculoVigente.empresa?.razao_social ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Salário</p>
+                    <p className="font-medium">{formatBRL(vinculoVigente.salario)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Admissão</p>
+                    <p className="font-medium">{formatDateSafe(vinculoVigente.data_admissao)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Contrato</p>
+                    <p className="font-medium capitalize">{vinculoVigente.tipo_contrato}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Histórico</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {vinculos.map((v) => (
+                    <div key={v.id} className="flex items-center justify-between p-3 border rounded">
+                      <div>
+                        <p className="font-medium">
+                          {v.cargo?.nome ?? '—'} · {v.loja?.nome ?? '—'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDateSafe(v.vigencia_inicio)} → {v.vigencia_fim ? formatDateSafe(v.vigencia_fim) : 'vigente'} · {v.motivo_alteracao}
+                        </p>
+                      </div>
+                      <span className="text-sm font-medium">{formatBRL(v.salario)}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground">
+                Nenhum vínculo registrado para esta pessoa.
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="documentos">
