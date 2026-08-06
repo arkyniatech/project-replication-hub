@@ -101,6 +101,12 @@ export function getRhMenuItems(): RhMenuItem[] {
       icon: 'FileText'
     },
     {
+      id: 'rh-provisoes',
+      label: 'Provisões & Rescisões',
+      path: '/rh/provisoes',
+      icon: 'Calculator'
+    },
+    {
       id: 'rh-beneficios',
       label: 'Benefícios',
       path: '/rh/beneficios',

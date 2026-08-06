@@ -104,6 +104,7 @@ const RhRelatorioJornada = lazy(() => import("./modules/rh/pages/relatorios/Jorn
 const RhRelatorioCompliance = lazy(() => import("./modules/rh/pages/relatorios/Compliance"));
 const RhRelatorioFinanceiro = lazy(() => import("./modules/rh/pages/relatorios/Financeiro"));
 const RhAprovacoes = lazy(() => import("./modules/rh/pages/Aprovacoes"));
+const RhProvisoes = lazy(() => import("./modules/rh/pages/Provisoes"));
 const RhPortal = lazy(() => import("./modules/rh/pages/portal/Portal"));
 const RhPortalHolerites = lazy(() => import("./modules/rh/pages/portal/Holerites"));
 const RhPortalHoras = lazy(() => import("./modules/rh/pages/portal/Horas"));
@@ -403,6 +404,7 @@ const App = () => {
                   <Route path="relatorios/compliance" element={<RhRelatorioCompliance />} />
                   <Route path="relatorios/financeiro" element={<RhRelatorioFinanceiro />} />
                   <Route path="aprovacoes" element={<RhAprovacoes />} />
+                  <Route path="provisoes" element={<RhProvisoes />} />
                 </Route>
               </Route>
 
