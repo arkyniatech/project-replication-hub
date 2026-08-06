@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
+import { AlertasRh } from '../components/AlertasRh';
 import { useMemo } from 'react';
 
 export default function Dashboard() {
@@ -80,6 +81,8 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      <AlertasRh />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Distribuição por Cargo */}
