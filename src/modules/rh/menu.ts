@@ -1,20 +1,3 @@
-import { 
-  Users, 
-  Briefcase, 
-  Calendar, 
-  Clock, 
-  FileCheck, 
-  BadgeCheck, 
-  FileText, 
-  Shield, 
-  FileStack, 
-  DoorOpen, 
-  BarChart, 
-  Inbox, 
-  Smartphone,
-  Home,
-  UserPlus
-} from 'lucide-react';
 import { RhMenuItem } from './types';
 
 export function getRhMenuItems(): RhMenuItem[] {

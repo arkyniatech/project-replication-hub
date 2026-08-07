@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import { AppShell } from "./components/layout/AppShell";
 import { RequireAuth } from "./components/auth/RequireAuth";
 import { RequirePerms } from "@/components/rbac";
-import { DevRbacSwitcher } from "./components/dev/DevRbacSwitcher";
 import { lazy, Suspense, useEffect } from "react";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
