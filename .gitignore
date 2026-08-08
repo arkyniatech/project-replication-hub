@@ -6,3 +6,5 @@ dist/
 # Ignora apenas scripts SQL ad-hoc na RAIZ do repo (dumps/seeds manuais).
 # NÃO ignora supabase/migrations/*.sql — migrations DEVEM ser versionadas.
 /*.sql
+supabase/.temp/
+.claude/
