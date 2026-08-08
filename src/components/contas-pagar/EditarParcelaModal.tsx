@@ -36,6 +36,12 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
   // preserva edições do usuário quando o react-query refaz o fetch da lista
   const parcelaCarregadaId = useRef<string | null>(null);
 
+  // fechar o modal descarta a edição abandonada — reabrir a MESMA parcela
+  // repopula do banco (o modal fica montado no pai, o ref sobreviveria)
+  useEffect(() => {
+    if (!open) parcelaCarregadaId.current = null;
+  }, [open]);
+
   useEffect(() => {
     const found = parcelaId ? parcelas.find(p => p.id === parcelaId) || null : null;
     setParcela(found);

@@ -18,7 +18,7 @@ interface DespachoPDFProps {
 
 export function DespachoPDF({ open, onOpenChange, transferenciaId }: DespachoPDFProps) {
   const { useTransferencia } = useSupabaseTransferencias();
-  const { data: transferencia } = useTransferencia(transferenciaId ?? undefined);
+  const { data: transferencia, isLoading, isError } = useTransferencia(open ? transferenciaId ?? undefined : undefined);
   const [loading, setLoading] = useState(false);
 
   const generatePDF = async () => {
@@ -73,8 +73,30 @@ export function DespachoPDF({ open, onOpenChange, transferenciaId }: DespachoPDF
     window.print();
   };
 
-  if (!transferencia) {
-    return null;
+  if (!open) return null;
+
+  // Sem isto o clique em "Despacho" não produzia NADA visível durante o
+  // carregamento (e nada nunca, se a query falhasse).
+  if (isLoading || isError || !transferencia) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Despacho de Transferência
+            </DialogTitle>
+          </DialogHeader>
+          {isError ? (
+            <p className="py-8 text-center text-muted-foreground">
+              Não foi possível carregar esta transferência.
+            </p>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">Carregando…</div>
+          )}
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (

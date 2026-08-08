@@ -1,5 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
+import { corsHeadersFor } from '../_shared/cors.ts';
 
 const DEMO_EMAIL = 'teste@teste.com';
 const DEMO_PASSWORD = 'teste123';
@@ -7,6 +7,7 @@ const DEMO_USERNAME = 'teste';
 const DEMO_CPF = '00000000000';
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

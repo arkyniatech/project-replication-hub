@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Search, Plus, Briefcase } from 'lucide-react';
 import { useSupabaseRecrutamento, type Vaga } from '../hooks/useSupabaseRecrutamento';
-import { useSupabaseLojas } from '../hooks/useSupabaseLojas';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { RhQueryError } from '../components/RhQueryError';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
 import { toISODateLocal } from '@/lib/date-utils';
@@ -26,7 +26,8 @@ const EMPTY = { titulo: '', lojaId: '', cargoId: '', quantidade: '1', descricao:
 export default function Vagas() {
   const { can } = useRbacPermissions();
   const { vagas, cargos, isLoading, error, criarVaga, atualizarVaga } = useSupabaseRecrutamento();
-  const { lojas } = useSupabaseLojas();
+  // só lojas que o usuário pode usar — a RLS recusaria as demais com erro cru
+  const { lojasPermitidas: lojas } = useMultiunidade();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS_STATUS');
   const [isModalOpen, setIsModalOpen] = useState(false);

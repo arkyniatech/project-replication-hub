@@ -100,7 +100,12 @@ export default function Beneficios() {
       setModalVinculo(false);
       setFormV(EMPTY_VINCULO);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao vincular.');
+      const duplicado = e?.code === '23505' || /duplicate key/i.test(e?.message ?? '');
+      toast.error(
+        duplicado
+          ? 'Este colaborador já tem um vínculo ativo com esse benefício.'
+          : e?.message ?? 'Erro ao vincular.',
+      );
     }
   };
 

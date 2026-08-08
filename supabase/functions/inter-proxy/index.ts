@@ -1,10 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeadersFor } from "../_shared/cors.ts";
 
 // Só existe PRODUÇÃO. O "sandbox" antigo apontava para a mesma URL real e
 // induzia o operador a emitir cobrança de verdade achando que testava.
@@ -12,6 +8,7 @@ const INTER_API_BASE = "https://cdpj.partners.bancointer.com.br";
 const INTER_OAUTH_URL = "https://cdpj.partners.bancointer.com.br/oauth/v2/token";
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

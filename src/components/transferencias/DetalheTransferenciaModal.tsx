@@ -34,9 +34,22 @@ export function DetalheTransferenciaModal({
   transferenciaId
 }: DetalheTransferenciaModalProps) {
   const { useTransferencia } = useSupabaseTransferencias();
-  const { data: transferencia, isLoading } = useTransferencia(transferenciaId ?? undefined);
+  const { data: transferencia, isLoading, isError } = useTransferencia(transferenciaId ?? undefined);
 
   if (!open) return null;
+
+  if (isError || (!isLoading && !transferencia)) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>Transferência</DialogTitle></DialogHeader>
+          <p className="py-8 text-center text-muted-foreground">
+            Não foi possível carregar esta transferência (pode ter sido excluída ou ser de outra loja).
+          </p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (isLoading || !transferencia) {
     return (

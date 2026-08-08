@@ -100,7 +100,9 @@ export function PessoaForm({ pessoa, onSave, onCancel }: PessoaFormProps) {
       salario: formData.salario ? parseFloat(formData.salario) : undefined,
       endereco: formData.endereco.trim() || undefined,
       nascimento: formData.nascimento || undefined,
-      admissaoISO: formData.admissaoISO || toISODateLocal(new Date()),
+      // só CRIAÇÃO assume "hoje" como admissão; edição de pessoa sem data
+      // não pode inventar uma (alimenta férias/rescisão)
+      admissaoISO: formData.admissaoISO || (pessoa ? '' : toISODateLocal(new Date())),
       docs: pessoa?.docs || [],
       beneficios: pessoa?.beneficios || [],
       movimentos: pessoa?.movimentos || []

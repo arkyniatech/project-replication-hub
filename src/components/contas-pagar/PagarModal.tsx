@@ -87,7 +87,12 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
       // Upload do comprovante (1º segmento do path = loja, exigido pela RLS do bucket)
       let comprovantePath: string | undefined;
       if (comprovante) {
-        const path = `${lojaAtual.id}/${Date.now()}_${comprovante.name}`;
+        // o Storage rejeita acento/caractere especial na key ("março.pdf")
+        const nomeSeguro = comprovante.name
+          .normalize('NFD')
+          .replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${lojaAtual.id}/${Date.now()}_${nomeSeguro}`;
         const { error: uploadError } = await supabase.storage
           .from('comprovantes-pagamento')
           .upload(path, comprovante);
@@ -98,25 +103,45 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
         comprovantePath = path;
       }
 
-      // Registrar pagamento para cada parcela
-      for (let i = 0; i < parcelas.length; i++) {
-        const parcela = parcelas[i];
-        const parcelaData = parcelasData[i];
+      // Registrar pagamento para cada parcela. Sem transação no servidor,
+      // uma falha no meio deixa as anteriores PAGAS — então reportamos
+      // exatamente o que aconteceu e atualizamos a lista, para o usuário
+      // não repetir o pagamento das que já baixaram.
+      let pagas = 0;
+      try {
+        for (let i = 0; i < parcelas.length; i++) {
+          const parcela = parcelas[i];
+          const parcelaData = parcelasData[i];
 
-        await registrarPagamento.mutateAsync({
-          parcela_id: parcela.id,
-          titulo_id: parcela.tituloId,
-          conta_id: selectedConta,
-          loja_id: lojaAtual.id,
-          data_pagamento: dataPagamento,
-          valor_bruto: parcelaData.valorPago,
-          juros: parcelaData.juros,
-          multa: parcelaData.multa,
-          desconto: parcelaData.desconto,
-          forma: contas.find(c => c.id === selectedConta)?.tipo || 'BANCO',
-          comprovante_url: comprovantePath,
-          observacoes: observacao
-        });
+          await registrarPagamento.mutateAsync({
+            parcela_id: parcela.id,
+            titulo_id: parcela.tituloId,
+            conta_id: selectedConta,
+            loja_id: lojaAtual.id,
+            data_pagamento: dataPagamento,
+            valor_bruto: parcelaData.valorPago,
+            juros: parcelaData.juros,
+            multa: parcelaData.multa,
+            desconto: parcelaData.desconto,
+            forma: contas.find(c => c.id === selectedConta)?.tipo || 'BANCO',
+            comprovante_url: comprovantePath,
+            observacoes: observacao
+          });
+          pagas++;
+        }
+      } catch (error: any) {
+        console.error("Erro ao registrar pagamento:", error);
+        if (pagas > 0) {
+          toast.error(
+            `Falha após pagar ${pagas} de ${parcelas.length} parcela(s): ${error.message}. ` +
+            `A lista foi atualizada — NÃO repita o pagamento das que já baixaram.`,
+            { duration: 12000 },
+          );
+          onSuccess();
+        } else {
+          toast.error(`Erro ao registrar pagamento: ${error.message}`);
+        }
+        return;
       }
 
       toast.success(`${parcelas.length} parcela(s) paga(s) com sucesso!`);

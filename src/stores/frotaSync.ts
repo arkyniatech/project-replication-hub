@@ -67,14 +67,19 @@ export function frotaUpsert(entidade: FrotaEntidade, item: any, onConflict = 'id
 
 export function frotaDelete(entidade: FrotaEntidade, id: string) {
   const { tabela } = FROTA_TABELAS[entidade];
+  // .select() no delete: sob RLS, delete negado NÃO é erro — afeta 0 linhas.
+  // Sem isso a exclusão falhava em silêncio e o item "ressuscitava" depois.
   void db()
     .from(tabela)
     .delete()
     .eq('id', id)
-    .then(({ error }: { error: any }) => {
+    .select('id')
+    .then(({ data, error }: { data: any[] | null; error: any }) => {
       if (error) {
         console.error(`frota: falha ao excluir de ${tabela}:`, error);
         toast.error(`Não foi possível excluir no servidor (${tabela}): ${error.message}`);
+      } else if (!data || data.length === 0) {
+        toast.error('Exclusão não aplicada no servidor (sem permissão?). Recarregue a página.');
       }
     });
 }
@@ -91,33 +96,75 @@ export interface FrotaEstado {
   trocas_oleo: TrocaOleo[];
 }
 
+/** Ordem de seed que respeita as FKs. */
+export const FROTA_ORDEM: FrotaEntidade[] = [
+  'postos', 'oleos', 'servicos', 'oficinas', 'veiculos',
+  'veiculo_configs', 'manutencoes', 'abastecimentos', 'trocas_oleo',
+];
+
+const PAGINA = 1000;
+
 export async function frotaFetchAll(): Promise<FrotaEstado> {
   const entradas = Object.entries(FROTA_TABELAS) as [FrotaEntidade, (typeof FROTA_TABELAS)[FrotaEntidade]][];
   const resultados = await Promise.all(
     entradas.map(async ([chave, { tabela, from }]) => {
-      const { data, error } = await db().from(tabela).select('*');
-      if (error) throw new Error(`${tabela}: ${error.message}`);
-      return [chave, (data ?? []).map(from)] as const;
+      // paginação: o PostgREST trunca em 1000 linhas por request — sem isto,
+      // abastecimentos antigos sumiriam do cache e os relatórios mentiriam.
+      const todos: any[] = [];
+      for (let inicio = 0; ; inicio += PAGINA) {
+        const { data, error } = await db()
+          .from(tabela)
+          .select('*')
+          .order('id')
+          .range(inicio, inicio + PAGINA - 1);
+        if (error) throw new Error(`${tabela}: ${error.message}`);
+        todos.push(...(data ?? []));
+        if (!data || data.length < PAGINA) break;
+      }
+      return [chave, todos.map(from)] as const;
     }),
   );
   return Object.fromEntries(resultados) as unknown as FrotaEstado;
 }
 
+// Seed one-shot resumável: a lista de entidades pendentes fica em
+// localStorage até TODAS subirem — um seed interrompido no meio não faz o
+// hydrate seguinte descartar o que ainda não subiu.
+const SEED_PENDENTE_KEY = 'frota-seed-pendente';
+
+export function lerSeedPendente(): Set<FrotaEntidade> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SEED_PENDENTE_KEY) ?? '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+export function gravarSeedPendente(entidades: FrotaEntidade[]): void {
+  if (entidades.length === 0) localStorage.removeItem(SEED_PENDENTE_KEY);
+  else localStorage.setItem(SEED_PENDENTE_KEY, JSON.stringify(entidades));
+}
+
 /**
- * Migração one-shot: se o banco está vazio e este navegador tem dados legados
- * do localStorage, sobe tudo (ordem respeita as FKs). IDs legados (Date.now)
- * são aceitos porque as PKs são text.
+ * Sobe os dados legados do navegador para as entidades indicadas (upsert por
+ * PK, idempotente). Não aborta no primeiro erro: devolve a lista de entidades
+ * que falharam, para retry no próximo hydrate.
  */
-export async function frotaSeedFromLocal(local: FrotaEstado): Promise<void> {
-  const ordem: FrotaEntidade[] = [
-    'postos', 'oleos', 'servicos', 'oficinas', 'veiculos',
-    'veiculo_configs', 'manutencoes', 'abastecimentos', 'trocas_oleo',
-  ];
-  for (const entidade of ordem) {
+export async function frotaSeedFromLocal(
+  local: FrotaEstado,
+  entidades: FrotaEntidade[],
+): Promise<FrotaEntidade[]> {
+  const falhas: FrotaEntidade[] = [];
+  for (const entidade of FROTA_ORDEM) {
+    if (!entidades.includes(entidade)) continue;
     const itens = local[entidade] as any[];
     if (!itens?.length) continue;
     const { tabela, to } = FROTA_TABELAS[entidade];
     const { error } = await db().from(tabela).upsert(itens.map(to));
-    if (error) throw new Error(`${tabela}: ${error.message}`);
+    if (error) {
+      console.error(`frota seed: ${tabela}:`, error);
+      falhas.push(entidade);
+    }
   }
+  return falhas;
 }

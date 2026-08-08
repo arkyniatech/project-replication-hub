@@ -17,7 +17,11 @@ import {
   frotaDelete,
   frotaFetchAll,
   frotaSeedFromLocal,
+  lerSeedPendente,
+  gravarSeedPendente,
+  FROTA_ORDEM,
   type FrotaEstado,
+  type FrotaEntidade,
 } from '@/stores/frotaSync';
 import { toast } from 'sonner';
 
@@ -99,22 +103,37 @@ export const useVeiculosStore = create<VeiculosState>()(
         hidratando = true;
         try {
           const remoto = await frotaFetchAll();
-          const remotoVazio = Object.values(remoto).every((lista) => lista.length === 0);
           const local = get();
-          const temDadosLocais =
-            local.veiculos.length + local.postos.length + local.oleos.length +
-            local.oficinas.length + local.servicos.length + local.manutencoes.length +
-            local.abastecimentos.length + local.trocas_oleo.length > 0;
+          const pendentesAntes = lerSeedPendente();
 
-          if (remotoVazio && temDadosLocais) {
-            // banco recém-criado + navegador com dados legados -> sobe tudo
-            await frotaSeedFromLocal(local);
-            set({ frotaHidratada: true });
-            toast.success('Dados da frota deste navegador foram enviados ao servidor.');
-            return;
+          // Seed POR ENTIDADE (não tudo-ou-nada): sobe só o que o servidor
+          // ainda não tem e este navegador tem — dois navegadores com dados
+          // legados não duplicam catálogo, e um seed interrompido retoma.
+          const paraSeed = FROTA_ORDEM.filter(
+            (e) => (pendentesAntes.has(e) || remoto[e].length === 0) && (local[e] as unknown[]).length > 0,
+          );
+
+          let falhas: FrotaEntidade[] = [];
+          if (paraSeed.length > 0) {
+            gravarSeedPendente(paraSeed);
+            falhas = await frotaSeedFromLocal(local, paraSeed);
+            gravarSeedPendente(falhas);
+            if (falhas.length === 0) {
+              toast.success('Dados da frota deste navegador foram enviados ao servidor.');
+            } else {
+              toast.error(
+                `Frota: falha ao enviar ${falhas.join(', ')} — mantendo os dados locais; nova tentativa no próximo acesso.`,
+              );
+            }
           }
 
-          set({ ...remoto, frotaHidratada: true });
+          // Estado final: entidades seedadas (ou com falha) mantêm o local;
+          // as demais assumem a verdade do servidor.
+          const novo: Partial<FrotaEstado> = {};
+          for (const e of FROTA_ORDEM) {
+            (novo as Record<string, unknown>)[e] = paraSeed.includes(e) ? local[e] : remoto[e];
+          }
+          set({ ...(novo as FrotaEstado), frotaHidratada: true });
         } catch (e: any) {
           console.error('frota: falha ao carregar do servidor:', e);
           toast.error(`Frota: usando dados locais (falha ao carregar do servidor: ${e?.message ?? e})`);
@@ -266,8 +285,11 @@ export const useVeiculosStore = create<VeiculosState>()(
 
       // Configurações
       setVeiculoOleo: (veiculoId, oleoId) => {
+        // reusa o id da config existente — o upsert por veiculo_id não deve
+        // trocar a PK da linha remota
+        const existente = get().veiculo_configs.find((c) => c.veiculo_id === veiculoId);
         const nova: VeiculoConfig = {
-          id: crypto.randomUUID(),
+          id: existente?.id ?? crypto.randomUUID(),
           veiculo_id: veiculoId,
           oleo_id: oleoId,
           desde_dataISO: new Date().toISOString(),
@@ -371,11 +393,15 @@ export const useVeiculosStore = create<VeiculosState>()(
 
       // Abastecimentos
       addAbastecimento: (abastecimento) => {
-        const { km_percorrido, km_por_l, custo_por_km, flags } = get().calcularConsumo(
+        const { km_percorrido, km_por_l, flags } = get().calcularConsumo(
           abastecimento.veiculo_id,
           abastecimento.km_atual,
           abastecimento.litros
         );
+        // custo por km real (era sempre 0 e virava zero histórico no banco)
+        const custo_por_km = km_percorrido > 0
+          ? (abastecimento.preco_litro * abastecimento.litros) / km_percorrido
+          : 0;
 
         const novo: Abastecimento = {
           ...abastecimento,
