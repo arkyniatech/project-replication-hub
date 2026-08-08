@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -26,13 +27,15 @@ Deno.serve(async (req) => {
     if (authError || !user) {
       return Response.json({ error: 'Não autorizado' }, { status: 401, headers: corsHeaders });
     }
+    if (isDemoEmail(user.email)) return demoForbiddenResponse(corsHeaders);
 
-    // Verificar se usuário é admin
+    // Verificar se usuário é master ou admin (antes só aceitava 'admin' —
+    // um tenant só com master ficava sem conseguir deletar ninguém)
     const { data: roles } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .eq('role', 'admin');
+      .in('role', ['master', 'admin']);
 
     if (!roles || roles.length === 0) {
       return Response.json({ error: 'Apenas administradores podem deletar usuários' }, { status: 403, headers: corsHeaders });

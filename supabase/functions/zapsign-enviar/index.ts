@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,12 +30,45 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
     }
 
+    const callerId = claimsData.claims.sub as string
+    if (isDemoEmail(claimsData.claims.email as string | undefined)) {
+      return demoForbiddenResponse(corsHeaders)
+    }
+
     const { pdf_base64, nome_documento, signatario, contrato_id } = await req.json()
 
     if (!pdf_base64 || !nome_documento || !signatario || !contrato_id) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios: pdf_base64, nome_documento, signatario, contrato_id' }), {
         status: 400, headers: corsHeaders
       })
+    }
+
+    // Posse: o contrato precisa ser de uma loja que o chamador acessa
+    // (mesmo padrão do inter-proxy). Antes, qualquer autenticado podia
+    // sobrescrever o doc de assinatura de QUALQUER contrato.
+    const supabaseCheck = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    )
+    const { data: contratoAlvo } = await supabaseCheck
+      .from('contratos')
+      .select('id, loja_id')
+      .eq('id', contrato_id)
+      .maybeSingle()
+    if (!contratoAlvo) {
+      return new Response(JSON.stringify({ error: 'Contrato não encontrado' }), { status: 404, headers: corsHeaders })
+    }
+    const { data: ehMaster } = await supabaseCheck.rpc('is_master', { _user_id: callerId })
+    if (!ehMaster) {
+      const { data: lojaAcesso } = await supabaseCheck
+        .from('user_lojas_permitidas')
+        .select('loja_id')
+        .eq('user_id', callerId)
+        .eq('loja_id', contratoAlvo.loja_id)
+        .maybeSingle()
+      if (!lojaAcesso) {
+        return new Response(JSON.stringify({ error: 'Sem acesso à loja deste contrato' }), { status: 403, headers: corsHeaders })
+      }
     }
 
     const ZAPSIGN_API_TOKEN = Deno.env.get('ZAPSIGN_API_TOKEN')
@@ -44,9 +78,10 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Build webhook URL
+    // Build webhook URL (com token secreto, se configurado)
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const webhookUrl = `${supabaseUrl}/functions/v1/zapsign-webhook`
+    const webhookSecret = Deno.env.get('ZAPSIGN_WEBHOOK_TOKEN')
+    const webhookUrl = `${supabaseUrl}/functions/v1/zapsign-webhook${webhookSecret ? `?token=${webhookSecret}` : ''}`
 
     // Send to ZapSign
     const zapsignBody = {
@@ -68,7 +103,9 @@ Deno.serve(async (req) => {
 
     console.log('Enviando para ZapSign:', { nome_documento, contrato_id })
 
-    const zapsignRes = await fetch('https://sandbox.api.zapsign.com.br/api/v1/docs/', {
+    // PRODUÇÃO por padrão (sandbox só se ZAPSIGN_API_BASE apontar p/ lá)
+    const zapsignApiBase = Deno.env.get('ZAPSIGN_API_BASE') || 'https://api.zapsign.com.br'
+    const zapsignRes = await fetch(`${zapsignApiBase}/api/v1/docs/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -81,7 +118,8 @@ Deno.serve(async (req) => {
 
     if (!zapsignRes.ok) {
       console.error('Erro ZapSign:', zapsignData)
-      return new Response(JSON.stringify({ error: 'Erro ao enviar para ZapSign', details: zapsignData }), {
+      // não repassar a resposta bruta da API externa ao cliente
+      return new Response(JSON.stringify({ error: 'Erro ao enviar para ZapSign' }), {
         status: 502, headers: corsHeaders
       })
     }

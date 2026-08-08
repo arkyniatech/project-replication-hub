@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,8 +44,11 @@ Deno.serve(async (req) => {
       .select('role')
       .eq('user_id', user.id);
 
+    if (isDemoEmail(user.email)) return demoForbiddenResponse(corsHeaders);
+
     const userRoles = roles?.map((r: any) => r.role) || [];
-    const allowed = ['master', 'admin', 'gestor', 'vendedor'].some(r => userRoles.includes(r));
+    const isMasterOrAdmin = ['master', 'admin'].some(r => userRoles.includes(r));
+    const allowed = isMasterOrAdmin || ['gestor', 'vendedor'].some(r => userRoles.includes(r));
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Sem permissão' }), {
         status: 403,
@@ -59,6 +63,22 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Usuário precisa ter acesso à loja da instância (mesmo padrão do inter-proxy)
+    if (!isMasterOrAdmin) {
+      const { data: lojaAcesso } = await supabaseAdmin
+        .from('user_lojas_permitidas')
+        .select('loja_id')
+        .eq('user_id', user.id)
+        .eq('loja_id', loja_id)
+        .maybeSingle();
+      if (!lojaAcesso) {
+        return new Response(JSON.stringify({ error: 'Sem acesso a esta loja' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Lookup instance token

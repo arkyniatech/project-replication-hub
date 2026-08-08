@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -20,13 +21,34 @@ Deno.serve(async (req) => {
     const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { error: authError } = await anonClient.auth.getUser();
-    if (authError) {
+    const { data: { user: caller }, error: authError } = await anonClient.auth.getUser();
+    if (authError || !caller) {
       return Response.json({ error: 'Token inválido' }, { status: 401, headers: corsHeaders });
     }
+    if (isDemoEmail(caller.email)) return demoForbiddenResponse(corsHeaders);
+
+    // Envio de código consome a instância WhatsApp da loja — exige acesso à loja
+    const { data: callerRoles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', caller.id);
+    const rolesList = (callerRoles ?? []).map((r: { role: string }) => r.role);
+    const callerIsMasterAdmin = rolesList.includes('master') || rolesList.includes('admin');
 
     const body = await req.json();
     const { action, phone, code, loja_id } = body;
+
+    if (!callerIsMasterAdmin && loja_id) {
+      const { data: lojaAcesso } = await supabase
+        .from('user_lojas_permitidas')
+        .select('loja_id')
+        .eq('user_id', caller.id)
+        .eq('loja_id', loja_id)
+        .maybeSingle();
+      if (!lojaAcesso) {
+        return Response.json({ error: 'Sem acesso a esta loja' }, { status: 403, headers: corsHeaders });
+      }
+    }
 
     if (action === 'send') {
       if (!phone) {

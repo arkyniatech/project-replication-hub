@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -45,6 +46,8 @@ Deno.serve(async (req) => {
     }
 
     console.log(`✅ JWT verified: ${user.id} (${user.email})`);
+
+    if (isDemoEmail(user.email)) return demoForbiddenResponse(corsHeaders);
 
     // Verificar role do chamador: master, admin ou rh
     const { data: roles } = await supabaseAdmin

@@ -11,13 +11,28 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Autenticação do webhook: segredo compartilhado na URL (?token=) ou no
+    // header x-webhook-token. Enquanto INTER_WEBHOOK_TOKEN não estiver setado
+    // nos secrets, aceita sem validar (modo transição) com aviso no log.
+    const expectedToken = Deno.env.get("INTER_WEBHOOK_TOKEN");
+    const gotToken = new URL(req.url).searchParams.get("token") ?? req.headers.get("x-webhook-token");
+    if (expectedToken) {
+      if (gotToken !== expectedToken) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      console.warn("INTER_WEBHOOK_TOKEN não configurado — webhook aceitando chamadas SEM validação (configure o secret!)");
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     const body = await req.json();
-    console.log("Inter webhook received:", JSON.stringify(body));
 
     const {
       codigoSolicitacao,
@@ -35,6 +50,8 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    // Não logar o payload inteiro (dados financeiros) — só o essencial
+    console.log(`Inter webhook: ${codigoSolicitacao} -> ${situacao || codigoEstadoAtual}`);
 
     // Map Inter status
     const statusMap: Record<string, string> = {
@@ -82,8 +99,7 @@ Deno.serve(async (req) => {
 
     // Process payment automatically
     if (cobranca && (situacaoInter === "PAGO")) {
-      const valorRecebido = valorTotalRecebido || valorNominal || 0;
-      console.log(`Auto-processing payment for titulo ${cobranca.titulo_id}, valor: ${valorRecebido}`);
+      console.log(`Auto-processing payment for titulo ${cobranca.titulo_id}`);
 
       try {
         // 1. Update cobrancas_inter status
@@ -106,7 +122,7 @@ Deno.serve(async (req) => {
         currentHistory.push({
           date: new Date().toISOString(),
           status: "PAID",
-          description: `Pagamento confirmado via webhook Inter. Valor: R$ ${Number(valorRecebido).toFixed(2)}`,
+          description: "Pagamento confirmado via webhook Inter.",
           source: "webhook",
         });
 
@@ -123,6 +139,11 @@ Deno.serve(async (req) => {
           .single();
 
         if (titulo) {
+          // NUNCA confiar no valor vindo do payload: o teto é o saldo do
+          // título no banco (evita quitar/inflar título com valor forjado).
+          const saldoAtual = Math.max(0, Number(titulo.valor) - Number(titulo.pago || 0));
+          const valorInformado = Number(valorTotalRecebido || valorNominal || 0);
+          const valorRecebido = valorInformado > 0 ? Math.min(valorInformado, saldoAtual) : saldoAtual;
           const novoPago = Number(titulo.pago || 0) + Number(valorRecebido);
           const novoSaldo = Math.max(0, Number(titulo.valor) - novoPago);
           const novoStatus = novoSaldo <= 0 ? "PAGO" : "PARCIAL";
@@ -196,8 +217,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Resposta genérica: não confirmar se o código existe (evita enumeração)
     return new Response(
-      JSON.stringify({ received: true, event_id: eventData?.id, processed: !!cobranca }),
+      JSON.stringify({ received: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

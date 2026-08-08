@@ -11,8 +11,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Autenticação do webhook via token na URL (modo transição enquanto o
+    // secret ZAPSIGN_WEBHOOK_TOKEN não estiver configurado)
+    const expectedToken = Deno.env.get('ZAPSIGN_WEBHOOK_TOKEN')
+    const gotToken = new URL(req.url).searchParams.get('token')
+    if (expectedToken) {
+      if (gotToken !== expectedToken) {
+        return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders })
+      }
+    } else {
+      console.warn('ZAPSIGN_WEBHOOK_TOKEN não configurado — webhook aceitando chamadas SEM validação (configure o secret!)')
+    }
+
     const body = await req.json()
-    console.log('ZapSign webhook received:', JSON.stringify(body, null, 2))
+    console.log('ZapSign webhook:', body?.token ?? body?.doc_token, body?.status ?? body?.event_type)
 
     // ZapSign sends event_type for webhook callbacks
     // We care about "doc_signed" or check status
@@ -45,9 +57,8 @@ Deno.serve(async (req) => {
 
     if (findError || !contrato) {
       console.error('Contrato not found for token:', docToken, findError)
-      return new Response(JSON.stringify({ error: 'Contrato não encontrado' }), {
-        status: 404, headers: corsHeaders
-      })
+      // resposta genérica: não servir de oráculo p/ enumeração de tokens
+      return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders })
     }
 
     console.log('Found contrato:', contrato.id)
@@ -62,7 +73,8 @@ Deno.serve(async (req) => {
     }
 
     // Get document details to find the signed file URL
-    const docRes = await fetch(`https://sandbox.api.zapsign.com.br/api/v1/docs/${docToken}/`, {
+    const zapsignApiBase = Deno.env.get('ZAPSIGN_API_BASE') || 'https://api.zapsign.com.br'
+    const docRes = await fetch(`${zapsignApiBase}/api/v1/docs/${docToken}/`, {
       headers: { 'Authorization': `Bearer ${ZAPSIGN_API_TOKEN}` },
     })
 

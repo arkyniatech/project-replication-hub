@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +38,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (isDemoEmail(user.email)) return demoForbiddenResponse(corsHeaders);
 
     // Check if user is admin or master
     const { data: roles } = await supabaseAdmin

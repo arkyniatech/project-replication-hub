@@ -1,19 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const INTER_API = {
-  sandbox: "https://cdpj.partners.bancointer.com.br",
-  producao: "https://cdpj.partners.bancointer.com.br",
-};
-
-const INTER_OAUTH = {
-  sandbox: "https://cdpj.partners.bancointer.com.br/oauth/v2/token",
-  producao: "https://cdpj.partners.bancointer.com.br/oauth/v2/token",
-};
+// Só existe PRODUÇÃO. O "sandbox" antigo apontava para a mesma URL real e
+// induzia o operador a emitir cobrança de verdade achando que testava.
+const INTER_API_BASE = "https://cdpj.partners.bancointer.com.br";
+const INTER_OAUTH_URL = "https://cdpj.partners.bancointer.com.br/oauth/v2/token";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,6 +41,9 @@ Deno.serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub;
+    if (isDemoEmail(claimsData.claims.email as string | undefined)) {
+      return demoForbiddenResponse(corsHeaders);
+    }
 
     const body = await req.json();
     const { action, loja_id, payload } = body;
@@ -80,6 +79,22 @@ Deno.serve(async (req) => {
 
     // save-credentials doesn't need existing creds
     if (action === "save-credentials") {
+      // Credencial BANCÁRIA da loja: só master/admin pode gravar — acesso à
+      // loja não basta (um vendedor não pode trocar a conta que recebe boletos).
+      if (!isMaster) {
+        const { data: adminRole } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle();
+        if (!adminRole) {
+          return new Response(
+            JSON.stringify({ error: "Apenas master/admin pode alterar credenciais bancárias" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
       const result = await saveCredentials(supabaseAdmin, loja_id, userId, payload);
       return new Response(JSON.stringify(result), {
         status: 200,
@@ -151,8 +166,7 @@ Deno.serve(async (req) => {
 // ----- Helper functions -----
 
 async function getOAuthToken(creds: any): Promise<string> {
-  const ambiente = creds.ambiente as "sandbox" | "producao";
-  const tokenUrl = INTER_OAUTH[ambiente];
+  const tokenUrl = INTER_OAUTH_URL;
 
   const params = new URLSearchParams({
     client_id: creds.client_id,
@@ -192,7 +206,7 @@ async function saveCredentials(supabaseAdmin: any, lojaId: string, userId: strin
     loja_id: lojaId,
     client_id,
     client_secret_encrypted: client_secret,
-    ambiente: ambiente || "sandbox",
+    ambiente: "producao", // só existe produção
     webhook_url: webhook_url || null,
     ativo: true,
     created_by: userId,
@@ -225,8 +239,7 @@ async function saveCredentials(supabaseAdmin: any, lojaId: string, userId: strin
 
 async function emitirBoleto(creds: any, payload: any) {
   const token = await getOAuthToken(creds);
-  const ambiente = creds.ambiente as "sandbox" | "producao";
-  const baseUrl = INTER_API[ambiente];
+  const baseUrl = INTER_API_BASE;
 
   const response = await fetch(`${baseUrl}/cobranca/v3/cobrancas`, {
     method: "POST",
@@ -247,8 +260,7 @@ async function emitirBoleto(creds: any, payload: any) {
 
 async function consultarBoleto(creds: any, codigoSolicitacao: string) {
   const token = await getOAuthToken(creds);
-  const ambiente = creds.ambiente as "sandbox" | "producao";
-  const baseUrl = INTER_API[ambiente];
+  const baseUrl = INTER_API_BASE;
 
   const response = await fetch(`${baseUrl}/cobranca/v3/cobrancas/${codigoSolicitacao}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -264,8 +276,7 @@ async function consultarBoleto(creds: any, codigoSolicitacao: string) {
 
 async function cancelarBoleto(creds: any, codigoSolicitacao: string, motivo?: string) {
   const token = await getOAuthToken(creds);
-  const ambiente = creds.ambiente as "sandbox" | "producao";
-  const baseUrl = INTER_API[ambiente];
+  const baseUrl = INTER_API_BASE;
 
   const response = await fetch(`${baseUrl}/cobranca/v3/cobrancas/${codigoSolicitacao}/cancelar`, {
     method: "POST",
@@ -286,8 +297,7 @@ async function cancelarBoleto(creds: any, codigoSolicitacao: string, motivo?: st
 
 async function consultarPix(creds: any, payload: any) {
   const token = await getOAuthToken(creds);
-  const ambiente = creds.ambiente as "sandbox" | "producao";
-  const baseUrl = INTER_API[ambiente];
+  const baseUrl = INTER_API_BASE;
 
   const params = new URLSearchParams();
   if (payload.dataInicio) params.append("dataInicio", payload.dataInicio);
@@ -307,8 +317,7 @@ async function consultarPix(creds: any, payload: any) {
 
 async function criarPixCobranca(creds: any, payload: any) {
   const token = await getOAuthToken(creds);
-  const ambiente = creds.ambiente as "sandbox" | "producao";
-  const baseUrl = INTER_API[ambiente];
+  const baseUrl = INTER_API_BASE;
 
   // Generate txid if not provided (alphanumeric, 26-35 chars)
   const txid = payload.txid || generateTxId();
@@ -375,8 +384,7 @@ async function criarPixCobranca(creds: any, payload: any) {
 
 async function consultarPixCobranca(creds: any, txid: string) {
   const token = await getOAuthToken(creds);
-  const ambiente = creds.ambiente as "sandbox" | "producao";
-  const baseUrl = INTER_API[ambiente];
+  const baseUrl = INTER_API_BASE;
 
   const response = await fetch(`${baseUrl}/pix/v2/cob/${txid}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -392,8 +400,7 @@ async function consultarPixCobranca(creds: any, txid: string) {
 
 async function getPdf(creds: any, codigoSolicitacao: string) {
   const token = await getOAuthToken(creds);
-  const ambiente = creds.ambiente as "sandbox" | "producao";
-  const baseUrl = INTER_API[ambiente];
+  const baseUrl = INTER_API_BASE;
 
   const response = await fetch(`${baseUrl}/cobranca/v3/cobrancas/${codigoSolicitacao}/pdf`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -405,7 +412,16 @@ async function getPdf(creds: any, codigoSolicitacao: string) {
 
   const blob = await response.blob();
   const arrayBuffer = await blob.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+  let base64 = "";
+  {
+    const bytes = new Uint8Array(arrayBuffer);
+    const CHUNK = 0x8000;
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    }
+    base64 = btoa(bin);
+  }
 
   return { pdf_base64: base64, content_type: "application/pdf" };
 }

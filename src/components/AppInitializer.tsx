@@ -12,16 +12,6 @@ export function AppInitializer() {
   useContratoManutencaoSync();
 
   useEffect(() => {
-    // Check for ?role= query param and set dev profile
-    const urlParams = new URLSearchParams(window.location.search);
-    const roleParam = urlParams.get('role');
-    if (roleParam) {
-      localStorage.setItem('rh-dev-profile', roleParam);
-      const url = new URL(window.location.href);
-      url.searchParams.delete('role');
-      window.history.replaceState(null, '', url.pathname + url.hash);
-    }
-
     // Deferred: initialize contract integrations (no seeds)
     setTimeout(async () => {
       try {

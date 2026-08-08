@@ -109,8 +109,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    // NUNCA devolver a senha na resposta — o front já conhece a credencial demo.
     return Response.json(
-      { success: true, user_id: userId, email: DEMO_EMAIL, password: DEMO_PASSWORD },
+      { success: true },
       { headers: corsHeaders },
     );
   } catch (error) {
