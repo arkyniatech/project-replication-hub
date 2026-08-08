@@ -98,25 +98,9 @@ export default function PagarParcelas() {
   const [showAnexos, setShowAnexos] = useState(false);
   const [anexosConfig, setAnexosConfig] = useState<{tipo: 'titulo' | 'parcela', id: string, nome: string} | null>(null);
 
-  // Verificar permissões
+  // Verificar permissões (o return fica DEPOIS de todos os hooks — early
+  // return antes de hook quebra a ordem de hooks quando a permissão resolve)
   const hasAccess = can('financeiro', 'ver');
-  
-  if (!hasAccess) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center">Acesso Negado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-center text-muted-foreground">
-              Você não tem permissão para acessar as parcelas de Contas a Pagar.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   const filteredParcelas = useMemo(() => {
     return parcelas.filter(parcela => {
@@ -155,6 +139,23 @@ export default function PagarParcelas() {
       return true;
     });
   }, [parcelas, statusFilter, searchTerm, selectedUnidade, selectedCategory]);
+
+  if (!hasAccess) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">Acesso Negado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-muted-foreground">
+              Você não tem permissão para acessar as parcelas de Contas a Pagar.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleSelectParcela = (parcelaId: string, checked: boolean) => {
     if (checked) {

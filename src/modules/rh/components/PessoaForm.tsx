@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pessoa } from '../types';
 import { useToast } from '@/hooks/use-toast';
+import { toISODateLocal } from '@/lib/date-utils';
 import { useSupabaseLojas } from '../hooks/useSupabaseLojas';
 import { useSupabaseCentrosCusto } from '../hooks/useSupabaseCentrosCusto';
 
@@ -99,7 +100,7 @@ export function PessoaForm({ pessoa, onSave, onCancel }: PessoaFormProps) {
       salario: formData.salario ? parseFloat(formData.salario) : undefined,
       endereco: formData.endereco.trim() || undefined,
       nascimento: formData.nascimento || undefined,
-      admissaoISO: formData.admissaoISO || new Date().toISOString().split('T')[0],
+      admissaoISO: formData.admissaoISO || toISODateLocal(new Date()),
       docs: pessoa?.docs || [],
       beneficios: pessoa?.beneficios || [],
       movimentos: pessoa?.movimentos || []

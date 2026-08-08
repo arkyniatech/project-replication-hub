@@ -11,7 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Search, Plus, Briefcase } from 'lucide-react';
 import { useSupabaseRecrutamento } from '../hooks/useSupabaseRecrutamento';
 import { useSupabaseLojas } from '../hooks/useSupabaseLojas';
+import { RhQueryError } from '../components/RhQueryError';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
+import { toISODateLocal } from '@/lib/date-utils';
 import { toast } from 'sonner';
 
 const STATUS_LABEL: Record<string, string> = { ABERTA: 'Aberta', EM_ANALISE: 'Em Análise', FECHADA: 'Fechada' };
@@ -23,7 +25,7 @@ const EMPTY = { titulo: '', lojaId: '', cargoId: '', quantidade: '1', descricao:
 
 export default function Vagas() {
   const { can } = useRbacPermissions();
-  const { vagas, cargos, isLoading, criarVaga, atualizarVaga } = useSupabaseRecrutamento();
+  const { vagas, cargos, isLoading, error, criarVaga, atualizarVaga } = useSupabaseRecrutamento();
   const { lojas } = useSupabaseLojas();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS_STATUS');
@@ -61,7 +63,7 @@ export default function Vagas() {
     try {
       await atualizarVaga.mutateAsync({
         id, status,
-        fechada_em: status === 'FECHADA' ? new Date().toISOString().slice(0, 10) : null,
+        fechada_em: status === 'FECHADA' ? toISODateLocal(new Date()) : null,
       });
       toast.success(`Vaga ${STATUS_LABEL[status].toLowerCase()}.`);
     } catch (e: any) {
@@ -154,6 +156,8 @@ export default function Vagas() {
 
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
+      ) : error ? (
+        <RhQueryError error={error} />
       ) : filtradas.length === 0 ? (
         <Card>
           <CardContent className="py-16">

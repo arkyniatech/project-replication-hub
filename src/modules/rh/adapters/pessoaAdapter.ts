@@ -15,7 +15,8 @@ export function toPessoaUI(dbPessoa: any): Pessoa {
     lojaId: dbPessoa.loja_id || '',
     ccId: dbPessoa.cc_id || '',
     situacao: dbPessoa.situacao,
-    admissaoISO: dbPessoa.admissao_iso || new Date().toISOString().split('T')[0],
+    // sem data de admissão no banco fica vazio — jamais inventar "hoje"
+    admissaoISO: dbPessoa.admissao_iso || '',
     salario: dbPessoa.salario,
     endereco: dbPessoa.observacoes || '',
     // Campos não mapeados ainda no banco

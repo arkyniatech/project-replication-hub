@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Search, Users, Plus } from 'lucide-react';
 import { useSupabaseRecrutamento } from '../hooks/useSupabaseRecrutamento';
+import { RhQueryError } from '../components/RhQueryError';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
 import { toast } from 'sonner';
 
@@ -23,7 +24,7 @@ const EMPTY = { vagaId: '', nome: '', email: '', telefone: '', origem: '' };
 
 export default function Candidatos() {
   const { can } = useRbacPermissions();
-  const { candidatos, vagas, isLoading, criarCandidato, atualizarCandidato } = useSupabaseRecrutamento();
+  const { candidatos, vagas, isLoading, error, criarCandidato, atualizarCandidato } = useSupabaseRecrutamento();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS_STATUS');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -152,6 +153,8 @@ export default function Candidatos() {
 
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
+      ) : error ? (
+        <RhQueryError error={error} />
       ) : filtrados.length === 0 ? (
         <Card>
           <CardContent className="py-16">

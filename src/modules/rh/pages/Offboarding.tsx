@@ -12,11 +12,12 @@ import { DoorOpen, Plus, Search } from 'lucide-react';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
 import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
 import { useSupabaseDesligamentos, MOTIVOS_DESLIGAMENTO, type Desligamento } from '../hooks/useSupabaseDesligamentos';
-import { format, parseISO } from 'date-fns';
+import { RhQueryError } from '../components/RhQueryError';
+import { formatDateBR } from '@/lib/date-utils';
 import { toast } from 'sonner';
 
 const motivoLabel = (v: string) => MOTIVOS_DESLIGAMENTO.find((m) => m.value === v)?.label ?? v;
-const fmt = (d?: string | null) => (d ? format(parseISO(d), 'dd/MM/yyyy') : '—');
+const fmt = (d?: string | null) => formatDateBR(d, '—');
 
 const STATUS_LABEL: Record<string, string> = { aberto: 'Em Andamento', concluido: 'Concluído', cancelado: 'Cancelado' };
 const STATUS_VARIANT: Record<string, 'default' | 'outline' | 'destructive'> = {
@@ -29,7 +30,7 @@ export default function Offboarding() {
   const { can } = useRbacPermissions();
   const podeEditar = can('rh:pessoas_edit');
   const { pessoas } = useSupabasePessoas();
-  const { desligamentos, isLoading, criar, atualizar } = useSupabaseDesligamentos();
+  const { desligamentos, isLoading, error, criar, atualizar } = useSupabaseDesligamentos();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showNovoDesligamento, setShowNovoDesligamento] = useState(false);
@@ -136,6 +137,8 @@ export default function Offboarding() {
 
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
+      ) : error ? (
+        <RhQueryError error={error} />
       ) : filtrados.length === 0 ? (
         <Card>
           <CardContent className="py-16">

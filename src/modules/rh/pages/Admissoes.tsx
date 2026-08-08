@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Search, Plus, UserPlus } from 'lucide-react';
 import { useSupabaseRecrutamento } from '../hooks/useSupabaseRecrutamento';
 import { useSupabaseLojas } from '../hooks/useSupabaseLojas';
+import { RhQueryError } from '../components/RhQueryError';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
-import { format, parseISO } from 'date-fns';
+import { formatDateBR, toISODateLocal } from '@/lib/date-utils';
 import { toast } from 'sonner';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -20,13 +21,13 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   PENDENTE: 'secondary', EM_PROCESSO: 'default', CONCLUIDA: 'outline', CANCELADA: 'destructive',
 };
-const fmt = (d?: string | null) => (d ? format(parseISO(d), 'dd/MM/yyyy') : '—');
+const fmt = (d?: string | null) => formatDateBR(d, '—');
 
 const EMPTY = { candidatoId: '', nome: '', lojaId: '', cargoId: '', dataPrevista: '', salario: '' };
 
 export default function Admissoes() {
   const { can } = useRbacPermissions();
-  const { admissoes, candidatos, vagas, cargos, isLoading, criarAdmissao, atualizarAdmissao } = useSupabaseRecrutamento();
+  const { admissoes, candidatos, vagas, cargos, isLoading, error, criarAdmissao, atualizarAdmissao } = useSupabaseRecrutamento();
   const { lojas } = useSupabaseLojas();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('TODOS_STATUS');
@@ -84,7 +85,7 @@ export default function Admissoes() {
   const mudarStatus = async (a: { id: string }, status: string) => {
     try {
       const updates: any = { id: a.id, status };
-      if (status === 'CONCLUIDA') updates.data_admissao = new Date().toISOString().slice(0, 10);
+      if (status === 'CONCLUIDA') updates.data_admissao = toISODateLocal(new Date());
       await atualizarAdmissao.mutateAsync(updates);
       toast.success(
         status === 'CONCLUIDA'
@@ -193,6 +194,8 @@ export default function Admissoes() {
 
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
+      ) : error ? (
+        <RhQueryError error={error} />
       ) : filtradas.length === 0 ? (
         <Card>
           <CardContent className="py-16">

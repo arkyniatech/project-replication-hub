@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BadgeCheck, Plus, Search, Users, X } from 'lucide-react';
 import { useSupabaseBeneficios, TIPOS_BENEFICIO } from '../hooks/useSupabaseBeneficios';
 import { useSupabaseRecrutamento } from '../hooks/useSupabaseRecrutamento';
+import { RhQueryError } from '../components/RhQueryError';
 import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
+import { toISODateLocal } from '@/lib/date-utils';
 import { toast } from 'sonner';
 
 const tipoLabel = (v: string) => TIPOS_BENEFICIO.find((t) => t.value === v)?.label ?? v;
@@ -28,7 +30,7 @@ export default function Beneficios() {
   const { can } = useRbacPermissions();
   const podeEditar = can('rh:pessoas_edit');
   const {
-    beneficios, elegibilidade, vinculos, isLoading,
+    beneficios, elegibilidade, vinculos, isLoading, error,
     criarBeneficio, atualizarBeneficio, definirElegibilidade, removerElegibilidade, vincular, encerrarVinculo,
   } = useSupabaseBeneficios();
   const { cargos } = useSupabaseRecrutamento();
@@ -79,12 +81,20 @@ export default function Beneficios() {
       toast.error('Este colaborador não tem loja definida.');
       return;
     }
+    const jaAtivo = vinculos.some(
+      (v) => v.beneficio_id === formV.beneficioId && v.pessoa_id === pessoa.id && v.status === 'ativo',
+    );
+    if (jaAtivo) {
+      toast.error('Este colaborador já tem um vínculo ativo com esse benefício.');
+      return;
+    }
     try {
       await vincular.mutateAsync({
         beneficio_id: formV.beneficioId,
         pessoa_id: pessoa.id,
         loja_id: pessoa.lojaId,
         valor_mensal: formV.valor ? Number(formV.valor) : null,
+        data_inicio: toISODateLocal(new Date()),
       });
       toast.success('Benefício vinculado.');
       setModalVinculo(false);
@@ -115,10 +125,28 @@ export default function Beneficios() {
 
   const handleEncerrarVinculo = async (id: string) => {
     try {
-      await encerrarVinculo.mutateAsync({ id, data_fim: new Date().toISOString().slice(0, 10) });
+      await encerrarVinculo.mutateAsync({ id, data_fim: toISODateLocal(new Date()) });
       toast.success('Vínculo encerrado.');
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao encerrar vínculo.');
+    }
+  };
+
+  const handleToggleAtivo = async (id: string, ativo: boolean) => {
+    try {
+      await atualizarBeneficio.mutateAsync({ id, ativo });
+      toast.success(ativo ? 'Benefício ativado.' : 'Benefício desativado.');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao atualizar benefício.');
+    }
+  };
+
+  const handleRemoverElegibilidade = async (id: string) => {
+    try {
+      await removerElegibilidade.mutateAsync(id);
+      toast.success('Regra de elegibilidade removida.');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao remover elegibilidade.');
     }
   };
 
@@ -176,6 +204,9 @@ export default function Beneficios() {
         )}
       </div>
 
+      {error && <RhQueryError error={error} />}
+
+      {!error && (
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList>
           <TabsTrigger value="catalogo">Catálogo</TabsTrigger>
@@ -219,7 +250,7 @@ export default function Beneficios() {
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge variant={b.ativo ? 'default' : 'outline'}>{b.ativo ? 'Ativo' : 'Inativo'}</Badge>
                       {podeEditar && (
-                        <Button size="sm" variant="outline" onClick={() => atualizarBeneficio.mutate({ id: b.id, ativo: !b.ativo })}>
+                        <Button size="sm" variant="outline" onClick={() => handleToggleAtivo(b.id, !b.ativo)}>
                           {b.ativo ? 'Desativar' : 'Ativar'}
                         </Button>
                       )}
@@ -291,7 +322,7 @@ export default function Beneficios() {
                       {e.regra && <p className="text-sm text-muted-foreground">{e.regra}</p>}
                     </div>
                     {podeEditar && (
-                      <Button size="icon" variant="ghost" onClick={() => removerElegibilidade.mutate(e.id)}>
+                      <Button size="icon" variant="ghost" onClick={() => handleRemoverElegibilidade(e.id)}>
                         <X className="h-4 w-4" />
                       </Button>
                     )}
@@ -376,6 +407,7 @@ export default function Beneficios() {
           )}
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }

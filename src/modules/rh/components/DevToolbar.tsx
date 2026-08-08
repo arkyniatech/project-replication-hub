@@ -5,11 +5,11 @@ import { useAcessosStore } from '@/modules/rh/store/acessosStore';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
 
 export function DevToolbar() {
-  if (process.env.NODE_ENV === 'production') return null;
-
   const { perfis, getPerfilAtivo, setPerfilAtivo } = useAcessosStore();
   const { can } = useRbacPermissions();
   const perfilAtivo = getPerfilAtivo();
+
+  if (process.env.NODE_ENV === 'production') return null;
   
   const handleSwitchProfile = (perfilId: string) => {
     setPerfilAtivo(perfilId);

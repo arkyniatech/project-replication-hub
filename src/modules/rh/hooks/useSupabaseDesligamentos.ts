@@ -38,7 +38,7 @@ export function useSupabaseDesligamentos() {
     qc.invalidateQueries({ queryKey: ['pessoa-vinculo'] });
   };
 
-  const { data: desligamentos = [], isLoading } = useQuery({
+  const { data: desligamentos = [], isLoading, error } = useQuery({
     queryKey: ['rh-desligamentos'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -67,5 +67,5 @@ export function useSupabaseDesligamentos() {
     onSuccess: invalidate,
   });
 
-  return { desligamentos, isLoading, criar, atualizar };
+  return { desligamentos, isLoading, error: error as Error | null, criar, atualizar };
 }

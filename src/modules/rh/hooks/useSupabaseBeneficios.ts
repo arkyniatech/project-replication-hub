@@ -53,7 +53,7 @@ export function useSupabaseBeneficios() {
     qc.invalidateQueries({ queryKey: ['rh-beneficio-vinculos'] });
   };
 
-  const { data: beneficios = [], isLoading } = useQuery({
+  const { data: beneficios = [], isLoading, error: errBeneficios } = useQuery({
     queryKey: ['rh-beneficios'],
     queryFn: async () => {
       const { data, error } = await supabase.from('rh_beneficios').select('*').order('nome');
@@ -62,7 +62,7 @@ export function useSupabaseBeneficios() {
     },
   });
 
-  const { data: elegibilidade = [] } = useQuery({
+  const { data: elegibilidade = [], error: errElegibilidade } = useQuery({
     queryKey: ['rh-beneficio-elegibilidade'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -73,7 +73,7 @@ export function useSupabaseBeneficios() {
     },
   });
 
-  const { data: vinculos = [] } = useQuery({
+  const { data: vinculos = [], error: errVinculos } = useQuery({
     queryKey: ['rh-beneficio-vinculos'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -142,6 +142,7 @@ export function useSupabaseBeneficios() {
 
   return {
     beneficios, elegibilidade, vinculos, isLoading,
+    error: (errBeneficios ?? errElegibilidade ?? errVinculos) as Error | null,
     criarBeneficio, atualizarBeneficio, definirElegibilidade, removerElegibilidade,
     vincular, encerrarVinculo,
   };

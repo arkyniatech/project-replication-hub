@@ -54,7 +54,7 @@ export function useSupabaseRecrutamento() {
     qc.invalidateQueries({ queryKey: ['rh-admissoes'] });
   };
 
-  const { data: vagas = [], isLoading: loadingVagas } = useQuery({
+  const { data: vagas = [], isLoading: loadingVagas, error: errVagas } = useQuery({
     queryKey: ['rh-vagas'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -66,7 +66,7 @@ export function useSupabaseRecrutamento() {
     },
   });
 
-  const { data: candidatos = [], isLoading: loadingCandidatos } = useQuery({
+  const { data: candidatos = [], isLoading: loadingCandidatos, error: errCandidatos } = useQuery({
     queryKey: ['rh-candidatos'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -78,7 +78,7 @@ export function useSupabaseRecrutamento() {
     },
   });
 
-  const { data: admissoes = [], isLoading: loadingAdmissoes } = useQuery({
+  const { data: admissoes = [], isLoading: loadingAdmissoes, error: errAdmissoes } = useQuery({
     queryKey: ['rh-admissoes'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -153,6 +153,7 @@ export function useSupabaseRecrutamento() {
   return {
     vagas, candidatos, admissoes, cargos,
     isLoading: loadingVagas || loadingCandidatos || loadingAdmissoes,
+    error: (errVagas ?? errCandidatos ?? errAdmissoes) as Error | null,
     criarVaga, atualizarVaga, criarCandidato, atualizarCandidato, criarAdmissao, atualizarAdmissao,
   };
 }

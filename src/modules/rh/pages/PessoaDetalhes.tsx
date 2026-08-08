@@ -12,6 +12,7 @@ import { useSupabasePessoaVinculo } from '../hooks/useSupabasePessoaVinculo';
 import { OcorrenciaModal } from '../components/OcorrenciaModal';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
+import { formatDateBR } from '@/lib/date-utils';
 import { ptBR } from 'date-fns/locale';
 
 const formatBRL = (v?: number | null) =>
@@ -132,7 +133,7 @@ export default function PessoaDetalhes() {
                 <div>
                   <p className="text-sm text-muted-foreground">Admissão</p>
                   <p className="font-medium">
-                    {format(parseISO(pessoa.admissaoISO), 'dd/MM/yyyy', { locale: ptBR })}
+                    {formatDateBR(pessoa.admissaoISO, '—')}
                   </p>
                 </div>
                 <div>

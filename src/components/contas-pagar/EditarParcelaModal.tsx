@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,22 +27,34 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
   const { contas } = useSupabaseContasFinanceiras(lojaAtual?.id);
   
   const [parcela, setParcela] = useState<any>(null);
+  const [vencimento, setVencimento] = useState('');
+  const [valor, setValor] = useState('');
+  const [contaPreferencial, setContaPreferencial] = useState('');
+  const [observacao, setObservacao] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [aplicarTodas, setAplicarTodas] = useState(false);
+  // preserva edições do usuário quando o react-query refaz o fetch da lista
+  const parcelaCarregadaId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (parcelaId && parcelas.length > 0) {
-      const found = parcelas.find(p => p.id === parcelaId);
-      setParcela(found || null);
+    const found = parcelaId ? parcelas.find(p => p.id === parcelaId) || null : null;
+    setParcela(found);
+    if (!found) {
+      parcelaCarregadaId.current = null;
+      return;
+    }
+    if (found.id !== parcelaCarregadaId.current) {
+      parcelaCarregadaId.current = found.id;
+      setVencimento(found.vencimento);
+      setValor(found.valor.toString());
+      setContaPreferencial(found.contaPreferencial || '');
+      setObservacao(found.observacao || '');
+      setMotivo('');
+      setAplicarTodas(false);
     }
   }, [parcelaId, parcelas]);
 
   if (!open || !parcelaId || !parcela) return null;
-  
-  const [vencimento, setVencimento] = useState(parcela.vencimento);
-  const [valor, setValor] = useState(parcela.valor.toString());
-  const [contaPreferencial, setContaPreferencial] = useState(parcela.contaPreferencial);
-  const [observacao, setObservacao] = useState(parcela.observacao);
-  const [motivo, setMotivo] = useState('');
-  const [aplicarTodas, setAplicarTodas] = useState(false);
 
   const vencimentoOriginal = parcela.vencimento;
   const valorOriginal = parcela.valor;

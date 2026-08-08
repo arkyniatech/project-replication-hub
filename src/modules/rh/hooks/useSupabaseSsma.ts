@@ -41,7 +41,7 @@ export interface Treinamento {
 export function useSupabaseSsma() {
   const qc = useQueryClient();
 
-  const { data: asoExames = [], isLoading: loadingAso } = useQuery({
+  const { data: asoExames = [], isLoading: loadingAso, error: errAso } = useQuery({
     queryKey: ['rh-aso-exames'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -53,7 +53,7 @@ export function useSupabaseSsma() {
     },
   });
 
-  const { data: treinamentos = [], isLoading: loadingTrein } = useQuery({
+  const { data: treinamentos = [], isLoading: loadingTrein, error: errTrein } = useQuery({
     queryKey: ['rh-treinamentos'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -83,5 +83,10 @@ export function useSupabaseSsma() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['rh-treinamentos'] }),
   });
 
-  return { asoExames, treinamentos, isLoading: loadingAso || loadingTrein, registrarAso, registrarTreinamento };
+  return {
+    asoExames, treinamentos,
+    isLoading: loadingAso || loadingTrein,
+    error: (errAso ?? errTrein) as Error | null,
+    registrarAso, registrarTreinamento,
+  };
 }

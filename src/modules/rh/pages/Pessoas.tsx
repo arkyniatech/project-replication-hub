@@ -15,8 +15,7 @@ import { useSupabaseCentrosCusto } from '../hooks/useSupabaseCentrosCusto';
 import { PessoaForm } from '../components/PessoaForm';
 import { FiltrosPessoas, Pessoa } from '../types';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDateBR } from '@/lib/date-utils';
 
 export default function Pessoas() {
   const navigate = useNavigate();
@@ -290,7 +289,7 @@ export default function Pessoas() {
                       <TableCell>{pessoa.cargo}</TableCell>
                       <TableCell>{getLojaNome(pessoa.lojaId)}</TableCell>
                       <TableCell>
-                        {format(parseISO(pessoa.admissaoISO), 'dd/MM/yyyy', { locale: ptBR })}
+                        {formatDateBR(pessoa.admissaoISO, '—')}
                       </TableCell>
                       <TableCell>
                         <Badge variant={pessoa.situacao === 'ativo' ? 'default' : 'secondary'}>

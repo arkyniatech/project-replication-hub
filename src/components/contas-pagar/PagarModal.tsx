@@ -14,6 +14,7 @@ import { Upload, Calculator, X } from 'lucide-react';
 import { useSupabaseContasFinanceiras } from '@/hooks/useSupabaseContasFinanceiras';
 import { useSupabaseMovimentosPagar } from '@/hooks/useSupabaseMovimentosPagar';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ParcelasPagar {
   id: string;
@@ -83,6 +84,20 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
     }
 
     try {
+      // Upload do comprovante (1º segmento do path = loja, exigido pela RLS do bucket)
+      let comprovantePath: string | undefined;
+      if (comprovante) {
+        const path = `${lojaAtual.id}/${Date.now()}_${comprovante.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('comprovantes-pagamento')
+          .upload(path, comprovante);
+        if (uploadError) {
+          toast.error(`Falha ao enviar o comprovante: ${uploadError.message}`);
+          return;
+        }
+        comprovantePath = path;
+      }
+
       // Registrar pagamento para cada parcela
       for (let i = 0; i < parcelas.length; i++) {
         const parcela = parcelas[i];
@@ -99,7 +114,7 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
           multa: parcelaData.multa,
           desconto: parcelaData.desconto,
           forma: contas.find(c => c.id === selectedConta)?.tipo || 'BANCO',
-          comprovante_url: comprovante?.name, // TODO: Upload real
+          comprovante_url: comprovantePath,
           observacoes: observacao
         });
       }

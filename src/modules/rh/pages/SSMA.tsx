@@ -11,16 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Shield, Plus, AlertTriangle } from 'lucide-react';
 import { useSupabaseSsma, TIPOS_ASO } from '../hooks/useSupabaseSsma';
 import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
+import { RhQueryError } from '../components/RhQueryError';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
-import { format, parseISO } from 'date-fns';
+import { formatDateBR, toISODateLocal } from '@/lib/date-utils';
 import { toast } from 'sonner';
 
-const fmt = (d?: string | null) => (d ? format(parseISO(d), 'dd/MM/yyyy') : '—');
-const hoje = () => new Date().toISOString().slice(0, 10);
+const fmt = (d?: string | null) => formatDateBR(d, '—');
+const hoje = () => toISODateLocal(new Date());
 const em30dias = () => {
   const d = new Date();
   d.setDate(d.getDate() + 30);
-  return d.toISOString().slice(0, 10);
+  return toISODateLocal(d);
 };
 
 function validadeBadge(validade?: string | null) {
@@ -36,7 +37,7 @@ const EMPTY_TREIN = { pessoaId: '', norma: '', dataRealizacao: '', validade: '',
 export default function SSMA() {
   const { can } = useRbacPermissions();
   const podeEditar = can('rh:pessoas_edit');
-  const { asoExames, treinamentos, isLoading, registrarAso, registrarTreinamento } = useSupabaseSsma();
+  const { asoExames, treinamentos, isLoading, error, registrarAso, registrarTreinamento } = useSupabaseSsma();
   const { pessoas } = useSupabasePessoas();
   const pessoasAtivas = pessoas.filter((p) => p.situacao === 'ativo');
 
@@ -127,6 +128,9 @@ export default function SSMA() {
         </div>
       </div>
 
+      {error && <RhQueryError error={error} />}
+
+      {!error && (
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
@@ -353,6 +357,7 @@ export default function SSMA() {
           )}
         </TabsContent>
       </Tabs>
+      )}
     </div>
   );
 }
