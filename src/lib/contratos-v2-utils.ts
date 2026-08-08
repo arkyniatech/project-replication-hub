@@ -318,88 +318,6 @@ export function sugerirHorarios(janela: 'MANHA' | 'TARDE', dataEntrega?: string)
   return horariosDisponiveis[indiceAleatorio];
 }
 
-// Seed dados para testes
-export function seedContratosV2(): void {
-  // Criar lojas mock
-  const lojas: Loja[] = [
-    {
-      id: 'loja-1',
-      nome: 'Matriz São Paulo',
-      apelido: 'SP',
-      cnpj: '12.345.678/0001-90',
-      endereco: {
-        cep: '01310-100',
-        logradouro: 'Avenida Paulista',
-        numero: '1000',
-        bairro: 'Bela Vista',
-        cidade: 'São Paulo',
-        uf: 'SP',
-      },
-      ativo: true,
-    },
-    {
-      id: 'loja-2',
-      nome: 'Filial Rio de Janeiro',
-      apelido: 'RJ',
-      cnpj: '12.345.678/0002-71',
-      endereco: {
-        cep: '22071-900',
-        logradouro: 'Avenida Atlântica',
-        numero: '500',
-        bairro: 'Copacabana',
-        cidade: 'Rio de Janeiro',
-        uf: 'RJ',
-      },
-      ativo: true,
-    },
-  ];
-
-  setStorageData(V2_STORAGE_KEYS.LOJAS, lojas);
-
-  // Criar configurações por loja
-  const configLojas = lojas.map(loja => ({
-    lojaId: loja.id,
-    cabecalhoDocumento: {
-      logoUrl: undefined,
-      razao: loja.nome,
-      cnpj: loja.cnpj,
-      ie: '123.456.789.012',
-      endereco: `${loja.endereco.logradouro}, ${loja.endereco.numero} - ${loja.endereco.bairro}, ${loja.endereco.cidade}/${loja.endereco.uf}`,
-      whatsapp: '(11) 99999-9999',
-    },
-    taxaDeslocamentoPadrao: 150,
-    templateContratoResumo: {
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
-          <h1 style="text-align: center; color: #F97316;">Contrato de Locação - Resumo</h1>
-          <div style="margin: 20px 0;">
-            <h3>Dados do Cliente:</h3>
-            <p><strong>{{cliente.nome}}</strong> - {{cliente.documento}}</p>
-            <p>{{cliente.endereco}}</p>
-          </div>
-          <div style="margin: 20px 0;">
-            <h3>Período:</h3>
-            <p>De {{contrato.dataInicio}} até {{contrato.dataFim}}</p>
-          </div>
-          <div style="margin: 20px 0;">
-            <h3>Equipamentos:</h3>
-            {{itens}}
-          </div>
-          <div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-left: 4px solid #F97316;">
-            <h3>Valor Total: R$ {{contrato.valorTotal}}</h3>
-            <p>Forma de Pagamento: {{contrato.pagamento.forma}}</p>
-            <p>Vencimento: {{contrato.pagamento.vencimento}}</p>
-          </div>
-        </div>
-      `,
-    },
-  }));
-
-  setStorageData(V2_STORAGE_KEYS.CONFIG_LOJAS, configLojas);
-
-  console.log('✅ Dados Contratos v2 seedados com sucesso!');
-}
-
 // Exportar storage functions
 export const lojaStorage = {
   getAll: () => getStorageData<Loja>(V2_STORAGE_KEYS.LOJAS),
@@ -411,11 +329,6 @@ export const reservaStorage = {
   getAll: () => getStorageData<Reserva>(V2_STORAGE_KEYS.RESERVAS),
   save: (reservas: Reserva[]) => setStorageData(V2_STORAGE_KEYS.RESERVAS, reservas),
   getAtivas: () => reservaStorage.getAll().filter(r => r.status === 'ATIVA'),
-};
-
-export const osLogisticaStorage = {
-  getAll: () => getStorageData<OSLogistica>(V2_STORAGE_KEYS.OS_LOGISTICA),
-  save: (os: OSLogistica[]) => setStorageData(V2_STORAGE_KEYS.OS_LOGISTICA, os),
 };
 
 // Sincronização OS → Itinerário

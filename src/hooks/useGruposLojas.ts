@@ -77,19 +77,3 @@ export function useGruposLojas() {
 
   return { grupos, isLoading, createGrupo, updateGrupo };
 }
-
-/** IDs dos grupos aos quais um usuário pertence. */
-export function useUserGrupos(userId?: string) {
-  return useQuery({
-    queryKey: ['user_grupos', userId],
-    enabled: !!userId,
-    queryFn: async () => {
-      const { data, error } = await db
-        .from('user_grupos')
-        .select('grupo_id')
-        .eq('user_id', userId!);
-      if (error) throw error;
-      return ((data || []) as { grupo_id: string }[]).map(r => r.grupo_id);
-    },
-  });
-}

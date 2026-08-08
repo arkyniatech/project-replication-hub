@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Remove @ts-nocheck and fix type issues
 import { useState, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,7 +10,7 @@ import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useSupabaseAditivos } from "@/hooks/useSupabaseAditivos";
 import { useToast } from "@/hooks/use-toast";
 import { ContratoHeader } from "@/components/contratos/ContratoHeader";
-import { FinanceiroCompacto } from "@/components/contratos/FinanceiroCompacto";
+import { FinanceiroCompacto, type ParcelaDTO } from "@/components/contratos/FinanceiroCompacto";
 import { LogisticaCard } from "@/components/contratos/LogisticaCard";
 import { OSLogisticaDialog, ReagendarLogisticaDialog } from "@/components/contratos/LogisticaContratoDialogs";
 import { ItensList } from "@/components/contratos/ItensList";
@@ -267,9 +265,9 @@ export default function ContratoDetalhes() {
     
     return aditivos
       .filter(aditivo => 
-        aditivo.valor > 0 && 
-        aditivo.status === 'ATIVO' && 
-        !aditivo.faturado &&
+        aditivo.valor > 0 &&
+        aditivo.status === 'ATIVO' &&
+        !(aditivo as { faturado?: boolean }).faturado &&
         aditivo.tipo !== 'AJUSTE'
       )
       .map(aditivo => ({
@@ -808,7 +806,7 @@ export default function ContratoDetalhes() {
         <TabsContent value="geral" className="space-y-6">
           {/* Financeiro Compacto */}
           <FinanceiroCompacto
-            parcelas={parcelas}
+            parcelas={parcelas as unknown as ParcelaDTO[]}
             previsoesNaoFaturadas={previsoesNaoFaturadas}
             saldoAtraso={saldoAtraso}
             saldoAbertoSemCobranca={parcelas.length === 0 ? (contrato.valorPendente || 0) : 0}

@@ -149,28 +149,3 @@ export function aplicarPolitica(contexto: Contexto): ResultadoPolitica {
   };
 }
 
-/**
- * Verifica se uma data cai em uma janela específica
- */
-export function verificarJanela(
-  politica: PoliticaID, 
-  dataISO: string, 
-  windowIndex: number
-): boolean {
-  const date = parseISO(dataISO);
-  const dayOfMonth = date.getDate();
-  const config = politicas[politica];
-  
-  if (!config || !config.faturamento.windows[windowIndex]) return false;
-  
-  const window = config.faturamento.windows[windowIndex];
-  return dayOfMonth >= window.startDay && dayOfMonth <= window.endDay;
-}
-
-/**
- * Retorna todas as janelas de uma política
- */
-export function getJanelas(politica: PoliticaID): WindowConfig[] {
-  const config = politicas[politica];
-  return config ? config.faturamento.windows : [];
-}

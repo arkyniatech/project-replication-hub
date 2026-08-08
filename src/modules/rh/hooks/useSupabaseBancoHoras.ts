@@ -1,5 +1,3 @@
-// @ts-nocheck
-// banco_horas_movimentos ainda não está em types.ts (criada no Bloco 4).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 

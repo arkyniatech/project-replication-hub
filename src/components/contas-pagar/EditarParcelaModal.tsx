@@ -47,8 +47,8 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
       parcelaCarregadaId.current = found.id;
       setVencimento(found.vencimento);
       setValor(found.valor.toString());
-      setContaPreferencial(found.contaPreferencial || '');
-      setObservacao(found.observacao || '');
+      setContaPreferencial((found as { contaPreferencial?: string }).contaPreferencial || '');
+      setObservacao((found as { observacao?: string }).observacao || '');
       setMotivo('');
       setAplicarTodas(false);
     }

@@ -314,9 +314,3 @@ export function getAccountBalancesSelector(): AccountBalancesSelector {
   }
   return selectorInstance;
 }
-
-// Hook para React
-export function useAccountBalances(dateRange: DateRange, options?: AccountBalancesOptions) {
-  const selector = getAccountBalancesSelector();
-  return selector.getAccountBalances(dateRange, options);
-}

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Portal do colaborador: usa o dado do PRÓPRIO usuário logado (via user_profiles.pessoa_id).
 // A RLS já libera "o próprio" em holerites/ferias/banco_horas/solicitacoes.
 import { useQuery } from '@tanstack/react-query';

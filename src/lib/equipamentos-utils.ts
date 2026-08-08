@@ -61,11 +61,6 @@ export function formatCodigoExibicao(
   return prefixo ? `${prefixo}-${sn}` : sn;
 }
 
-// Formatar código com padding
-export function padCodigo(n: number, min: number = 3): string {
-  return String(n).padStart(min, '0');
-}
-
 // Diferença entre tabelas de preços para histórico
 export function diffTabelaPrecos(
   prev: Record<string, Record<string, number>>,
@@ -104,17 +99,6 @@ export function diffTabelaPrecos(
   });
 
   return changes;
-}
-
-// Validar prefixo de código
-export function validatePrefixoCodigo(prefixo: string): boolean {
-  return /^[A-Z0-9]{2,6}$/.test(prefixo);
-}
-
-// Gerar próximo código baseado no modelo
-export function gerarProximoCodigo(prefixo: string, sequencial: number): string {
-  if (!prefixo) return '';
-  return `${prefixo.toUpperCase()}${padCodigo(sequencial, 3)}`;
 }
 
 // Verificar se tabela de preços tem pelo menos um valor

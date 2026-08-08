@@ -22,16 +22,6 @@ export function findCCPath(ccId: string): string {
   return parent ? `${parent.nome} › ${cc.nome}` : cc.nome;
 }
 
-export function findCCPathWithCode(ccId: string): string {
-  const centrosCusto = getCentrosCusto();
-  const cc = centrosCusto.find(item => item.id === ccId);
-  
-  if (!cc) return 'Sem CC';
-  
-  const parent = centrosCusto.find(item => item.id === cc.parentId);
-  return parent ? `${parent.codigo} › ${cc.codigo}` : cc.codigo;
-}
-
 export function getCCForSelect(): Array<{ id: string; label: string; unidadeId?: string; ativo: boolean }> {
   const centrosCusto = getCentrosCusto();
   
@@ -54,49 +44,6 @@ export function getCCPadraoParaCategoria(categoriaCodigo: string): string | unde
     console.error('Erro ao buscar CC padrão:', error);
   }
   return undefined;
-}
-
-export function ensureNotInUse(ccId: string): boolean {
-  // Mock - em produção verificaria nas parcelas/movimentos
-  // Por enquanto, apenas verifica se não tem filhos
-  const centrosCusto = getCentrosCusto();
-  const hasChildren = centrosCusto.some(cc => cc.parentId === ccId);
-  
-  if (hasChildren) {
-    return false;
-  }
-  
-  // Verificar uso em parcelas
-  try {
-    const titulos = localStorage.getItem('contas-pagar.titulos');
-    const parcelas = localStorage.getItem('contas-pagar.parcelas');
-    const movimentos = localStorage.getItem('contas-pagar.movimentos');
-    
-    if (titulos) {
-      const titulosData = JSON.parse(titulos);
-      if (titulosData.some((t: any) => t.ccId === ccId)) {
-        return false;
-      }
-    }
-    
-    if (parcelas) {
-      const parcelasData = JSON.parse(parcelas);
-      if (parcelasData.some((p: any) => p.ccId === ccId)) {
-        return false;
-      }
-    }
-    
-    if (movimentos) {
-      const movimentosData = JSON.parse(movimentos);
-      if (movimentosData.some((m: any) => m.ccId === ccId)) {
-        return false;
-      }
-    }
-  } catch (error) {
-    console.error('Erro ao verificar uso do CC:', error);
-  }
-  
-  return true;
 }
 
 export function mapRealByN2AndCC(

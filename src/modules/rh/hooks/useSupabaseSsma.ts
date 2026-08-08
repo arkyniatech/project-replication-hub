@@ -1,7 +1,6 @@
-// @ts-nocheck
-// rh_aso_exames/rh_treinamentos ainda não estão em types.ts (criadas no Bloco 12).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 export const TIPOS_ASO = [
   { value: 'admissional', label: 'Admissional' },
@@ -67,7 +66,7 @@ export function useSupabaseSsma() {
 
   const registrarAso = useMutation({
     mutationFn: async (input: Partial<AsoExame>) => {
-      const { data, error } = await supabase.from('rh_aso_exames').insert([input]).select().single();
+      const { data, error } = await supabase.from('rh_aso_exames').insert([input as TablesInsert<'rh_aso_exames'>]).select().single();
       if (error) throw error;
       return data;
     },
@@ -76,7 +75,7 @@ export function useSupabaseSsma() {
 
   const registrarTreinamento = useMutation({
     mutationFn: async (input: Partial<Treinamento>) => {
-      const { data, error } = await supabase.from('rh_treinamentos').insert([input]).select().single();
+      const { data, error } = await supabase.from('rh_treinamentos').insert([input as TablesInsert<'rh_treinamentos'>]).select().single();
       if (error) throw error;
       return data;
     },

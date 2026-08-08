@@ -1,5 +1,3 @@
-// @ts-nocheck
-// rescisao_simulacoes / rescisao_itens ainda não estão em types.ts (criadas no Bloco 11).
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 

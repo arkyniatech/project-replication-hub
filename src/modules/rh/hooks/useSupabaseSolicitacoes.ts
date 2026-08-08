@@ -1,5 +1,3 @@
-// @ts-nocheck
-// rh_solicitacoes / rh_aprovacoes ainda não estão em types.ts (criadas no Bloco 7).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 

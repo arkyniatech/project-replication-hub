@@ -1,5 +1,3 @@
-// @ts-nocheck
-// ferias_periodos / ferias_agendamentos ainda não estão em types.ts (criadas no Bloco 2).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { differenceInCalendarDays, parseISO } from 'date-fns';

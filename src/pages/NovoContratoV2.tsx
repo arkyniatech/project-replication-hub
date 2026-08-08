@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -1109,10 +1108,10 @@ export default function NovoContratoV2() {
 
       // Extrair contatos/nome do cliente (compartilhado por todos os modos)
       const contatoEmail = contrato.cliente?.contatos?.find(
-        c => c.tipo === 'Email' || c.tipo === 'email'
+        c => c.tipo === 'Email' || (c.tipo as string) === 'email'
       );
       const contatoWhatsApp = contrato.cliente?.contatos?.find(
-        c => c.tipo === 'WhatsApp' || c.tipo === 'Telefone' || c.tipo === 'whatsapp' || c.tipo === 'telefone'
+        c => c.tipo === 'WhatsApp' || c.tipo === 'Telefone' || (c.tipo as string) === 'whatsapp' || (c.tipo as string) === 'telefone'
       );
       const nomeCliente = contrato.cliente?.tipo === 'PJ'
         ? (contrato.cliente.razaoSocial || contrato.cliente.nomeFantasia || contrato.cliente.nomeRazao || '')

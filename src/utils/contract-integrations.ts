@@ -161,23 +161,6 @@ export function initializeContractIntegrations() {
   console.log('Contract integrations initialized');
 }
 
-// Emitir evento de renovação de contrato
-export function emitContractRenewal(
-  contratoId: string, 
-  contratoNumero: string, 
-  lojaId: string, 
-  novaDataFim: string,
-  equipamentoIds: string[] = []
-) {
-  contractEventBus.emit({
-    type: 'RENOVADO',
-    contratoId,
-    contratoNumero,
-    lojaId,
-    payload: { novaDataFim, equipamentoIds }
-  });
-}
-
 // Emitir evento de devolução
 export function emitItemReturn(
   contratoId: string,
@@ -187,22 +170,6 @@ export function emitItemReturn(
 ) {
   contractEventBus.emit({
     type: 'ITEM_DEVOLVIDO',
-    contratoId,
-    contratoNumero,
-    lojaId,
-    payload: { equipamentoIds }
-  });
-}
-
-// Emitir evento de substituição
-export function emitItemSubstitution(
-  contratoId: string,
-  contratoNumero: string,
-  lojaId: string,
-  equipamentoIds: string[]
-) {
-  contractEventBus.emit({
-    type: 'ITEM_SUBSTITUIDO',
     contratoId,
     contratoNumero,
     lojaId,

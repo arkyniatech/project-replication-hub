@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Search, Plus, Briefcase } from 'lucide-react';
-import { useSupabaseRecrutamento } from '../hooks/useSupabaseRecrutamento';
+import { useSupabaseRecrutamento, type Vaga } from '../hooks/useSupabaseRecrutamento';
 import { useSupabaseLojas } from '../hooks/useSupabaseLojas';
 import { RhQueryError } from '../components/RhQueryError';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
@@ -62,7 +62,7 @@ export default function Vagas() {
   const mudarStatus = async (id: string, status: string) => {
     try {
       await atualizarVaga.mutateAsync({
-        id, status,
+        id, status: status as Vaga['status'],
         fechada_em: status === 'FECHADA' ? toISODateLocal(new Date()) : null,
       });
       toast.success(`Vaga ${STATUS_LABEL[status].toLowerCase()}.`);

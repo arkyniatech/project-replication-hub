@@ -26,11 +26,6 @@ const prefersReducedMotion = () => {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 };
 
-// Duração das animações baseada na preferência do usuário
-export const getAnimationDuration = () => {
-  return prefersReducedMotion() ? 100 : 200;
-};
-
 export function useNavRail({ railRef, panelRef }: UseNavRailProps = {}): UseNavRailReturn {
   const location = useLocation();
   const [isExpanded, setIsExpanded] = useState(false);

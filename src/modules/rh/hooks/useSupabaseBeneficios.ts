@@ -1,7 +1,6 @@
-// @ts-nocheck
-// rh_beneficios/rh_beneficio_* ainda não estão em types.ts (criadas no Bloco 12).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 export const TIPOS_BENEFICIO = [
   { value: 'VALE_REFEICAO', label: 'Vale Refeição' },
@@ -87,7 +86,7 @@ export function useSupabaseBeneficios() {
 
   const criarBeneficio = useMutation({
     mutationFn: async (input: Partial<Beneficio>) => {
-      const { data, error } = await supabase.from('rh_beneficios').insert([input]).select().single();
+      const { data, error } = await supabase.from('rh_beneficios').insert([input as TablesInsert<'rh_beneficios'>]).select().single();
       if (error) throw error;
       return data;
     },
@@ -122,7 +121,7 @@ export function useSupabaseBeneficios() {
 
   const vincular = useMutation({
     mutationFn: async (input: Partial<BeneficioVinculo>) => {
-      const { data, error } = await supabase.from('rh_beneficio_vinculos').insert([input]).select().single();
+      const { data, error } = await supabase.from('rh_beneficio_vinculos').insert([input as TablesInsert<'rh_beneficio_vinculos'>]).select().single();
       if (error) throw error;
       return data;
     },

@@ -1,5 +1,3 @@
-// @ts-nocheck
-// ausencias ainda não está em types.ts (criada no Bloco 3).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 

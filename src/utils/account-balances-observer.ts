@@ -56,14 +56,3 @@ export function setupAccountBalancesObserver() {
     }
   }
 }
-
-// Hook para integrar com stores
-export function useAccountBalancesIntegration() {
-  // Este hook pode ser usado pelos stores para disparar invalidações
-  const invalidateBalances = (reason: 'contas' | 'lancamentos' | 'bloqueios' | 'conciliacoes') => {
-    const selector = getAccountBalancesSelector();
-    selector.invalidateCache(reason);
-  };
-
-  return { invalidateBalances };
-}

@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Search, Users, Plus } from 'lucide-react';
-import { useSupabaseRecrutamento } from '../hooks/useSupabaseRecrutamento';
+import { useSupabaseRecrutamento, type Candidato } from '../hooks/useSupabaseRecrutamento';
 import { RhQueryError } from '../components/RhQueryError';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
 import { toast } from 'sonner';
@@ -64,7 +64,7 @@ export default function Candidatos() {
 
   const mudarStatus = async (id: string, status: string) => {
     try {
-      await atualizarCandidato.mutateAsync({ id, status });
+      await atualizarCandidato.mutateAsync({ id, status: status as Candidato['status'] });
       toast.success(`Candidato: ${STATUS_LABEL[status].toLowerCase()}.`);
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao atualizar candidato.');

@@ -28,17 +28,10 @@
 // Re-export das funções deprecated para não quebrar código existente
 // Estas exportações serão removidas em versões futuras
 export {
-  obraStorage,
   clienteStorage,
-  grupoStorage,
   equipamentoStorage,
   contratoStorage,
-  faturaStorage,
   tituloStorage,
-  recebimentoStorage,
-  templateStorage,
-  avisoStorage,
-  contatoCobrancaStorage,
   caixaStorage,
   getAppConfig,
   setAppConfig

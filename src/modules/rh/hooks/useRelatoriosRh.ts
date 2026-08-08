@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Agregações reais de RH para os relatórios (headcount, folha, férias, banco de horas, ausências, docs).
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';

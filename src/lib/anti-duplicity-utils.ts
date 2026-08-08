@@ -291,11 +291,3 @@ export function getAntiDuplicityConfig(): AntiDuplicityConfig {
   const config = JSON.parse(localStorage.getItem('config') || '{}');
   return config.financeiro?.antiDuplicidade || getDefaultAntiDuplicityConfig();
 }
-
-// Salvar configuração de anti-duplicidade
-export function saveAntiDuplicityConfig(config: AntiDuplicityConfig): void {
-  const appConfig = JSON.parse(localStorage.getItem('config') || '{}');
-  if (!appConfig.financeiro) appConfig.financeiro = {};
-  appConfig.financeiro.antiDuplicidade = config;
-  localStorage.setItem('config', JSON.stringify(appConfig));
-}

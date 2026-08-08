@@ -1,7 +1,6 @@
-// @ts-nocheck
-// rh_desligamentos ainda não está em types.ts (criada no Bloco 12).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 export const MOTIVOS_DESLIGAMENTO = [
   { value: 'pedido_demissao', label: 'Pedido de demissão' },
@@ -52,7 +51,7 @@ export function useSupabaseDesligamentos() {
 
   const criar = useMutation({
     mutationFn: async (input: Partial<Desligamento>) => {
-      const { data, error } = await supabase.from('rh_desligamentos').insert([input]).select().single();
+      const { data, error } = await supabase.from('rh_desligamentos').insert([input as TablesInsert<'rh_desligamentos'>]).select().single();
       if (error) throw error;
       return data;
     },

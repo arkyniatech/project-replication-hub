@@ -17,22 +17,15 @@
  * Este arquivo será removido em versões futuras quando a migração estiver completa.
  */
 
-import { Cliente, Equipamento, Contrato, Fatura, GrupoEquipamento, Titulo, Recebimento, Template, Aviso, ContatoCobranca, CaixaDoDia, AppConfig, Obra } from '@/types';
+import { Cliente, Equipamento, Contrato, Titulo, CaixaDoDia, AppConfig } from '@/types';
 
 const STORAGE_KEYS = {
   CLIENTES: 'erp-clientes',
   EQUIPAMENTOS: 'erp-equipamentos',
   CONTRATOS: 'erp-contratos',
-  FATURAS: 'erp-faturas',
-  GRUPOS: 'erp-grupos-equipamentos',
   TITULOS: 'erp-titulos',
-  RECEBIMENTOS: 'erp-recebimentos',
-  TEMPLATES: 'erp-templates',
-  AVISOS: 'erp-avisos',
-  CONTATOS_COBRANCA: 'erp-contatos-cobranca',
   CAIXAS: 'erp-caixas',
   CONFIG: 'erp-config',
-  OBRAS: 'erp-obras',
 } as const;
 
 // Funções genéricas para localStorage
@@ -55,72 +48,6 @@ function setStorageData<T>(key: string, data: T[]): void {
 }
 
 // ==================== DEPRECATED STORAGE FUNCTIONS ====================
-
-/**
- * @deprecated Use useSupabaseObras hook instead
- */
-export const obraStorage = {
-  getAll: () => getStorageData<Obra>(STORAGE_KEYS.OBRAS),
-  save: (obras: Obra[]) => setStorageData(STORAGE_KEYS.OBRAS, obras),
-  add: (obra: Obra) => {
-    const obras = obraStorage.getAll();
-    obras.push(obra);
-    obraStorage.save(obras);
-    
-    const cliente = clienteStorage.getById(obra.clienteId);
-    if (cliente) {
-      const obrasCliente = obras.filter(o => o.clienteId === obra.clienteId);
-      clienteStorage.update(obra.clienteId, { obras: obrasCliente });
-    }
-  },
-  update: (id: string, updates: Partial<Obra>) => {
-    const obras = obraStorage.getAll();
-    const index = obras.findIndex(o => o.id === id);
-    if (index !== -1) {
-      obras[index] = { ...obras[index], ...updates, updatedAt: new Date().toISOString() };
-      obraStorage.save(obras);
-      
-      const obra = obras[index];
-      const cliente = clienteStorage.getById(obra.clienteId);
-      if (cliente) {
-        const obrasCliente = obras.filter(o => o.clienteId === obra.clienteId);
-        clienteStorage.update(obra.clienteId, { obras: obrasCliente });
-      }
-    }
-  },
-  delete: (id: string) => {
-    const obra = obraStorage.getById(id);
-    const obras = obraStorage.getAll().filter(o => o.id !== id);
-    obraStorage.save(obras);
-    
-    if (obra) {
-      const cliente = clienteStorage.getById(obra.clienteId);
-      if (cliente) {
-        const obrasCliente = obras.filter(o => o.clienteId === obra.clienteId);
-        clienteStorage.update(obra.clienteId, { obras: obrasCliente });
-      }
-    }
-  },
-  getById: (id: string) => obraStorage.getAll().find(o => o.id === id),
-  getByCliente: (clienteId: string) => obraStorage.getAll().filter(o => o.clienteId === clienteId),
-  setAsPadrao: (id: string) => {
-    const obra = obraStorage.getById(id);
-    if (!obra) return;
-    
-    const obras = obraStorage.getAll().map(o => 
-      o.clienteId === obra.clienteId 
-        ? { ...o, isPadrao: o.id === id }
-        : o
-    );
-    obraStorage.save(obras);
-    
-    const cliente = clienteStorage.getById(obra.clienteId);
-    if (cliente) {
-      const obrasCliente = obras.filter(o => o.clienteId === obra.clienteId);
-      clienteStorage.update(obra.clienteId, { obras: obrasCliente });
-    }
-  }
-};
 
 /**
  * @deprecated Use useSupabaseClientes hook instead
@@ -146,19 +73,6 @@ export const clienteStorage = {
     clienteStorage.save(clientes);
   },
   getById: (id: string) => clienteStorage.getAll().find(c => c.id === id),
-};
-
-/**
- * @deprecated Use useSupabaseGrupos hook instead
- */
-export const grupoStorage = {
-  getAll: () => getStorageData<GrupoEquipamento>(STORAGE_KEYS.GRUPOS),
-  save: (grupos: GrupoEquipamento[]) => setStorageData(STORAGE_KEYS.GRUPOS, grupos),
-  add: (grupo: GrupoEquipamento) => {
-    const grupos = grupoStorage.getAll();
-    grupos.push(grupo);
-    grupoStorage.save(grupos);
-  },
 };
 
 /**
@@ -211,29 +125,6 @@ export const contratoStorage = {
 };
 
 /**
- * @deprecated Use useSupabaseFaturas hook instead
- */
-export const faturaStorage = {
-  getAll: () => getStorageData<Fatura>(STORAGE_KEYS.FATURAS),
-  save: (faturas: Fatura[]) => setStorageData(STORAGE_KEYS.FATURAS, faturas),
-  add: (fatura: Fatura) => {
-    const faturas = faturaStorage.getAll();
-    faturas.push(fatura);
-    faturaStorage.save(faturas);
-  },
-  update: (id: string, updates: Partial<Fatura>) => {
-    const faturas = faturaStorage.getAll();
-    const index = faturas.findIndex(f => f.id === id);
-    if (index !== -1) {
-      faturas[index] = { ...faturas[index], ...updates, updatedAt: new Date().toISOString() };
-      faturaStorage.save(faturas);
-    }
-  },
-  getById: (id: string) => faturaStorage.getAll().find(f => f.id === id),
-  getByStatus: (status: string) => faturaStorage.getAll().filter(f => f.status === status),
-};
-
-/**
  * @deprecated Use useSupabaseTitulos hook instead
  */
 export const tituloStorage = {
@@ -261,71 +152,6 @@ export const tituloStorage = {
       return vencimento < hoje && (t.status === 'Em aberto' || t.status === 'Parcial');
     });
   }
-};
-
-/**
- * @deprecated Use useSupabaseRecebimentos hook instead
- */
-export const recebimentoStorage = {
-  getAll: () => getStorageData<Recebimento>(STORAGE_KEYS.RECEBIMENTOS),
-  save: (recebimentos: Recebimento[]) => setStorageData(STORAGE_KEYS.RECEBIMENTOS, recebimentos),
-  add: (recebimento: Recebimento) => {
-    const recebimentos = recebimentoStorage.getAll();
-    recebimentos.push(recebimento);
-    recebimentoStorage.save(recebimentos);
-  },
-  getByTitulo: (tituloId: string) => recebimentoStorage.getAll().filter(r => r.tituloId === tituloId),
-  getByPeriodo: (inicio: string, fim: string) => {
-    return recebimentoStorage.getAll().filter(r => {
-      const data = new Date(r.data);
-      return data >= new Date(inicio) && data <= new Date(fim);
-    });
-  }
-};
-
-/**
- * @deprecated Use useSupabaseTemplates hook instead
- */
-export const templateStorage = {
-  getAll: () => getStorageData<Template>(STORAGE_KEYS.TEMPLATES),
-  save: (templates: Template[]) => setStorageData(STORAGE_KEYS.TEMPLATES, templates),
-  add: (template: Template) => {
-    const templates = templateStorage.getAll();
-    templates.push(template);
-    templateStorage.save(templates);
-  },
-  getById: (id: string) => templateStorage.getAll().find(t => t.id === id),
-  getByCanal: (canal: string) => templateStorage.getAll().filter(t => t.canal === canal),
-};
-
-/**
- * @deprecated Use useSupabaseAvisos hook instead
- */
-export const avisoStorage = {
-  getAll: () => getStorageData<Aviso>(STORAGE_KEYS.AVISOS),
-  save: (avisos: Aviso[]) => setStorageData(STORAGE_KEYS.AVISOS, avisos),
-  add: (aviso: Aviso) => {
-    const avisos = avisoStorage.getAll();
-    avisos.push(aviso);
-    avisoStorage.save(avisos);
-  },
-  getByCliente: (clienteId: string) => avisoStorage.getAll().filter(a => a.clienteId === clienteId),
-  getByTitulo: (tituloId: string) => avisoStorage.getAll().filter(a => a.tituloId === tituloId),
-};
-
-/**
- * @deprecated Use useSupabaseContatosCobranca hook instead
- */
-export const contatoCobrancaStorage = {
-  getAll: () => getStorageData<ContatoCobranca>(STORAGE_KEYS.CONTATOS_COBRANCA),
-  save: (contatos: ContatoCobranca[]) => setStorageData(STORAGE_KEYS.CONTATOS_COBRANCA, contatos),
-  add: (contato: ContatoCobranca) => {
-    const contatos = contatoCobrancaStorage.getAll();
-    contatos.push(contato);
-    contatoCobrancaStorage.save(contatos);
-  },
-  getByCliente: (clienteId: string) => contatoCobrancaStorage.getAll().filter(c => c.clienteId === clienteId),
-  getByTitulo: (tituloId: string) => contatoCobrancaStorage.getAll().filter(c => c.tituloId === tituloId),
 };
 
 /**

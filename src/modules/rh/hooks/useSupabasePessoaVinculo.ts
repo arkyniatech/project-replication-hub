@@ -1,5 +1,3 @@
-// @ts-nocheck
-// pessoa_vinculo ainda não está em types.ts (tabela criada direto no banco na Fundação).
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 

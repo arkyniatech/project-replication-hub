@@ -187,16 +187,5 @@ export const clienteSchema = z.object({
     .or(z.literal('')),
 });
 
-/**
- * Schema de validação para valores monetários
- */
-export const valorMonetarioSchema = z.number()
-  .positive("Valor deve ser positivo")
-  .max(9999999.99, "Valor muito alto")
-  .refine((val) => {
-    // Validar até 2 casas decimais
-    return /^\d+(\.\d{1,2})?$/.test(val.toString());
-  }, "Valor deve ter no máximo 2 casas decimais");
-
 export type PessoaFormData = z.infer<typeof pessoaSchema>;
 export type ClienteFormData = z.infer<typeof clienteSchema>;

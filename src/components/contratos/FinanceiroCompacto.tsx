@@ -19,7 +19,7 @@ interface Aditivo {
   data: string;
 }
 
-interface ParcelaDTO {
+export interface ParcelaDTO {
   id: string;
   codigo: string;
   valor: number;

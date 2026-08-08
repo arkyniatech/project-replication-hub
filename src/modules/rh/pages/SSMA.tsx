@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Shield, Plus, AlertTriangle } from 'lucide-react';
-import { useSupabaseSsma, TIPOS_ASO } from '../hooks/useSupabaseSsma';
+import { useSupabaseSsma, TIPOS_ASO, type AsoExame } from '../hooks/useSupabaseSsma';
 import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
 import { RhQueryError } from '../components/RhQueryError';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
@@ -71,7 +71,7 @@ export default function SSMA() {
         tipo: formA.tipo,
         data_exame: formA.dataExame,
         validade: formA.validade || null,
-        resultado: formA.resultado,
+        resultado: formA.resultado as AsoExame['resultado'],
         medico: formA.medico || null,
       });
       toast.success('ASO registrado.');

@@ -1,7 +1,6 @@
-// @ts-nocheck
-// rh_vagas/rh_candidatos/rh_admissoes ainda não estão em types.ts (criadas no Bloco 12).
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 export interface Vaga {
   id: string;
@@ -101,7 +100,7 @@ export function useSupabaseRecrutamento() {
 
   const criarVaga = useMutation({
     mutationFn: async (input: Partial<Vaga>) => {
-      const { data, error } = await supabase.from('rh_vagas').insert([input]).select().single();
+      const { data, error } = await supabase.from('rh_vagas').insert([input as TablesInsert<'rh_vagas'>]).select().single();
       if (error) throw error;
       return data;
     },
@@ -118,7 +117,7 @@ export function useSupabaseRecrutamento() {
 
   const criarCandidato = useMutation({
     mutationFn: async (input: Partial<Candidato>) => {
-      const { data, error } = await supabase.from('rh_candidatos').insert([input]).select().single();
+      const { data, error } = await supabase.from('rh_candidatos').insert([input as TablesInsert<'rh_candidatos'>]).select().single();
       if (error) throw error;
       return data;
     },
@@ -135,7 +134,7 @@ export function useSupabaseRecrutamento() {
 
   const criarAdmissao = useMutation({
     mutationFn: async (input: Partial<Admissao>) => {
-      const { data, error } = await supabase.from('rh_admissoes').insert([input]).select().single();
+      const { data, error } = await supabase.from('rh_admissoes').insert([input as TablesInsert<'rh_admissoes'>]).select().single();
       if (error) throw error;
       return data;
     },
