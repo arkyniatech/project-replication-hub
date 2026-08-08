@@ -1,11 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { useTransferenciasStore } from "@/stores/transferenciasStore";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSupabaseTransferencias } from "@/hooks/useSupabaseTransferencias";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, User, Truck, FileText, MapPin } from "lucide-react";
+import { Clock, User, FileText, MapPin } from "lucide-react";
 
 interface DetalheTransferenciaModalProps {
   open: boolean;
@@ -13,7 +13,7 @@ interface DetalheTransferenciaModalProps {
   transferenciaId: string | null;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   'CRIADA': { label: 'Criada', color: 'bg-blue-500' },
   'EM_TRANSITO': { label: 'Em Trânsito', color: 'bg-orange-500' },
   'RECEBIDA': { label: 'Recebida', color: 'bg-green-500' },
@@ -21,22 +21,36 @@ const statusConfig = {
   'CANCELADA': { label: 'Cancelada', color: 'bg-gray-500' }
 };
 
-export function DetalheTransferenciaModal({ 
-  open, 
-  onOpenChange, 
-  transferenciaId 
-}: DetalheTransferenciaModalProps) {
-  const { transferencias } = useTransferenciasStore();
-  
-  const transferencia = transferenciaId 
-    ? transferencias.find(t => t.id === transferenciaId)
-    : null;
+const MOTIVO_RECUSA_LABEL: Record<string, string> = {
+  NUMERACAO: 'Numeração divergente',
+  DANO: 'Item danificado',
+  DESTINO: 'Destino incorreto',
+  OUTRO: 'Outro motivo',
+};
 
-  if (!transferencia) {
-    return null;
+export function DetalheTransferenciaModal({
+  open,
+  onOpenChange,
+  transferenciaId
+}: DetalheTransferenciaModalProps) {
+  const { useTransferencia } = useSupabaseTransferencias();
+  const { data: transferencia, isLoading } = useTransferencia(transferenciaId ?? undefined);
+
+  if (!open) return null;
+
+  if (isLoading || !transferencia) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>Transferência</DialogTitle></DialogHeader>
+          <Skeleton className="h-64 w-full" />
+        </DialogContent>
+      </Dialog>
+    );
   }
 
-  const statusInfo = statusConfig[transferencia.status];
+  const statusInfo = statusConfig[transferencia.status] ?? { label: transferencia.status, color: 'bg-gray-500' };
+  const recusa = transferencia.recusa as { motivo?: string; detalhe?: string; porUsuarioNome?: string; em?: string } | null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,11 +77,11 @@ export function DetalheTransferenciaModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Origem</label>
-                  <p className="font-medium">{transferencia.origemLojaNome}</p>
+                  <p className="font-medium">{transferencia.origem?.nome ?? '—'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Destino</label>
-                  <p className="font-medium">{transferencia.destinoLojaNome}</p>
+                  <p className="font-medium">{transferencia.destino?.nome ?? '—'}</p>
                 </div>
               </div>
 
@@ -85,11 +99,11 @@ export function DetalheTransferenciaModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Criado em</label>
-                  <p>{format(new Date(transferencia.criadoEm), 'dd/MM/yyyy \'às\' HH:mm', { locale: ptBR })}</p>
+                  <p>{format(new Date(transferencia.created_at), 'dd/MM/yyyy \'às\' HH:mm', { locale: ptBR })}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Atualizado em</label>
-                  <p>{format(new Date(transferencia.atualizadoEm), 'dd/MM/yyyy \'às\' HH:mm', { locale: ptBR })}</p>
+                  <p>{format(new Date(transferencia.updated_at), 'dd/MM/yyyy \'às\' HH:mm', { locale: ptBR })}</p>
                 </div>
               </div>
 
@@ -112,7 +126,7 @@ export function DetalheTransferenciaModal({
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {transferencia.itens.map((item, index) => (
+                {transferencia.itens.map((item: any) => (
                   <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <Badge variant={item.tipo === 'SERIAL' ? 'default' : 'secondary'}>
@@ -120,7 +134,7 @@ export function DetalheTransferenciaModal({
                       </Badge>
                       <div>
                         <p className="font-medium">
-                          {item.codigoInterno || item.descricao}
+                          {item.codigo_interno || item.descricao || item.modelo?.nome_comercial || item.grupo?.nome || '—'}
                         </p>
                         {item.serie && (
                           <p className="text-sm text-muted-foreground">
@@ -128,7 +142,7 @@ export function DetalheTransferenciaModal({
                           </p>
                         )}
                         <p className="text-sm text-muted-foreground">
-                          {item.descricao}
+                          {item.descricao || item.modelo?.nome_comercial || ''}
                         </p>
                       </div>
                     </div>
@@ -142,7 +156,7 @@ export function DetalheTransferenciaModal({
           </Card>
 
           {/* Recusa */}
-          {transferencia.recusa && (
+          {recusa && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-red-600">Motivo da Recusa</CardTitle>
@@ -152,28 +166,25 @@ export function DetalheTransferenciaModal({
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Motivo</label>
                     <p className="font-medium">
-                      {transferencia.recusa.motivo === 'NUMERACAO' && 'Numeração divergente'}
-                      {transferencia.recusa.motivo === 'DANO' && 'Item danificado'}
-                      {transferencia.recusa.motivo === 'DESTINO' && 'Destino incorreto'}
-                      {transferencia.recusa.motivo === 'OUTRO' && 'Outro motivo'}
+                      {MOTIVO_RECUSA_LABEL[recusa.motivo ?? ''] ?? recusa.motivo ?? '—'}
                     </p>
                   </div>
-                  
-                  {transferencia.recusa.detalhe && (
+
+                  {recusa.detalhe && (
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Detalhes</label>
                       <p className="mt-1 p-3 bg-red-50 border border-red-200 rounded-md">
-                        {transferencia.recusa.detalhe}
+                        {recusa.detalhe}
                       </p>
                     </div>
                   )}
-                  
-                  {transferencia.recusa.porUsuarioNome && transferencia.recusa.em && (
+
+                  {recusa.porUsuarioNome && recusa.em && (
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Recusado por</label>
                       <p>
-                        {transferencia.recusa.porUsuarioNome} em{' '}
-                        {format(new Date(transferencia.recusa.em), 'dd/MM/yyyy \'às\' HH:mm', { locale: ptBR })}
+                        {recusa.porUsuarioNome} em{' '}
+                        {format(new Date(recusa.em), 'dd/MM/yyyy \'às\' HH:mm', { locale: ptBR })}
                       </p>
                     </div>
                   )}
@@ -192,8 +203,8 @@ export function DetalheTransferenciaModal({
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {transferencia.logs.map((log, index) => (
-                  <div key={index} className="flex gap-3">
+                {transferencia.logs.map((log: any, index: number) => (
+                  <div key={log.id} className="flex gap-3">
                     <div className="flex flex-col items-center">
                       <div className="w-3 h-3 bg-primary rounded-full" />
                       {index < transferencia.logs.length - 1 && (
@@ -206,12 +217,12 @@ export function DetalheTransferenciaModal({
                           {log.acao}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
-                          {format(new Date(log.em), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                          {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                         </span>
                       </div>
                       <p className="text-sm">
                         <User className="h-3 w-3 inline mr-1" />
-                        {log.porUsuarioNome}
+                        {log.por_usuario_nome ?? '—'}
                       </p>
                       {log.detalhe && (
                         <p className="text-sm text-muted-foreground mt-1">

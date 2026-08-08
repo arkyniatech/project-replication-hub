@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useTransferenciasStore } from "@/stores/transferenciasStore";
+import { useSupabaseTransferencias } from "@/hooks/useSupabaseTransferencias";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FileText, Download, Printer } from "lucide-react";
@@ -17,12 +17,9 @@ interface DespachoPDFProps {
 }
 
 export function DespachoPDF({ open, onOpenChange, transferenciaId }: DespachoPDFProps) {
-  const { transferencias } = useTransferenciasStore();
+  const { useTransferencia } = useSupabaseTransferencias();
+  const { data: transferencia } = useTransferencia(transferenciaId ?? undefined);
   const [loading, setLoading] = useState(false);
-  
-  const transferencia = transferenciaId 
-    ? transferencias.find(t => t.id === transferenciaId)
-    : null;
 
   const generatePDF = async () => {
     if (!transferencia) return;
@@ -119,7 +116,7 @@ export function DespachoPDF({ open, onOpenChange, transferenciaId }: DespachoPDF
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2">ORIGEM</h3>
                 <div>
-                  <p className="font-medium">{transferencia.origemLojaNome}</p>
+                  <p className="font-medium">{transferencia.origem?.nome ?? '—'}</p>
                   <p className="text-sm text-muted-foreground">Loja remetente</p>
                 </div>
               </div>
@@ -127,7 +124,7 @@ export function DespachoPDF({ open, onOpenChange, transferenciaId }: DespachoPDF
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg border-b pb-2">DESTINO</h3>
                 <div>
-                  <p className="font-medium">{transferencia.destinoLojaNome}</p>
+                  <p className="font-medium">{transferencia.destino?.nome ?? '—'}</p>
                   <p className="text-sm text-muted-foreground">Loja destinatária</p>
                 </div>
               </div>
@@ -163,13 +160,13 @@ export function DespachoPDF({ open, onOpenChange, transferenciaId }: DespachoPDF
                     </tr>
                   </thead>
                   <tbody>
-                    {transferencia.itens.map((item, index) => (
-                      <tr key={index}>
+                    {transferencia.itens.map((item: any) => (
+                      <tr key={item.id}>
                         <td className="border border-gray-300 px-4 py-2 font-mono">
-                          {item.codigoInterno || '-'}
+                          {item.codigo_interno || '-'}
                         </td>
                         <td className="border border-gray-300 px-4 py-2">
-                          {item.descricao}
+                          {item.descricao || item.modelo?.nome_comercial || item.grupo?.nome || '—'}
                         </td>
                         <td className="border border-gray-300 px-4 py-2">
                           <Badge variant={item.tipo === 'SERIAL' ? 'default' : 'secondary'}>
@@ -214,14 +211,14 @@ export function DespachoPDF({ open, onOpenChange, transferenciaId }: DespachoPDF
                 <div className="text-center">
                   <div className="border-b border-gray-400 h-12 mb-2"></div>
                   <p className="font-medium">Responsável (Origem)</p>
-                  <p className="text-sm text-muted-foreground">{transferencia.origemLojaNome}</p>
+                  <p className="text-sm text-muted-foreground">{transferencia.origem?.nome ?? '—'}</p>
                   <p className="text-sm text-muted-foreground">Data: ___/___/______</p>
                 </div>
 
                 <div className="text-center">
                   <div className="border-b border-gray-400 h-12 mb-2"></div>
                   <p className="font-medium">Responsável (Destino)</p>
-                  <p className="text-sm text-muted-foreground">{transferencia.destinoLojaNome}</p>
+                  <p className="text-sm text-muted-foreground">{transferencia.destino?.nome ?? '—'}</p>
                   <p className="text-sm text-muted-foreground">Data: ___/___/______</p>
                 </div>
               </div>

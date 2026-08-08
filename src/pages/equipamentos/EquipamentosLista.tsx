@@ -23,7 +23,6 @@ import { useEquipamentosOcupados } from "@/hooks/useEquipamentosOcupados";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 import { StatusEquipamento } from "@/types/equipamentos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
-import { useTransferEvents } from "@/hooks/useTransferEvents";
 import { HistoricoTransferenciasModal } from "@/components/transferencias/HistoricoTransferenciasModal";
 import { EquipamentoKPIsBadges } from "@/components/equipamentos/EquipamentoKPIsBadges";
 import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
@@ -51,9 +50,6 @@ const STATUS_LABELS: Record<StatusEquipamento, string> = {
 export default function EquipamentosLista() {
   const navigate = useNavigate();
   const { lojaAtual, lojas } = useMultiunidade();
-  
-  // Subscribe to transfer events for real-time KPI updates
-  useTransferEvents();
   
   // #26b: a lista mostrava só itens com loja_atual_id === lojaAtual, enquanto
   // o catálogo mostrava todos — gerando relato "lista só mostra 059, mas

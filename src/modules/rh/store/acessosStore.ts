@@ -57,16 +57,9 @@ interface AcessosState {
   setPerfilAtivo: (perfilId: string) => void;
   
   // Legacy methods for compatibility
-  gerarConvite?: (userId: string) => void;
-  suspenderUsuario?: (userId: string) => void;
-  revogarUsuario?: (userId: string) => void;
-  encerrarSessoes?: (userId: string) => void;
-  provisionarUsuario?: (userData: any) => Usuario;
-  updateUsuario?: (id: string, data: any) => void;
-  criarSolicitacaoAcesso?: (data: any) => void;
-  config?: any;
-  solicitacoes?: any[];
-  loadFromStorage?: () => void;
+  // Ações de segurança (suspender/revogar/encerrar sessões) foram REMOVIDAS:
+  // eram mocks de console.log — gestão real de acesso é via edge functions
+  // create-user/update-user-access (ver CriarUsuarioModal / AcessoTab).
 }
 
 // Perfis padrão do sistema com claims granulares
@@ -214,21 +207,6 @@ export const useAcessosStore = create<AcessosState>()(
         localStorage.setItem('rh-dev-profile', perfilId);
       },
 
-      // Legacy methods - mock implementations
-      gerarConvite: (userId) => console.log('Mock: gerarConvite', userId),
-      suspenderUsuario: (userId) => console.log('Mock: suspenderUsuario', userId),
-      revogarUsuario: (userId) => console.log('Mock: revogarUsuario', userId),
-      encerrarSessoes: (userId) => console.log('Mock: encerrarSessoes', userId),
-      provisionarUsuario: (userData) => ({ 
-        id: 'mock-' + Date.now(), 
-        ...userData,
-        criadoEm: new Date().toISOString()
-      }),
-      updateUsuario: (id, data) => get().updateUser(id, data),
-      criarSolicitacaoAcesso: (data) => console.log('Mock: criarSolicitacaoAcesso', data),
-      config: {},
-      solicitacoes: [],
-      loadFromStorage: () => console.log('Mock: loadFromStorage')
     }),
     {
       name: 'acessos-store',

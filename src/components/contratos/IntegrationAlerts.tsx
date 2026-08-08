@@ -30,7 +30,7 @@ export function IntegrationAlerts({
 
       for (const equipId of equipamentoIds) {
         // Check transfers
-        const transferCheck = checkEquipmentInTransfer(equipId, lojaId);
+        const transferCheck = await checkEquipmentInTransfer(equipId, lojaId);
         if (transferCheck.isInTransfer && transferCheck.transferencia) {
           transfers.push({
             equipamentoId: equipId,

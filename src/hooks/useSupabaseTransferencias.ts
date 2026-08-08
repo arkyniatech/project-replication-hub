@@ -26,7 +26,8 @@ export function useSupabaseTransferencias(lojaId?: string) {
         .select(`
           *,
           origem:lojas!transferencias_origem_loja_id_fkey(id, nome, codigo),
-          destino:lojas!transferencias_destino_loja_id_fkey(id, nome, codigo)
+          destino:lojas!transferencias_destino_loja_id_fkey(id, nome, codigo),
+          itens:transferencia_itens(*)
         `)
         .or(`origem_loja_id.eq.${lojaId},destino_loja_id.eq.${lojaId}`)
         .order('created_at', { ascending: false });
@@ -78,7 +79,7 @@ export function useSupabaseTransferencias(lojaId?: string) {
           .from('transferencia_logs')
           .select('*')
           .eq('transferencia_id', transferenciaId)
-          .order('em', { ascending: false });
+          .order('created_at', { ascending: false });
 
         if (errorLogs) throw errorLogs;
 

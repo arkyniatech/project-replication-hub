@@ -19,8 +19,6 @@ interface RhModuleProviderProps {
 }
 
 export function RhModuleProvider({ children }: RhModuleProviderProps) {
-  const { loadFromStorage: loadAcessos } = useAcessosStore();
-  
   const [scope, setScope] = useState<RhScopeContext>({
     unidadeAtiva: undefined,
     ccAtivo: undefined,
@@ -33,10 +31,6 @@ export function RhModuleProvider({ children }: RhModuleProviderProps) {
   const [filters, setFilters] = useState<RhFilters>({});
   const [isLoading] = useState(false);
   const [devProfile, setDevProfile] = useState('admin');
-
-  useEffect(() => {
-    loadAcessos();
-  }, [loadAcessos]);
 
   const updateScope = (newScope: Partial<RhScopeContext>) => {
     setScope(prev => ({ ...prev, ...newScope }));

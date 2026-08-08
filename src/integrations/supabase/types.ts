@@ -1690,6 +1690,413 @@ export type Database = {
         }
         Relationships: []
       }
+      frota_abastecimentos: {
+        Row: {
+          created_by: string | null
+          custo_por_km: number
+          data: string
+          flags_json: string | null
+          id: string
+          km_atual: number
+          km_percorrido: number
+          km_por_l: number
+          litros: number
+          posto_id: string | null
+          preco_litro: number
+          veiculo_id: string
+        }
+        Insert: {
+          created_by?: string | null
+          custo_por_km?: number
+          data: string
+          flags_json?: string | null
+          id?: string
+          km_atual?: number
+          km_percorrido?: number
+          km_por_l?: number
+          litros?: number
+          posto_id?: string | null
+          preco_litro?: number
+          veiculo_id: string
+        }
+        Update: {
+          created_by?: string | null
+          custo_por_km?: number
+          data?: string
+          flags_json?: string | null
+          id?: string
+          km_atual?: number
+          km_percorrido?: number
+          km_por_l?: number
+          litros?: number
+          posto_id?: string | null
+          preco_litro?: number
+          veiculo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frota_abastecimentos_posto_id_fkey"
+            columns: ["posto_id"]
+            isOneToOne: false
+            referencedRelation: "frota_postos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frota_abastecimentos_veiculo_id_fkey"
+            columns: ["veiculo_id"]
+            isOneToOne: false
+            referencedRelation: "frota_veiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      frota_manutencoes: {
+        Row: {
+          created_by: string | null
+          custo_mo: number | null
+          custo_pecas: number | null
+          data_abertura: string
+          descricao: string | null
+          dt_entrada: string | null
+          dt_saida: string | null
+          grupo_id: string | null
+          id: string
+          km_entrada: number | null
+          km_saida: number | null
+          oficina_id: string | null
+          servico_id: string | null
+          status: string
+          tempo_parado_h: number
+          veiculo_id: string
+        }
+        Insert: {
+          created_by?: string | null
+          custo_mo?: number | null
+          custo_pecas?: number | null
+          data_abertura?: string
+          descricao?: string | null
+          dt_entrada?: string | null
+          dt_saida?: string | null
+          grupo_id?: string | null
+          id?: string
+          km_entrada?: number | null
+          km_saida?: number | null
+          oficina_id?: string | null
+          servico_id?: string | null
+          status?: string
+          tempo_parado_h?: number
+          veiculo_id: string
+        }
+        Update: {
+          created_by?: string | null
+          custo_mo?: number | null
+          custo_pecas?: number | null
+          data_abertura?: string
+          descricao?: string | null
+          dt_entrada?: string | null
+          dt_saida?: string | null
+          grupo_id?: string | null
+          id?: string
+          km_entrada?: number | null
+          km_saida?: number | null
+          oficina_id?: string | null
+          servico_id?: string | null
+          status?: string
+          tempo_parado_h?: number
+          veiculo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frota_manutencoes_oficina_id_fkey"
+            columns: ["oficina_id"]
+            isOneToOne: false
+            referencedRelation: "frota_oficinas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frota_manutencoes_veiculo_id_fkey"
+            columns: ["veiculo_id"]
+            isOneToOne: false
+            referencedRelation: "frota_veiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      frota_oficinas: {
+        Row: {
+          cidade: string
+          contato: string | null
+          created_by: string | null
+          id: string
+          nome: string
+          obs: string | null
+          servicos_ids: Json
+          uf: string
+        }
+        Insert: {
+          cidade?: string
+          contato?: string | null
+          created_by?: string | null
+          id?: string
+          nome: string
+          obs?: string | null
+          servicos_ids?: Json
+          uf?: string
+        }
+        Update: {
+          cidade?: string
+          contato?: string | null
+          created_by?: string | null
+          id?: string
+          nome?: string
+          obs?: string | null
+          servicos_ids?: Json
+          uf?: string
+        }
+        Relationships: []
+      }
+      frota_oleos: {
+        Row: {
+          created_by: string | null
+          id: string
+          intervalo_km: number
+          intervalo_meses: number
+          obs: string | null
+          tipo_especificacao: string
+        }
+        Insert: {
+          created_by?: string | null
+          id?: string
+          intervalo_km?: number
+          intervalo_meses?: number
+          obs?: string | null
+          tipo_especificacao: string
+        }
+        Update: {
+          created_by?: string | null
+          id?: string
+          intervalo_km?: number
+          intervalo_meses?: number
+          obs?: string | null
+          tipo_especificacao?: string
+        }
+        Relationships: []
+      }
+      frota_postos: {
+        Row: {
+          cidade: string
+          cnpj: string | null
+          created_by: string | null
+          id: string
+          nome: string
+          obs: string | null
+          uf: string
+        }
+        Insert: {
+          cidade?: string
+          cnpj?: string | null
+          created_by?: string | null
+          id?: string
+          nome: string
+          obs?: string | null
+          uf?: string
+        }
+        Update: {
+          cidade?: string
+          cnpj?: string | null
+          created_by?: string | null
+          id?: string
+          nome?: string
+          obs?: string | null
+          uf?: string
+        }
+        Relationships: []
+      }
+      frota_servicos: {
+        Row: {
+          created_by: string | null
+          criticidade: string
+          grupo: string
+          id: string
+          obs: string | null
+          servico_especifico: string
+        }
+        Insert: {
+          created_by?: string | null
+          criticidade?: string
+          grupo?: string
+          id?: string
+          obs?: string | null
+          servico_especifico: string
+        }
+        Update: {
+          created_by?: string | null
+          criticidade?: string
+          grupo?: string
+          id?: string
+          obs?: string | null
+          servico_especifico?: string
+        }
+        Relationships: []
+      }
+      frota_trocas_oleo: {
+        Row: {
+          created_by: string | null
+          custo_total: number
+          data: string
+          id: string
+          km_atual: number
+          km_desde_ultima: number
+          oleo_id: string | null
+          trocou_filtro: boolean
+          trocou_filtro_combustivel: boolean
+          veiculo_id: string
+        }
+        Insert: {
+          created_by?: string | null
+          custo_total?: number
+          data: string
+          id?: string
+          km_atual?: number
+          km_desde_ultima?: number
+          oleo_id?: string | null
+          trocou_filtro?: boolean
+          trocou_filtro_combustivel?: boolean
+          veiculo_id: string
+        }
+        Update: {
+          created_by?: string | null
+          custo_total?: number
+          data?: string
+          id?: string
+          km_atual?: number
+          km_desde_ultima?: number
+          oleo_id?: string | null
+          trocou_filtro?: boolean
+          trocou_filtro_combustivel?: boolean
+          veiculo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frota_trocas_oleo_oleo_id_fkey"
+            columns: ["oleo_id"]
+            isOneToOne: false
+            referencedRelation: "frota_oleos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frota_trocas_oleo_veiculo_id_fkey"
+            columns: ["veiculo_id"]
+            isOneToOne: false
+            referencedRelation: "frota_veiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      frota_veiculo_configs: {
+        Row: {
+          desde_data: string
+          id: string
+          oleo_id: string
+          veiculo_id: string
+        }
+        Insert: {
+          desde_data?: string
+          id?: string
+          oleo_id: string
+          veiculo_id: string
+        }
+        Update: {
+          desde_data?: string
+          id?: string
+          oleo_id?: string
+          veiculo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frota_veiculo_configs_oleo_id_fkey"
+            columns: ["oleo_id"]
+            isOneToOne: false
+            referencedRelation: "frota_oleos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frota_veiculo_configs_veiculo_id_fkey"
+            columns: ["veiculo_id"]
+            isOneToOne: true
+            referencedRelation: "frota_veiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      frota_veiculos: {
+        Row: {
+          ano_fab: number | null
+          ano_mod: number | null
+          cap_tanque_l: number
+          codigo_interno: string
+          combustivel: string
+          created_by: string | null
+          criado_em: string
+          fabricante: string
+          id: string
+          loja_id: string | null
+          modelo: string
+          motorista_atual_id: string | null
+          observacao: string | null
+          odometro_atual: number
+          placa: string
+          status: string
+          tipo: string
+        }
+        Insert: {
+          ano_fab?: number | null
+          ano_mod?: number | null
+          cap_tanque_l?: number
+          codigo_interno?: string
+          combustivel?: string
+          created_by?: string | null
+          criado_em?: string
+          fabricante?: string
+          id?: string
+          loja_id?: string | null
+          modelo?: string
+          motorista_atual_id?: string | null
+          observacao?: string | null
+          odometro_atual?: number
+          placa: string
+          status?: string
+          tipo?: string
+        }
+        Update: {
+          ano_fab?: number | null
+          ano_mod?: number | null
+          cap_tanque_l?: number
+          codigo_interno?: string
+          combustivel?: string
+          created_by?: string | null
+          criado_em?: string
+          fabricante?: string
+          id?: string
+          loja_id?: string | null
+          modelo?: string
+          motorista_atual_id?: string | null
+          observacao?: string | null
+          odometro_atual?: number
+          placa?: string
+          status?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frota_veiculos_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grupos_equipamentos: {
         Row: {
           ativo: boolean

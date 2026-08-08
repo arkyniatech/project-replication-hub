@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useTransferenciasStore } from "@/stores/transferenciasStore";
+import { useSupabaseTransferencias } from "@/hooks/useSupabaseTransferencias";
+import { supabase } from "@/integrations/supabase/client";
 import { MotivoRecusa } from "@/types/transferencias";
 import { toast } from "sonner";
 
@@ -28,8 +29,8 @@ export function NegarTransferenciaModal({
   transferenciaId,
   onConfirm 
 }: NegarTransferenciaModalProps) {
-  const { negar } = useTransferenciasStore();
-  
+  const { atualizarStatus } = useSupabaseTransferencias();
+
   const [motivo, setMotivo] = useState<MotivoRecusa>('NUMERACAO');
   const [detalhe, setDetalhe] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,12 +56,21 @@ export function NegarTransferenciaModal({
 
     setLoading(true);
     try {
-      await negar(transferenciaId, motivo, detalhe.trim() || undefined);
-      toast.success("Transferência recusada com sucesso!");
+      const { data: { user } } = await supabase.auth.getUser();
+      await atualizarStatus.mutateAsync({
+        id: transferenciaId,
+        status: 'RECUSADA',
+        recusa: {
+          motivo,
+          detalhe: detalhe.trim() || undefined,
+          porUsuarioNome: user?.email ?? 'Usuário',
+          em: new Date().toISOString(),
+        },
+      });
       onConfirm();
       handleClose();
-    } catch (error) {
-      toast.error("Erro ao recusar transferência");
+    } catch {
+      // o hook já exibe o toast de erro
     } finally {
       setLoading(false);
     }

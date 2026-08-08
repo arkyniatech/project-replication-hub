@@ -11,10 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   FileText, 
-  Send, 
   CalendarIcon,
   Eye,
-  MessageSquare,
   AlertTriangle,
   DollarSign,
   QrCode,
@@ -52,8 +50,6 @@ export function FaturamentoCarrinho() {
     kpis,
     config,
     addException,
-    addTimelineEvent,
-    enviarFatura
   } = useFaturamentoStore();
   
   const { can } = usePermissions();
@@ -262,20 +258,6 @@ export function FaturamentoCarrinho() {
     setTitulosGerados([]);
   };
 
-  const handleEnviarFatura = (canal: 'EMAIL' | 'WHATSAPP') => {
-    if (!clienteSelecionado) return;
-    
-    const destinatario = canal === 'EMAIL' 
-      ? 'cliente@exemplo.com' 
-      : '+55 11 99999-9999';
-    
-    enviarFatura('temp_fatura_id', canal, destinatario);
-    
-    toast.success(`Fatura enviada via ${canal}`, {
-      description: `Enviado para ${destinatario}`
-    });
-  };
-
   return (
     <>
       <div className="flex h-full flex-col">
@@ -462,30 +444,6 @@ export function FaturamentoCarrinho() {
               Após emitir, você poderá gerar BolePix automaticamente
             </p>
           )}
-
-          {/* Envios */}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => handleEnviarFatura('EMAIL')}
-              disabled={!can('financeiro', 'emitirFatura')}
-            >
-              <Send className="mr-1 h-3 w-3" />
-              E-mail
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => handleEnviarFatura('WHATSAPP')}
-              disabled={!can('financeiro', 'emitirFatura')}
-            >
-              <MessageSquare className="mr-1 h-3 w-3" />
-              WhatsApp
-            </Button>
-          </div>
 
           {/* Timeline */}
           <Button

@@ -1,5 +1,4 @@
 // Sistema de integração entre módulos de Contratos e outros sistemas
-import { useTransferenciasStore } from '@/stores/transferenciasStore';
 import { useAgendaDisponibilidadeStore } from '@/stores/agendaDisponibilidadeStore';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -70,25 +69,38 @@ class ContractEventBus {
 
 export const contractEventBus = new ContractEventBus();
 
-// Verificar se equipamento está em transferência EM_TRANSITO
-export function checkEquipmentInTransfer(equipamentoId: string, lojaId: string): {
+// Verificar se equipamento está em transferência EM_TRANSITO (via Supabase)
+export async function checkEquipmentInTransfer(equipamentoId: string, lojaId: string): Promise<{
   isInTransfer: boolean;
   transferencia?: any;
-} {
-  const transferenciasStore = useTransferenciasStore.getState();
-  
-  const transferenciasEmTransito = transferenciasStore.transferencias.filter(t => 
-    (t.origemLojaId === lojaId || t.destinoLojaId === lojaId) && 
-    t.status === 'EM_TRANSITO'
-  );
+}> {
+  const { data: transferencias, error } = await supabase
+    .from('transferencias')
+    .select(`
+      *,
+      origem:lojas!transferencias_origem_loja_id_fkey(nome),
+      destino:lojas!transferencias_destino_loja_id_fkey(nome),
+      itens:transferencia_itens(*)
+    `)
+    .or(`origem_loja_id.eq.${lojaId},destino_loja_id.eq.${lojaId}`)
+    .eq('status', 'EM_TRANSITO');
 
-  for (const transfer of transferenciasEmTransito) {
-    const itemInTransfer = transfer.itens.find(item => 
-      item.codigoInterno === equipamentoId || item.modeloId === equipamentoId
+  if (error || !transferencias) return { isInTransfer: false };
+
+  for (const transfer of transferencias) {
+    const itemInTransfer = (transfer.itens ?? []).find((item: any) =>
+      item.codigo_interno === equipamentoId || item.modelo_id === equipamentoId
     );
-    
+
     if (itemInTransfer) {
-      return { isInTransfer: true, transferencia: transfer };
+      return {
+        isInTransfer: true,
+        transferencia: {
+          ...transfer,
+          origemLojaNome: (transfer as any).origem?.nome,
+          destinoLojaNome: (transfer as any).destino?.nome,
+        },
+      };
     }
   }
 

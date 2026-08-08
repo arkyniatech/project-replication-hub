@@ -41,7 +41,10 @@ import {
 } from 'lucide-react';
 // Remove DateRangePicker import for now - will use basic inputs
 // import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { useTransferenciasStore } from '@/stores/transferenciasStore';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { parseDateLocal } from '@/lib/date-utils';
+import { endOfDay } from 'date-fns';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { useRbac } from '@/hooks/useRbac';
 import { toast } from 'sonner';
@@ -72,8 +75,51 @@ export function HistoricoTransferenciasModal({
 }: HistoricoTransferenciasModalProps) {
   const { can } = useRbac();
   const { lojaAtual, lojas } = useMultiunidade();
-  const { getHistorico, filtros, setFiltros, clearFiltros } = useTransferenciasStore();
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Fonte: Supabase (RLS limita às lojas do usuário). Adaptado para o shape
+  // legado da UI (camelCase) para manter o restante do componente intacto.
+  const { data: historicoRaw = [] } = useQuery({
+    queryKey: ['transferencias-historico'],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transferencias')
+        .select(`
+          *,
+          origem:lojas!transferencias_origem_loja_id_fkey(id, nome),
+          destino:lojas!transferencias_destino_loja_id_fkey(id, nome),
+          itens:transferencia_itens(*)
+        `)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const historico = useMemo(() => historicoRaw.map((t: any) => ({
+    id: t.id,
+    numero: t.numero,
+    status: t.status as TransferStatus,
+    origemLojaId: t.origem_loja_id,
+    destinoLojaId: t.destino_loja_id,
+    origemLojaNome: t.origem?.nome ?? '—',
+    destinoLojaNome: t.destino?.nome ?? '—',
+    criadoEm: t.created_at,
+    atualizadoEm: t.updated_at,
+    motorista: t.motorista,
+    veiculo: t.veiculo,
+    observacoes: t.observacoes,
+    itens: (t.itens ?? []).map((i: any) => ({
+      id: i.id,
+      tipo: i.tipo,
+      codigoInterno: i.codigo_interno,
+      modeloId: i.modelo_id,
+      serie: i.serie,
+      descricao: i.descricao,
+      quantidade: i.quantidade,
+    })),
+  })), [historicoRaw]);
 
   // Filtros locais (não persistidos)
   const [localFiltros, setLocalFiltros] = useState({
@@ -91,19 +137,31 @@ export function HistoricoTransferenciasModal({
 
   // Aplicar filtros e obter dados
   const historicoFiltrado = useMemo(() => {
-    const filtrosAplicados = {
-      ...filtros,
-      dataInicio: localFiltros.dataInicio?.toISOString(),
-      dataFim: localFiltros.dataFim?.toISOString(),
-      origemLojaIds: localFiltros.origemLojaIds.length > 0 ? localFiltros.origemLojaIds : undefined,
-      destinoLojaIds: localFiltros.destinoLojaIds.length > 0 ? localFiltros.destinoLojaIds : undefined,
-      status: localFiltros.status ? [localFiltros.status] : undefined, // Convert single status to array
-      tipo: localFiltros.tipo || undefined,
-      texto: localFiltros.texto || undefined,
-    };
-
-    return getHistorico(filtrosAplicados);
-  }, [getHistorico, filtros, localFiltros]);
+    const fim = localFiltros.dataFim ? endOfDay(localFiltros.dataFim) : null;
+    return historico.filter((t) => {
+      const criado = new Date(t.criadoEm);
+      if (localFiltros.dataInicio && criado < localFiltros.dataInicio) return false;
+      if (fim && criado > fim) return false;
+      if (localFiltros.origemLojaIds.length > 0 && !localFiltros.origemLojaIds.includes(t.origemLojaId)) return false;
+      if (localFiltros.destinoLojaIds.length > 0 && !localFiltros.destinoLojaIds.includes(t.destinoLojaId)) return false;
+      if (localFiltros.status && t.status !== localFiltros.status) return false;
+      if (localFiltros.tipo && !t.itens.some((i) => i.tipo === localFiltros.tipo)) return false;
+      if (localFiltros.texto) {
+        const q = localFiltros.texto.toLowerCase();
+        const hit =
+          String(t.numero).includes(q) ||
+          t.origemLojaNome.toLowerCase().includes(q) ||
+          t.destinoLojaNome.toLowerCase().includes(q) ||
+          t.itens.some((i) =>
+            (i.codigoInterno ?? '').toLowerCase().includes(q) ||
+            (i.serie ?? '').toLowerCase().includes(q) ||
+            (i.descricao ?? '').toLowerCase().includes(q),
+          );
+        if (!hit) return false;
+      }
+      return true;
+    });
+  }, [historico, localFiltros]);
 
   // Paginação
   const totalPages = Math.ceil(historicoFiltrado.length / itemsPerPage);
@@ -213,7 +271,7 @@ export function HistoricoTransferenciasModal({
                     onChange={(e) => {
                       setLocalFiltros(prev => ({
                         ...prev,
-                        dataInicio: e.target.value ? new Date(e.target.value) : startOfMonth(new Date()),
+                        dataInicio: e.target.value ? parseDateLocal(e.target.value)! : startOfMonth(new Date()),
                       }));
                     }}
                   />
@@ -226,7 +284,7 @@ export function HistoricoTransferenciasModal({
                     onChange={(e) => {
                       setLocalFiltros(prev => ({
                         ...prev,
-                        dataFim: e.target.value ? new Date(e.target.value) : endOfMonth(new Date()),
+                        dataFim: e.target.value ? parseDateLocal(e.target.value)! : endOfMonth(new Date()),
                       }));
                     }}
                   />

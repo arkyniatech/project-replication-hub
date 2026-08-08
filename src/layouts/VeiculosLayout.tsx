@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Car, Wrench, MapPin, Droplets, Building2, FileText, BarChart3, TrendingUp, Calendar, Settings } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useVeiculosStore } from '@/stores/veiculosStore';
 
 const menuItems = [
   { 
@@ -87,6 +89,12 @@ const configItems = [
 ];
 
 export default function VeiculosLayout() {
+  // Carrega a frota do Supabase ao entrar no módulo (fonte da verdade).
+  const hydrate = useVeiculosStore((s) => s.hydrate);
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
   const location = useLocation();
   const navigate = useNavigate();
 
