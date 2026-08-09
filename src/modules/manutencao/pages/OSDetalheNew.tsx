@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import DOMPurify from "dompurify";
 import { 
   ArrowLeft,
   Wrench,
@@ -259,9 +260,11 @@ export default function OSDetalheNew() {
             </CardHeader>
             <CardContent>
               {os.laudo_html ? (
-                <div 
+                <div
                   className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: os.laudo_html }}
+                  // laudo vem do banco escrito por técnico — sanitizar evita
+                  // XSS armazenado (roubo de sessão de quem abre a OS)
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(os.laudo_html) }}
                 />
               ) : (
                 <div className="text-center py-8 text-muted-foreground">

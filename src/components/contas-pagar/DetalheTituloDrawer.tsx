@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +97,38 @@ export function DetalheTituloDrawer({
   const { parcelas: parcelasData, suspenderParcela } = useSupabaseParcelasPagar();
   const { aprovacoes } = useSupabaseAprovacoesCP();
   const [parcelaSuspensa, setParcelaSuspensa] = useState<Record<string, boolean>>({});
+
+  // pagamentos registrados do título (movimentos_pagar) — é onde mora o
+  // comprovante; antes de existir esta seção, o comprovante era write-only
+  const { data: pagamentos = [] } = useQuery({
+    queryKey: ['movimentos-pagar-titulo', tituloId],
+    enabled: open && !!tituloId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('movimentos_pagar')
+        .select('*')
+        .eq('titulo_id', tituloId)
+        .order('data_pagamento', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const abrirComprovante = async (path: string) => {
+    // registros antigos gravavam só o NOME do arquivo (sem upload real)
+    if (!path.includes('/')) {
+      toast.error('Este pagamento é antigo: só o nome do arquivo foi salvo, sem o arquivo em si.');
+      return;
+    }
+    const { data, error } = await supabase.storage
+      .from('comprovantes-pagamento')
+      .createSignedUrl(path, 600);
+    if (error || !data?.signedUrl) {
+      toast.error(`Não foi possível abrir o comprovante${error ? `: ${error.message}` : ''}`);
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener');
+  };
 
   if (!open || !tituloId) return null;
 
@@ -449,6 +483,38 @@ export function DetalheTituloDrawer({
 
             {/* Aba Histórico */}
             <TabsContent value="historico" className="space-y-4">
+              <h3 className="text-lg font-semibold">Pagamentos</h3>
+              {pagamentos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum pagamento registrado.</p>
+              ) : (
+                <div className="space-y-2">
+                  {pagamentos.map((m: any) => (
+                    <div key={m.id} className="flex items-center justify-between gap-3 p-3 bg-muted rounded">
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {formatCurrency(m.valor_liquido ?? m.valor_bruto)} · {m.forma}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDateBR(m.data_pagamento)}
+                          {m.observacoes ? ` · ${m.observacoes}` : ''}
+                        </p>
+                      </div>
+                      {m.comprovante_url && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0"
+                          onClick={() => abrirComprovante(m.comprovante_url)}
+                        >
+                          <Paperclip className="h-3 w-3 mr-1" />
+                          Comprovante
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <h3 className="text-lg font-semibold">Timeline do Título</h3>
               
               <div className="space-y-3">
