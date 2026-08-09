@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useFinanceiroStore } from '@/stores/financeiroStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRightLeft, Wallet, Settings } from 'lucide-react';
@@ -10,6 +12,12 @@ import { guardRoute } from '@/hooks/useRbac';
 
 function FinanceiroTransferenciasPage() {
   const { can } = useRbac();
+
+  // carrega contas/transferências/conciliações do Supabase (fonte da verdade)
+  const hydrate = useFinanceiroStore((s) => s.hydrate);
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   const hasTransferAccess = can('fin:transferir');
   const hasConciliacaoAccess = can('fin:conciliar');
