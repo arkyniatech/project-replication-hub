@@ -11,9 +11,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { DoorOpen, Plus, Search } from 'lucide-react';
 import { useRbacPermissions } from '@/hooks/useRbacPermissions';
 import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
-import { useSupabaseDesligamentos, MOTIVOS_DESLIGAMENTO, type Desligamento } from '../hooks/useSupabaseDesligamentos';
+import {
+  useSupabaseDesligamentos,
+  MOTIVOS_DESLIGAMENTO,
+  MOTIVOS_SIMULAVEIS,
+  TIPOS_AVISO,
+  type Desligamento,
+} from '../hooks/useSupabaseDesligamentos';
 import { RhQueryError } from '../components/RhQueryError';
-import { formatDateBR } from '@/lib/date-utils';
+import { formatDateBR, toISODateLocal } from '@/lib/date-utils';
 import { toast } from 'sonner';
 
 const motivoLabel = (v: string) => MOTIVOS_DESLIGAMENTO.find((m) => m.value === v)?.label ?? v;
@@ -24,13 +30,14 @@ const STATUS_VARIANT: Record<string, 'default' | 'outline' | 'destructive'> = {
   aberto: 'default', concluido: 'outline', cancelado: 'destructive',
 };
 
-const EMPTY = { pessoaId: '', motivo: '', dataAlvo: '', observacoes: '' };
+const EMPTY = { pessoaId: '', motivo: '', tipoAviso: '', dataAlvo: '', observacoes: '' };
+const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
 export default function Offboarding() {
   const { can } = useRbacPermissions();
   const podeEditar = can('rh:pessoas_edit');
   const { pessoas } = useSupabasePessoas();
-  const { desligamentos, isLoading, error, criar, atualizar } = useSupabaseDesligamentos();
+  const { desligamentos, isLoading, error, criar, atualizar, simularRescisao } = useSupabaseDesligamentos();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showNovoDesligamento, setShowNovoDesligamento] = useState(false);
@@ -63,6 +70,7 @@ export default function Offboarding() {
         pessoa_id: pessoa.id,
         loja_id: pessoa.lojaId,
         motivo: form.motivo,
+        tipo_aviso: (form.tipoAviso || null) as Desligamento['tipo_aviso'],
         data_alvo: form.dataAlvo || null,
         observacoes: form.observacoes || null,
       });
@@ -96,6 +104,20 @@ export default function Offboarding() {
       toast.success('Desligamento cancelado.');
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao cancelar.');
+    }
+  };
+
+  const handleSimular = async (d: Desligamento) => {
+    try {
+      await simularRescisao.mutateAsync({
+        id: d.id,
+        pessoa_id: d.pessoa_id,
+        motivo: d.motivo,
+        data: d.data_alvo || toISODateLocal(new Date()),
+      });
+      toast.success('Rescisão simulada — custo estimado vinculado ao desligamento.');
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao simular rescisão.');
     }
   };
 
@@ -159,12 +181,25 @@ export default function Offboarding() {
                   <p className="text-sm text-muted-foreground">
                     {motivoLabel(d.motivo)} · alvo: {fmt(d.data_alvo)}
                     {d.data_efetiva ? ` · efetivado em ${fmt(d.data_efetiva)}` : ''}
+                    {d.simulacao?.custo_empregador != null
+                      ? ` · rescisão estimada: ${brl(Number(d.simulacao.custo_empregador))}`
+                      : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant={STATUS_VARIANT[d.status]}>{STATUS_LABEL[d.status]}</Badge>
                   {podeEditar && d.status === 'aberto' && (
                     <>
+                      {MOTIVOS_SIMULAVEIS.includes(d.motivo) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSimular(d)}
+                          disabled={simularRescisao.isPending}
+                        >
+                          {d.simulacao ? 'Resimular' : 'Simular rescisão'}
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => { setConcluindo(d); setDataEfetiva(d.data_alvo ?? ''); }}>
                         Concluir
                       </Button>
@@ -197,6 +232,15 @@ export default function Offboarding() {
                 <SelectTrigger><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
                 <SelectContent>
                   {MOTIVOS_DESLIGAMENTO.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de aviso prévio</Label>
+              <Select value={form.tipoAviso} onValueChange={(v) => setForm({ ...form, tipoAviso: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione (insumo do cálculo de rescisão)" /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS_AVISO.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

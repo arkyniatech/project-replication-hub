@@ -23,7 +23,7 @@ const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | '
 };
 const fmt = (d?: string | null) => formatDateBR(d, '—');
 
-const EMPTY = { candidatoId: '', nome: '', lojaId: '', cargoId: '', dataPrevista: '', salario: '' };
+const EMPTY = { candidatoId: '', nome: '', cpf: '', lojaId: '', cargoId: '', dataPrevista: '', salario: '' };
 
 export default function Admissoes() {
   const { can } = useRbacPermissions();
@@ -72,6 +72,7 @@ export default function Admissoes() {
         loja_id: form.lojaId,
         cargo_id: form.cargoId || null,
         nome: form.nome.trim(),
+        cpf: form.cpf.replace(/\D/g, '') || null,
         data_prevista: form.dataPrevista || null,
         salario: form.salario ? Number(form.salario) : null,
       });
@@ -90,7 +91,7 @@ export default function Admissoes() {
       await atualizarAdmissao.mutateAsync(updates);
       toast.success(
         status === 'CONCLUIDA'
-          ? 'Admissão concluída — cadastre o colaborador em Pessoas para liberar os módulos de RH.'
+          ? 'Admissão concluída — colaborador criado/vinculado automaticamente em Pessoas.'
           : `Admissão ${STATUS_LABEL[status].toLowerCase()}.`,
       );
     } catch (e: any) {
@@ -124,9 +125,22 @@ export default function Admissoes() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Nome *</Label>
-                  <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nome *</Label>
+                    <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CPF *</Label>
+                    <Input
+                      placeholder="Somente números"
+                      value={form.cpf}
+                      onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ao concluir, o colaborador é criado automaticamente em Pessoas.
+                    </p>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

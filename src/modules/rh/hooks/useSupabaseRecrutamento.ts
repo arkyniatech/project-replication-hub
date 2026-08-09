@@ -36,6 +36,7 @@ export interface Admissao {
   loja_id: string;
   cargo_id?: string | null;
   nome: string;
+  cpf?: string | null;
   data_prevista?: string | null;
   data_admissao?: string | null;
   salario?: number | null;

@@ -4207,6 +4207,7 @@ export type Database = {
           candidato_id: string | null
           cargo_id: string | null
           checklist: Json
+          cpf: string | null
           created_at: string
           created_by: string | null
           data_admissao: string | null
@@ -4225,6 +4226,7 @@ export type Database = {
           candidato_id?: string | null
           cargo_id?: string | null
           checklist?: Json
+          cpf?: string | null
           created_at?: string
           created_by?: string | null
           data_admissao?: string | null
@@ -4243,6 +4245,7 @@ export type Database = {
           candidato_id?: string | null
           cargo_id?: string | null
           checklist?: Json
+          cpf?: string | null
           created_at?: string
           created_by?: string | null
           data_admissao?: string | null
@@ -6090,7 +6093,31 @@ export type Database = {
       }
     }
     Functions: {
+      _frota_ajustar_saldo_modelo: {
+        Args: {
+          p_delta: number
+          p_evento: Json
+          p_loja_id: string
+          p_modelo_id: string
+        }
+        Returns: undefined
+      }
       atualizar_status_ferias: { Args: never; Returns: undefined }
+      atualizar_status_transferencia: {
+        Args: { p_recusa?: Json; p_status: string; p_transferencia_id: string }
+        Returns: undefined
+      }
+      criar_transferencia: {
+        Args: {
+          p_destino_loja_id: string
+          p_itens: Json
+          p_motorista?: string
+          p_observacoes?: string
+          p_origem_loja_id: string
+          p_veiculo?: string
+        }
+        Returns: Json
+      }
       gerar_codigo_fornecedor: { Args: never; Returns: string }
       gerar_ferias_periodos: {
         Args: { p_pessoa_id: string }
@@ -6098,6 +6125,10 @@ export type Database = {
       }
       gerar_notificacoes_rh: { Args: never; Returns: number }
       gerar_numero_os: { Args: { p_loja_id: string }; Returns: string }
+      gerar_provisao_snapshots: {
+        Args: { p_competencia?: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6106,6 +6137,7 @@ export type Database = {
         Returns: boolean
       }
       is_active: { Args: { u_id: string }; Returns: boolean }
+      is_demo_user: { Args: never; Returns: boolean }
       is_master: { Args: { _user_id: string }; Returns: boolean }
       job_rh_diario: { Args: never; Returns: number }
       param_trab: {

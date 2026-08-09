@@ -9,7 +9,13 @@ import { AlertTriangle, Calculator } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useSupabasePessoas } from '../hooks/useSupabasePessoas';
-import { useSimularRescisao, useRescisaoResultado } from '../hooks/useSupabaseProvisoes';
+import {
+  useSimularRescisao,
+  useRescisaoResultado,
+  useProvisaoSnapshots,
+  useGerarProvisoes,
+} from '../hooks/useSupabaseProvisoes';
+import { useQueryClient } from '@tanstack/react-query';
 
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 const MOTIVOS = [
@@ -25,6 +31,22 @@ export default function Provisoes() {
   const [form, setForm] = useState({ pessoaId: '', motivo: 'sem_justa_causa', data: format(new Date(), 'yyyy-MM-dd') });
   const [simId, setSimId] = useState<string | null>(null);
   const { data: resultado, isLoading: loadingResultado } = useRescisaoResultado(simId);
+
+  const qc = useQueryClient();
+  const [competencia, setCompetencia] = useState(format(new Date(), 'yyyy-MM'));
+  const { data: snapshots = [], isLoading: loadingSnaps } = useProvisaoSnapshots(competencia);
+  const gerarProvisoes = useGerarProvisoes();
+  const totalProvisao = snapshots.reduce((s, x) => s + Number(x.total_adquirido || 0), 0);
+
+  const handleGerarProvisoes = async () => {
+    try {
+      const r = await gerarProvisoes.mutateAsync(competencia);
+      qc.invalidateQueries({ queryKey: ['provisao-snapshots'] });
+      toast({ title: 'Provisões geradas', description: `${r.pessoas} colaborador(es) · total ${brl(r.total)}` });
+    } catch (e: any) {
+      toast({ title: 'Erro ao gerar provisões', description: e?.message ?? '', variant: 'destructive' });
+    }
+  };
 
   const handleSimular = async () => {
     if (!form.pessoaId || !form.data) {
@@ -57,6 +79,67 @@ export default function Provisoes() {
           </p>
         </div>
       </div>
+
+      {/* Provisões mensais (Fase 2) */}
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Provisões mensais (13º · férias · encargos)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-2">
+              <Label>Competência</Label>
+              <Input type="month" value={competencia} onChange={(e) => setCompetencia(e.target.value)} className="w-44" />
+            </div>
+            <Button onClick={handleGerarProvisoes} disabled={gerarProvisoes.isPending}>
+              <Calculator className="h-4 w-4 mr-2" />
+              {gerarProvisoes.isPending ? 'Calculando...' : 'Gerar/atualizar provisões'}
+            </Button>
+            {snapshots.length > 0 && (
+              <p className="text-sm text-muted-foreground ml-auto">
+                {snapshots.length} colaborador(es) · total provisionado{' '}
+                <span className="font-semibold text-foreground">{brl(totalProvisao)}</span>
+              </p>
+            )}
+          </div>
+
+          {loadingSnaps ? (
+            <Skeleton className="h-32 w-full mt-4" />
+          ) : snapshots.length === 0 ? (
+            <p className="text-sm text-muted-foreground mt-4">
+              Nenhuma provisão gerada para {competencia}. Clique em “Gerar/atualizar provisões”.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-2 pr-2 font-medium">Colaborador</th>
+                    <th className="py-2 px-2 text-right font-medium">13º</th>
+                    <th className="py-2 px-2 text-right font-medium">Férias</th>
+                    <th className="py-2 px-2 text-right font-medium">1/3</th>
+                    <th className="py-2 px-2 text-right font-medium">Encargos</th>
+                    <th className="py-2 pl-2 text-right font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {snapshots.map((s) => (
+                    <tr key={s.id} className="border-b last:border-0">
+                      <td className="py-2 pr-2">{s.pessoa?.nome ?? '—'}</td>
+                      <td className="py-2 px-2 text-right tabular-nums">{brl(Number(s.provisao_13))}</td>
+                      <td className="py-2 px-2 text-right tabular-nums">{brl(Number(s.provisao_ferias))}</td>
+                      <td className="py-2 px-2 text-right tabular-nums">{brl(Number(s.provisao_ferias_terco))}</td>
+                      <td className="py-2 px-2 text-right tabular-nums">{brl(Number(s.encargos_patronais))}</td>
+                      <td className="py-2 pl-2 text-right font-medium tabular-nums">{brl(Number(s.total_adquirido))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-muted-foreground mt-3">
+                ⚠️ Estimativa v1 (salário do vínculo vigente; sem médias de variáveis). Homologar com o contador.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Simular rescisão</CardTitle></CardHeader>
