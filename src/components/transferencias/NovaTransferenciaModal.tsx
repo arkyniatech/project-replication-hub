@@ -235,19 +235,17 @@ export function NovaTransferenciaModal({ open, onOpenChange }: NovaTransferencia
 
     setLoading(true);
     try {
-      // Gerar número sequencial simples
-      const numeroSequencial = Date.now() % 100000; // simplificado para mock
-      
+      // numero, status e created_by são definidos pela RPC criar_transferencia
       await criarTransferencia.mutateAsync({
         transferencia: {
           origem_loja_id: lojaAtiva,
           destino_loja_id: destinoLojaId,
-          numero: numeroSequencial,
+          numero: 0, // ignorado — a RPC gera por sequence
           motorista: motorista || null,
           veiculo: veiculo || null,
           observacoes: observacoes || null,
           status: 'EM_TRANSITO',
-          created_by: '', // Will be set by the hook
+          created_by: '', // ignorado — a RPC usa auth.uid()
         },
         itens: itensSelecionados.map(item => ({
           tipo: item.tipo,

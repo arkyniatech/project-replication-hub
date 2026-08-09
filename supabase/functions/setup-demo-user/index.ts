@@ -73,7 +73,51 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!profExist) {
-      await admin.from('user_profiles').insert({
+      // a pessoa demo pode estar presa a um perfil de um auth-user antigo
+      // (uid trocou em reconstruções do auth); se o dono não existe mais,
+      // remove o perfil órfão para liberar o unique de pessoa_id
+      const { data: perfilDono } = await admin
+        .from('user_profiles')
+        .select('id')
+        .eq('pessoa_id', pessoaId)
+        .maybeSingle();
+      if (perfilDono && perfilDono.id !== userId) {
+        const { data: donoAuth } = await admin.auth.admin.getUserById(perfilDono.id).catch(() => ({ data: null }));
+        if (donoAuth?.user) {
+          // a pessoa de CPF zeros pertence a um usuário real (histórico: o
+          // perfil do admin aponta p/ ela). O demo ganha uma pessoa PRÓPRIA.
+          const DEMO_CPF_ALT = '00000000002';
+          const { data: pAlt } = await admin
+            .from('pessoas')
+            .select('id')
+            .eq('cpf', DEMO_CPF_ALT)
+            .maybeSingle();
+          if (pAlt) {
+            pessoaId = pAlt.id;
+          } else {
+            const { data: novaAlt, error: altErr } = await admin
+              .from('pessoas')
+              .insert({
+                nome: 'Usuário Demonstração',
+                cpf: DEMO_CPF_ALT,
+                email: DEMO_EMAIL,
+                cargo: 'Demo / Portfólio',
+                situacao: 'ativo',
+              })
+              .select('id')
+              .single();
+            if (altErr) throw new Error(`pessoa demo alternativa: ${altErr.message}`);
+            pessoaId = novaAlt.id;
+          }
+        } else {
+          await admin.from('user_roles').delete().eq('user_id', perfilDono.id);
+          await admin.from('user_lojas_permitidas').delete().eq('user_id', perfilDono.id);
+          const { error: delErr } = await admin.from('user_profiles').delete().eq('id', perfilDono.id);
+          if (delErr) throw new Error(`limpando perfil órfão: ${delErr.message}`);
+        }
+      }
+
+      const { error: profErr } = await admin.from('user_profiles').insert({
         id: userId,
         pessoa_id: pessoaId,
         username: DEMO_USERNAME,
@@ -81,8 +125,12 @@ Deno.serve(async (req) => {
         two_fa_enabled: false,
         exige_troca_senha: false,
       });
+      // sem perfil, is_active(demo)=false e o demo enxerga quase nada —
+      // erro aqui não pode ser silencioso
+      if (profErr) throw new Error(`user_profiles: ${profErr.message}`);
     } else {
-      await admin.from('user_profiles').update({ ativo: true }).eq('id', userId);
+      const { error: updErr } = await admin.from('user_profiles').update({ ativo: true }).eq('id', userId);
+      if (updErr) throw new Error(`user_profiles(update): ${updErr.message}`);
     }
 
     // 4. Ensure master role
