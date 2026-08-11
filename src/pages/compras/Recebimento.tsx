@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { useComprasStore } from '@/modules/compras/store/comprasStore';
-import { useAlmoxStore } from '@/modules/almox/store/almoxStore';
+import { useSupabasePedidosCompra } from '@/modules/compras/hooks/useSupabasePedidosCompra';
+import { useSupabaseRecebimentos } from '@/modules/compras/hooks/useSupabaseRecebimentos';
+import { useSupabaseCatalogo } from '@/modules/almox/hooks/useSupabaseCatalogo';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { useRbac } from '@/hooks/useRbac';
 import { toast } from 'sonner';
 
@@ -27,9 +29,11 @@ const steps: WizardStep[] = [
 
 export default function Recebimento() {
   const { can } = useRbac();
-  const { pedidosCompra, registrarRecebimento } = useComprasStore();
-  const { entradaPorRecebimento, getItem } = useAlmoxStore();
-  
+  const { lojaAtual } = useMultiunidade();
+  const { pedidos: pedidosCompra } = useSupabasePedidosCompra(lojaAtual?.id);
+  const { registrar } = useSupabaseRecebimentos();
+  const { itens: catalogo } = useSupabaseCatalogo();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPO, setSelectedPO] = useState<string>('');
   const [nfData, setNfData] = useState({
@@ -104,46 +108,19 @@ export default function Recebimento() {
   const handleFinish = () => {
     if (!selectedPOData) return;
 
-    // Register receiving
-    const recebimentoId = registrarRecebimento({
-      pedidoCompraId: selectedPO,
-      lojaId: selectedPOData.lojaId,
-      notaFiscal: {
-        numero: nfData.numero,
-        emissao: nfData.emissao,
-        chave: nfData.chave
-      },
-      itens: Object.entries(itensRecebimento).map(([itemId, data]) => ({
-        itemId,
-        quantidadeRecebida: data.quantidadeRecebida,
-        series: data.series,
-        observacao: data.observacao
-      })),
-      status: 'total', // Simplified - would calculate based on quantities
-      conferente: 'admin' // Mock user
-    });
-
-    // Register stock entries
-    Object.entries(itensRecebimento).forEach(([itemId, data]) => {
-      if (data.quantidadeRecebida > 0) {
-        const poItem = selectedPOData.itens.find(i => i.itemId === itemId);
-        if (poItem) {
-          entradaPorRecebimento({
-            itemId,
-            lojaId: selectedPOData.lojaId,
-            quantidade: data.quantidadeRecebida,
-            series: data.series,
-            custoUnitario: poItem.precoUnit,
-            referencia: selectedPOData.numero
-          });
-        }
-      }
-    });
-
-    toast.success('Recebimento registrado com sucesso');
-    
-    // Reset form
-    resetForm();
+    // RPC transacional: grava recebimento + dá entrada no estoque + atualiza status do pedido
+    registrar.mutate({
+      pedidoId: selectedPO,
+      nf: { numero: nfData.numero, emissao: nfData.emissao, chave: nfData.chave },
+      itens: Object.entries(itensRecebimento)
+        .filter(([, data]) => data.quantidadeRecebida > 0)
+        .map(([pedidoItemId, data]) => ({
+          pedido_item_id: pedidoItemId,
+          quantidade_recebida: data.quantidadeRecebida,
+          series: data.series,
+          observacao: data.observacao,
+        })),
+    }, { onSuccess: resetForm });
   };
 
   const resetForm = () => {
@@ -236,14 +213,14 @@ export default function Recebimento() {
                           <span className="font-medium">{po.numero}</span>
                           <Badge variant="outline">{po.status.toUpperCase()}</Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">{po.fornecedorNome}</p>
+                        <p className="text-sm text-muted-foreground">{po.fornecedor?.nome || '—'}</p>
                         <p className="text-sm">
-                          {po.itens.length} itens • {formatCurrency(po.total)}
+                          {po.itens.length} itens • {formatCurrency(Number(po.total))}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-muted-foreground">Prazo</p>
-                        <p className="text-sm font-medium">{po.prazoEntrega} dias</p>
+                        <p className="text-sm font-medium">{po.prazo_entrega ?? '—'} dias</p>
                       </div>
                     </div>
                   </div>
@@ -311,15 +288,15 @@ export default function Recebimento() {
                 </TableHeader>
                 <TableBody>
                   {selectedPOData.itens.map((item) => {
-                    const catalogItem = getItem(item.itemId);
+                    const catalogItem = catalogo.find(c => c.id === item.item_catalogo_id);
                     const isSerial = catalogItem?.controle === 'SERIE';
-                    const recebimentoItem = itensRecebimento[item.itemId];
-                    
+                    const recebimentoItem = itensRecebimento[item.id];
+
                     return (
-                      <TableRow key={item.itemId}>
+                      <TableRow key={item.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{item.sku}</p>
+                            <p className="font-medium">{item.sku || '—'}</p>
                             <p className="text-sm text-muted-foreground">{item.descricao}</p>
                             {isSerial && (
                               <Badge variant="outline" className="mt-1">SÉRIE</Badge>
@@ -331,10 +308,10 @@ export default function Recebimento() {
                           <Input
                             type="number"
                             min="0"
-                            max={item.quantidade}
+                            max={Number(item.quantidade)}
                             value={recebimentoItem?.quantidadeRecebida || 0}
                             onChange={(e) => handleItemQuantityChange(
-                              item.itemId, 
+                              item.id,
                               parseInt(e.target.value) || 0
                             )}
                             className="w-20"
@@ -345,7 +322,7 @@ export default function Recebimento() {
                             <Input
                               placeholder="S001, S002, ..."
                               value={recebimentoItem.series?.join(', ') || ''}
-                              onChange={(e) => handleSeriesChange(item.itemId, e.target.value)}
+                              onChange={(e) => handleSeriesChange(item.id, e.target.value)}
                               className="w-32"
                             />
                           ) : (
@@ -358,8 +335,8 @@ export default function Recebimento() {
                             value={recebimentoItem?.observacao || ''}
                             onChange={(e) => setItensRecebimento(prev => ({
                               ...prev,
-                              [item.itemId]: {
-                                ...prev[item.itemId],
+                              [item.id]: {
+                                ...prev[item.id],
                                 observacao: e.target.value
                               }
                             }))}
@@ -387,8 +364,8 @@ export default function Recebimento() {
                   <CardContent>
                     <div className="space-y-2">
                       <p><strong>Número:</strong> {selectedPOData.numero}</p>
-                      <p><strong>Fornecedor:</strong> {selectedPOData.fornecedorNome}</p>
-                      <p><strong>Total:</strong> {formatCurrency(selectedPOData.total)}</p>
+                      <p><strong>Fornecedor:</strong> {selectedPOData.fornecedor?.nome || '—'}</p>
+                      <p><strong>Total:</strong> {formatCurrency(Number(selectedPOData.total))}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -418,7 +395,7 @@ export default function Recebimento() {
                     {Object.entries(itensRecebimento)
                       .filter(([_, data]) => data.quantidadeRecebida > 0)
                       .map(([itemId, data]) => {
-                        const poItem = selectedPOData.itens.find(i => i.itemId === itemId);
+                        const poItem = selectedPOData.itens.find(i => i.id === itemId);
                         return poItem ? (
                           <div key={itemId} className="flex justify-between items-center p-2 border rounded">
                             <div>
@@ -432,7 +409,7 @@ export default function Recebimento() {
                             <div className="text-right">
                               <p className="font-medium">Qtd: {data.quantidadeRecebida}</p>
                               <p className="text-sm text-muted-foreground">
-                                {formatCurrency(poItem.precoUnit * data.quantidadeRecebida)}
+                                {formatCurrency(Number(poItem.preco_unit) * data.quantidadeRecebida)}
                               </p>
                             </div>
                           </div>

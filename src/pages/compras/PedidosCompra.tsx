@@ -7,55 +7,51 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useComprasStore } from '@/modules/compras/store/comprasStore';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useSupabasePedidosCompra } from '@/modules/compras/hooks/useSupabasePedidosCompra';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { useRbac } from '@/hooks/useRbac';
 import { toast } from 'sonner';
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   emitido: 'bg-blue-100 text-blue-800',
   parcial: 'bg-yellow-100 text-yellow-800',
   total: 'bg-green-100 text-green-800',
   cancelado: 'bg-red-100 text-red-800'
 };
 
+const origemLabel: Record<string, string> = { REQ: 'Requisição', OS: 'OS', DIRETA: 'Direta' };
+
 export default function PedidosCompra() {
   const { can } = useRbac();
-  const { pedidosCompra, cotacoes } = useComprasStore();
+  const { lojaAtual } = useMultiunidade();
+  const { pedidos, isLoading } = useSupabasePedidosCompra(lojaAtual?.id);
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPO, setSelectedPO] = useState<string | null>(null);
 
-  const filteredPOs = pedidosCompra.filter(po => {
+  const filteredPOs = pedidos.filter(po => {
     const matchSearch = po.numero.toLowerCase().includes(search.toLowerCase()) ||
-                       po.fornecedorNome.toLowerCase().includes(search.toLowerCase());
+      (po.fornecedor?.nome || '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = selectedStatus === 'all' || po.status === selectedStatus;
-    
     return matchSearch && matchStatus;
   });
 
-  const selectedPOData = selectedPO ? pedidosCompra.find(p => p.id === selectedPO) : null;
-  const selectedCotacao = selectedPOData ? cotacoes.find(c => c.id === selectedPOData.cotacaoId) : null;
+  const selectedPOData = selectedPO ? pedidos.find(p => p.id === selectedPO) : null;
 
-  const handlePrintPO = (poId: string) => {
+  const handlePrintPO = (_poId: string) => {
     toast.success('PO enviado para impressão');
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pedidos de Compra</h1>
-          <p className="text-muted-foreground">
-            Gerencie pedidos de compra emitidos para fornecedores
-          </p>
+          <p className="text-muted-foreground">Gerencie pedidos de compra emitidos para fornecedores</p>
         </div>
       </div>
 
@@ -66,42 +62,25 @@ export default function PedidosCompra() {
             <CardTitle className="text-sm font-medium">Total de POs</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pedidosCompra.length}</div>
-          </CardContent>
+          <CardContent><div className="text-2xl font-bold">{pedidos.length}</div></CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Emitidos</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {pedidosCompra.filter(p => p.status === 'emitido').length}
-            </div>
-          </CardContent>
+          <CardContent><div className="text-2xl font-bold">{pedidos.filter(p => p.status === 'emitido').length}</div></CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Recebidos</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {pedidosCompra.filter(p => p.status === 'total').length}
-            </div>
-          </CardContent>
+          <CardContent><div className="text-2xl font-bold">{pedidos.filter(p => p.status === 'total').length}</div></CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(pedidosCompra.reduce((sum, po) => sum + po.total, 0))}
-            </div>
-          </CardContent>
+          <CardContent><div className="text-2xl font-bold">{formatCurrency(pedidos.reduce((sum, po) => sum + Number(po.total), 0))}</div></CardContent>
         </Card>
       </div>
 
@@ -120,11 +99,8 @@ export default function PedidosCompra() {
                 />
               </div>
             </div>
-
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos status</SelectItem>
                 <SelectItem value="emitido">Emitido</SelectItem>
@@ -140,6 +116,9 @@ export default function PedidosCompra() {
       {/* Table */}
       <Card>
         <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -153,164 +132,121 @@ export default function PedidosCompra() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPOs.map((po) => {
-                const cotacao = cotacoes.find(c => c.id === po.cotacaoId);
-                return (
-                  <TableRow key={po.id}>
-                    <TableCell className="font-medium">{po.numero}</TableCell>
-                    <TableCell>Loja Principal</TableCell>
-                    <TableCell>{po.fornecedorNome}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {cotacao?.origem === 'REQ' ? 'Requisição' : 'OS'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(po.total)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[po.status]}>
-                        {po.status.toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedPO(po.id)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>Pedido de Compra {po.numero}</DialogTitle>
-                            </DialogHeader>
-                            
-                            {selectedPOData && (
-                              <div className="space-y-6">
-                                {/* Header Info */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  <Card>
-                                    <CardContent className="pt-4">
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium">Fornecedor</p>
-                                        <p>{selectedPOData.fornecedorNome}</p>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                  
-                                  <Card>
-                                    <CardContent className="pt-4">
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium">Prazo de Entrega</p>
-                                        <p>{selectedPOData.prazoEntrega} dias</p>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                  
-                                  <Card>
-                                    <CardContent className="pt-4">
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium">Condições</p>
-                                        <p className="text-sm">{selectedPOData.condicoesPagamento}</p>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                </div>
-
-                                {/* Items */}
-                                <Card>
-                                  <CardHeader>
-                                    <CardTitle>Itens do Pedido</CardTitle>
-                                  </CardHeader>
-                                  <CardContent>
-                                    <Table>
-                                      <TableHeader>
-                                        <TableRow>
-                                          <TableHead>SKU</TableHead>
-                                          <TableHead>Descrição</TableHead>
-                                          <TableHead>Qtd</TableHead>
-                                          <TableHead>Preço Unit.</TableHead>
-                                          <TableHead>Total</TableHead>
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {selectedPOData.itens.map((item) => (
-                                          <TableRow key={item.itemId}>
-                                            <TableCell className="font-medium">{item.sku}</TableCell>
-                                            <TableCell>{item.descricao}</TableCell>
-                                            <TableCell>{item.quantidade}</TableCell>
-                                            <TableCell>{formatCurrency(item.precoUnit)}</TableCell>
-                                            <TableCell>{formatCurrency(item.total)}</TableCell>
-                                          </TableRow>
-                                        ))}
-                                        <TableRow className="bg-muted/50">
-                                          <TableCell colSpan={4} className="font-medium">
-                                            TOTAL GERAL
-                                          </TableCell>
-                                          <TableCell className="font-bold">
-                                            {formatCurrency(selectedPOData.total)}
-                                          </TableCell>
-                                        </TableRow>
-                                      </TableBody>
-                                    </Table>
-                                  </CardContent>
-                                </Card>
-
-                                {/* Observations */}
-                                {selectedPOData.observacoes && (
-                                  <Card>
-                                    <CardHeader>
-                                      <CardTitle>Observações</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                      <p className="text-sm">{selectedPOData.observacoes}</p>
-                                    </CardContent>
-                                  </Card>
-                                )}
-
-                                {/* Actions */}
-                                <div className="flex justify-end gap-2">
-                                  <Button 
-                                    variant="outline"
-                                    onClick={() => handlePrintPO(selectedPOData.id)}
-                                  >
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    Imprimir PO
-                                  </Button>
-                                  
-                                  {can('compras:rec:operar') && selectedPOData.status !== 'total' && (
-                                    <Button onClick={() => toast.info('Redirecionando para Recebimento...')}>
-                                      <Package className="mr-2 h-4 w-4" />
-                                      Receber
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </DialogContent>
-                        </Dialog>
-
-                        {can('compras:po:create') && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePrintPO(po.id)}
-                          >
-                            <FileText className="h-4 w-4" />
+              {filteredPOs.map((po) => (
+                <TableRow key={po.id}>
+                  <TableCell className="font-medium">{po.numero}</TableCell>
+                  <TableCell>{lojaAtual?.nome || 'Loja'}</TableCell>
+                  <TableCell>{po.fornecedor?.nome || '—'}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{origemLabel[po.cotacao?.origem || ''] || '—'}</Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">{formatCurrency(Number(po.total))}</TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[po.status]}>{po.status.toUpperCase()}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedPO(po.id)}>
+                            <Eye className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Pedido de Compra {po.numero}</DialogTitle>
+                          </DialogHeader>
+
+                          {selectedPOData && (
+                            <div className="space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <Card><CardContent className="pt-4">
+                                  <p className="text-sm font-medium">Fornecedor</p>
+                                  <p>{selectedPOData.fornecedor?.nome || '—'}</p>
+                                </CardContent></Card>
+                                <Card><CardContent className="pt-4">
+                                  <p className="text-sm font-medium">Prazo de Entrega</p>
+                                  <p>{selectedPOData.prazo_entrega ?? '—'} dias</p>
+                                </CardContent></Card>
+                                <Card><CardContent className="pt-4">
+                                  <p className="text-sm font-medium">Condições</p>
+                                  <p className="text-sm">{selectedPOData.condicoes_pagamento || '—'}</p>
+                                </CardContent></Card>
+                              </div>
+
+                              <Card>
+                                <CardHeader><CardTitle>Itens do Pedido</CardTitle></CardHeader>
+                                <CardContent>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>SKU</TableHead>
+                                        <TableHead>Descrição</TableHead>
+                                        <TableHead>Qtd</TableHead>
+                                        <TableHead>Preço Unit.</TableHead>
+                                        <TableHead>Total</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {selectedPOData.itens.map((item) => (
+                                        <TableRow key={item.id}>
+                                          <TableCell className="font-medium">{item.sku || '—'}</TableCell>
+                                          <TableCell>{item.descricao}</TableCell>
+                                          <TableCell>{item.quantidade}</TableCell>
+                                          <TableCell>{formatCurrency(Number(item.preco_unit))}</TableCell>
+                                          <TableCell>{formatCurrency(Number(item.total))}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                      <TableRow className="bg-muted/50">
+                                        <TableCell colSpan={4} className="font-medium">TOTAL GERAL</TableCell>
+                                        <TableCell className="font-bold">{formatCurrency(Number(selectedPOData.total))}</TableCell>
+                                      </TableRow>
+                                    </TableBody>
+                                  </Table>
+                                </CardContent>
+                              </Card>
+
+                              {selectedPOData.observacoes && (
+                                <Card>
+                                  <CardHeader><CardTitle>Observações</CardTitle></CardHeader>
+                                  <CardContent><p className="text-sm">{selectedPOData.observacoes}</p></CardContent>
+                                </Card>
+                              )}
+
+                              <div className="flex justify-end gap-2">
+                                <Button variant="outline" onClick={() => handlePrintPO(selectedPOData.id)}>
+                                  <FileText className="mr-2 h-4 w-4" /> Imprimir PO
+                                </Button>
+                                {can('compras:rec:operar') && selectedPOData.status !== 'total' && (
+                                  <Button onClick={() => toast.info('Use a aba Recebimento para registrar a entrada.')}>
+                                    <Package className="mr-2 h-4 w-4" /> Receber
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+
+                      {can('compras:po:create') && (
+                        <Button variant="ghost" size="sm" onClick={() => handlePrintPO(po.id)}>
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredPOs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Nenhum pedido encontrado
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
     </div>

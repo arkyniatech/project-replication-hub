@@ -18,6 +18,8 @@ import {
   Upload
 } from "lucide-react";
 import { useSupabaseOrdensServico } from "@/hooks/useSupabaseOrdensServico";
+import { useSupabaseCotacoes } from "@/modules/compras/hooks/useSupabaseCotacoes";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 interface PedidoItem {
@@ -43,8 +45,20 @@ export default function PedidoPecasPage() {
 
   const { useOS, updateOS } = useSupabaseOrdensServico();
   const { data: os, isLoading } = useOS(id || "");
+  const queryClient = useQueryClient();
+  const { criarDeOS } = useSupabaseCotacoes((os as any)?.loja_id);
 
   const pedido = os?.pedido_pecas as any;
+
+  const handleGerarCotacao = () => {
+    if (!os) return;
+    criarDeOS.mutate(os.id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['ordem-servico'] });
+        toast.success('Cotação gerada em Compras a partir do pedido de peças');
+      },
+    });
+  };
 
   useEffect(() => {
     if (pedido) {
@@ -259,7 +273,13 @@ export default function PedidoPecasPage() {
               ) : (
                 <>
                   {currentStatus === 'FINALIZADO' && (
-                    <Button onClick={() => salvarPedido('COMPRADO')} className="w-full">Marcar como Comprado</Button>
+                    <>
+                      <Button onClick={handleGerarCotacao} className="w-full" disabled={criarDeOS.isPending}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Gerar Cotação (Compras)
+                      </Button>
+                      <Button onClick={() => salvarPedido('COMPRADO')} variant="outline" className="w-full">Marcar como Comprado</Button>
+                    </>
                   )}
                   {currentStatus === 'COMPRADO' && (
                     <>

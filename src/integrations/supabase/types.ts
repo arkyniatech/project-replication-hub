@@ -162,6 +162,174 @@ export type Database = {
           },
         ]
       }
+      almox_catalogo_itens: {
+        Row: {
+          ativo: boolean
+          controle: string
+          created_at: string
+          created_by: string | null
+          descricao: string
+          estoque_maximo: number | null
+          estoque_minimo: number | null
+          grupo: string | null
+          id: string
+          modelo: string | null
+          observacoes: string | null
+          sku: string
+          tipo: string
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          controle?: string
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          estoque_maximo?: number | null
+          estoque_minimo?: number | null
+          grupo?: string | null
+          id?: string
+          modelo?: string | null
+          observacoes?: string | null
+          sku: string
+          tipo: string
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          controle?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          estoque_maximo?: number | null
+          estoque_minimo?: number | null
+          grupo?: string | null
+          id?: string
+          modelo?: string | null
+          observacoes?: string | null
+          sku?: string
+          tipo?: string
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      almox_estoque: {
+        Row: {
+          controle: string
+          created_at: string
+          created_by: string | null
+          custo_medio: number | null
+          id: string
+          item_id: string
+          loja_id: string
+          saldo: number
+          series: Json
+          ultima_movimentacao: string | null
+          updated_at: string
+        }
+        Insert: {
+          controle?: string
+          created_at?: string
+          created_by?: string | null
+          custo_medio?: number | null
+          id?: string
+          item_id: string
+          loja_id: string
+          saldo?: number
+          series?: Json
+          ultima_movimentacao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          controle?: string
+          created_at?: string
+          created_by?: string | null
+          custo_medio?: number | null
+          id?: string
+          item_id?: string
+          loja_id?: string
+          saldo?: number
+          series?: Json
+          ultima_movimentacao?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "almox_estoque_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "almox_catalogo_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "almox_estoque_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      almox_movimentos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          custo_unitario: number | null
+          id: string
+          item_id: string
+          loja_id: string
+          observacao: string | null
+          quantidade: number
+          referencia: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          custo_unitario?: number | null
+          id?: string
+          item_id: string
+          loja_id: string
+          observacao?: string | null
+          quantidade: number
+          referencia?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          custo_unitario?: number | null
+          id?: string
+          item_id?: string
+          loja_id?: string
+          observacao?: string | null
+          quantidade?: number
+          referencia?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "almox_movimentos_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "almox_catalogo_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "almox_movimentos_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aprovacoes_cp: {
         Row: {
           created_at: string
@@ -798,6 +966,650 @@ export type Database = {
             columns: ["titulo_id"]
             isOneToOne: false
             referencedRelation: "titulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_cotacao_itens: {
+        Row: {
+          cotacao_id: string
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          item_catalogo_id: string | null
+          loja_id: string
+          quantidade: number
+          sku: string | null
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          cotacao_id: string
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          item_catalogo_id?: string | null
+          loja_id: string
+          quantidade?: number
+          sku?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          cotacao_id?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          item_catalogo_id?: string | null
+          loja_id?: string
+          quantidade?: number
+          sku?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_cotacao_itens_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "compras_cotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_cotacao_itens_item_catalogo_id_fkey"
+            columns: ["item_catalogo_id"]
+            isOneToOne: false
+            referencedRelation: "almox_catalogo_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_cotacao_itens_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_cotacao_proposta_itens: {
+        Row: {
+          cotacao_item_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          loja_id: string
+          observacao: string | null
+          prazo_entrega: number | null
+          preco_unit: number
+          proposta_id: string
+          updated_at: string
+        }
+        Insert: {
+          cotacao_item_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id: string
+          observacao?: string | null
+          prazo_entrega?: number | null
+          preco_unit?: number
+          proposta_id: string
+          updated_at?: string
+        }
+        Update: {
+          cotacao_item_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id?: string
+          observacao?: string | null
+          prazo_entrega?: number | null
+          preco_unit?: number
+          proposta_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_cotacao_proposta_itens_cotacao_item_id_fkey"
+            columns: ["cotacao_item_id"]
+            isOneToOne: false
+            referencedRelation: "compras_cotacao_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_cotacao_proposta_itens_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_cotacao_proposta_itens_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "compras_cotacao_propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_cotacao_propostas: {
+        Row: {
+          condicoes_pagamento: string | null
+          cotacao_id: string
+          created_at: string
+          created_by: string | null
+          desconto: number
+          fornecedor_id: string
+          frete: number
+          id: string
+          impostos: number
+          loja_id: string
+          prazo_geral_dias: number
+          total: number
+          updated_at: string
+          validade_proposta: string | null
+        }
+        Insert: {
+          condicoes_pagamento?: string | null
+          cotacao_id: string
+          created_at?: string
+          created_by?: string | null
+          desconto?: number
+          fornecedor_id: string
+          frete?: number
+          id?: string
+          impostos?: number
+          loja_id: string
+          prazo_geral_dias?: number
+          total?: number
+          updated_at?: string
+          validade_proposta?: string | null
+        }
+        Update: {
+          condicoes_pagamento?: string | null
+          cotacao_id?: string
+          created_at?: string
+          created_by?: string | null
+          desconto?: number
+          fornecedor_id?: string
+          frete?: number
+          id?: string
+          impostos?: number
+          loja_id?: string
+          prazo_geral_dias?: number
+          total?: number
+          updated_at?: string
+          validade_proposta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_cotacao_propostas_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "compras_cotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_cotacao_propostas_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_cotacao_propostas_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_cotacoes: {
+        Row: {
+          aprovacao: Json | null
+          comprador_id: string | null
+          comprador_nome: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          loja_id: string
+          numero: string
+          origem: string
+          origem_id: string | null
+          sla_interno: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aprovacao?: Json | null
+          comprador_id?: string | null
+          comprador_nome?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id: string
+          numero: string
+          origem: string
+          origem_id?: string | null
+          sla_interno?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aprovacao?: Json | null
+          comprador_id?: string | null
+          comprador_nome?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id?: string
+          numero?: string
+          origem?: string
+          origem_id?: string | null
+          sla_interno?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_cotacoes_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_pedido_itens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          item_catalogo_id: string | null
+          loja_id: string
+          pedido_id: string
+          preco_unit: number
+          quantidade: number
+          sku: string | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          item_catalogo_id?: string | null
+          loja_id: string
+          pedido_id: string
+          preco_unit?: number
+          quantidade?: number
+          sku?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          item_catalogo_id?: string | null
+          loja_id?: string
+          pedido_id?: string
+          preco_unit?: number
+          quantidade?: number
+          sku?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_pedido_itens_item_catalogo_id_fkey"
+            columns: ["item_catalogo_id"]
+            isOneToOne: false
+            referencedRelation: "almox_catalogo_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_pedido_itens_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_pedido_itens_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "compras_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_pedidos: {
+        Row: {
+          anexos: Json
+          condicoes_pagamento: string | null
+          cotacao_id: string | null
+          created_at: string
+          created_by: string | null
+          fornecedor_id: string
+          id: string
+          loja_id: string
+          numero: string
+          observacoes: string | null
+          prazo_entrega: number | null
+          status: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          anexos?: Json
+          condicoes_pagamento?: string | null
+          cotacao_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          fornecedor_id: string
+          id?: string
+          loja_id: string
+          numero: string
+          observacoes?: string | null
+          prazo_entrega?: number | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          anexos?: Json
+          condicoes_pagamento?: string | null
+          cotacao_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          fornecedor_id?: string
+          id?: string
+          loja_id?: string
+          numero?: string
+          observacoes?: string | null
+          prazo_entrega?: number | null
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_pedidos_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "compras_cotacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_pedidos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_pedidos_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_recebimento_itens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          loja_id: string
+          observacao: string | null
+          pedido_item_id: string | null
+          quantidade_recebida: number
+          recebimento_id: string
+          series: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id: string
+          observacao?: string | null
+          pedido_item_id?: string | null
+          quantidade_recebida?: number
+          recebimento_id: string
+          series?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id?: string
+          observacao?: string | null
+          pedido_item_id?: string | null
+          quantidade_recebida?: number
+          recebimento_id?: string
+          series?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_recebimento_itens_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_recebimento_itens_pedido_item_id_fkey"
+            columns: ["pedido_item_id"]
+            isOneToOne: false
+            referencedRelation: "compras_pedido_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_recebimento_itens_recebimento_id_fkey"
+            columns: ["recebimento_id"]
+            isOneToOne: false
+            referencedRelation: "compras_recebimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_recebimentos: {
+        Row: {
+          conferente_id: string | null
+          conferente_nome: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          loja_id: string
+          nf_chave: string | null
+          nf_emissao: string | null
+          nf_numero: string | null
+          numero: string
+          pedido_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          conferente_id?: string | null
+          conferente_nome?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id: string
+          nf_chave?: string | null
+          nf_emissao?: string | null
+          nf_numero?: string | null
+          numero: string
+          pedido_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          conferente_id?: string | null
+          conferente_nome?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id?: string
+          nf_chave?: string | null
+          nf_emissao?: string | null
+          nf_numero?: string | null
+          numero?: string
+          pedido_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_recebimentos_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_recebimentos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "compras_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_requisicao_itens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          item_catalogo_id: string | null
+          loja_id: string
+          obs: string | null
+          quantidade: number
+          requisicao_id: string
+          sku: string | null
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          item_catalogo_id?: string | null
+          loja_id: string
+          obs?: string | null
+          quantidade?: number
+          requisicao_id: string
+          sku?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          item_catalogo_id?: string | null
+          loja_id?: string
+          obs?: string | null
+          quantidade?: number
+          requisicao_id?: string
+          sku?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_requisicao_itens_item_catalogo_id_fkey"
+            columns: ["item_catalogo_id"]
+            isOneToOne: false
+            referencedRelation: "almox_catalogo_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_requisicao_itens_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_requisicao_itens_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "compras_requisicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras_requisicoes: {
+        Row: {
+          anexos: Json
+          categoria: string
+          centro_custo: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          loja_id: string
+          numero: string
+          observacoes: string | null
+          prioridade: string
+          solicitante_id: string | null
+          solicitante_nome: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          anexos?: Json
+          categoria: string
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id: string
+          numero: string
+          observacoes?: string | null
+          prioridade?: string
+          solicitante_id?: string | null
+          solicitante_nome: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          anexos?: Json
+          categoria?: string
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id?: string
+          numero?: string
+          observacoes?: string | null
+          prioridade?: string
+          solicitante_id?: string | null
+          solicitante_nome?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_requisicoes_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
             referencedColumns: ["id"]
           },
         ]
@@ -1638,6 +2450,299 @@ export type Database = {
             columns: ["vinculo_id"]
             isOneToOne: false
             referencedRelation: "pessoa_vinculo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_conciliacoes: {
+        Row: {
+          conta_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          loja_id: string
+          periodo_fim: string
+          periodo_ini: string
+          saldo_final_extrato: number
+          saldo_inicial_extrato: number
+          status: string
+        }
+        Insert: {
+          conta_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id: string
+          periodo_fim: string
+          periodo_ini: string
+          saldo_final_extrato?: number
+          saldo_inicial_extrato?: number
+          status?: string
+        }
+        Update: {
+          conta_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loja_id?: string
+          periodo_fim?: string
+          periodo_ini?: string
+          saldo_final_extrato?: number
+          saldo_inicial_extrato?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_conciliacoes_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_conciliacoes_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_extrato_linhas: {
+        Row: {
+          conciliacao_id: string
+          data: string
+          doc: string | null
+          historico: string
+          id: string
+          pareado: boolean
+          saldo: number | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          conciliacao_id: string
+          data: string
+          doc?: string | null
+          historico?: string
+          id?: string
+          pareado?: boolean
+          saldo?: number | null
+          tipo: string
+          valor: number
+        }
+        Update: {
+          conciliacao_id?: string
+          data?: string
+          doc?: string | null
+          historico?: string
+          id?: string
+          pareado?: boolean
+          saldo?: number | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_extrato_linhas_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_conciliacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_lancamentos: {
+        Row: {
+          cc: string | null
+          conta_id: string
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          id: string
+          loja_id: string | null
+          origem: string
+          ref_id: string | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          cc?: string | null
+          conta_id: string
+          created_at?: string
+          created_by?: string | null
+          data: string
+          descricao?: string | null
+          id?: string
+          loja_id?: string | null
+          origem?: string
+          ref_id?: string | null
+          tipo: string
+          valor: number
+        }
+        Update: {
+          cc?: string | null
+          conta_id?: string
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          id?: string
+          loja_id?: string | null
+          origem?: string
+          ref_id?: string | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_lancamentos_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_lancamentos_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_matches: {
+        Row: {
+          conciliacao_id: string
+          created_at: string
+          extrato_id: string
+          id: string
+          lancamento_id: string
+          modo: string
+        }
+        Insert: {
+          conciliacao_id: string
+          created_at?: string
+          extrato_id: string
+          id?: string
+          lancamento_id: string
+          modo?: string
+        }
+        Update: {
+          conciliacao_id?: string
+          created_at?: string
+          extrato_id?: string
+          id?: string
+          lancamento_id?: string
+          modo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_matches_conciliacao_id_fkey"
+            columns: ["conciliacao_id"]
+            isOneToOne: false
+            referencedRelation: "fin_conciliacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_matches_extrato_id_fkey"
+            columns: ["extrato_id"]
+            isOneToOne: false
+            referencedRelation: "fin_extrato_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_matches_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "fin_lancamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_transferencias: {
+        Row: {
+          anexo: string | null
+          centros_custo: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          destino_id: string
+          estorno_de: string | null
+          id: string
+          loja_id: string
+          observacoes: string | null
+          origem_id: string
+          ref: string | null
+          status: string
+          taxa: number
+          valor: number
+        }
+        Insert: {
+          anexo?: string | null
+          centros_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data: string
+          descricao?: string | null
+          destino_id: string
+          estorno_de?: string | null
+          id?: string
+          loja_id: string
+          observacoes?: string | null
+          origem_id: string
+          ref?: string | null
+          status?: string
+          taxa?: number
+          valor: number
+        }
+        Update: {
+          anexo?: string | null
+          centros_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          destino_id?: string
+          estorno_de?: string | null
+          id?: string
+          loja_id?: string
+          observacoes?: string | null
+          origem_id?: string
+          ref?: string | null
+          status?: string
+          taxa?: number
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_transferencias_destino_id_fkey"
+            columns: ["destino_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_transferencias_estorno_de_fkey"
+            columns: ["estorno_de"]
+            isOneToOne: false
+            referencedRelation: "fin_transferencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_transferencias_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_transferencias_origem_id_fkey"
+            columns: ["origem_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
             referencedColumns: ["id"]
           },
         ]
@@ -6102,10 +7207,29 @@ export type Database = {
         }
         Returns: undefined
       }
+      ajustar_saldo_estoque: {
+        Args: {
+          p_diferenca: number
+          p_item_id: string
+          p_justificativa: string
+          p_loja_id: string
+        }
+        Returns: undefined
+      }
       atualizar_status_ferias: { Args: never; Returns: undefined }
       atualizar_status_transferencia: {
         Args: { p_recusa?: Json; p_status: string; p_transferencia_id: string }
         Returns: undefined
+      }
+      compras_pode_loja: { Args: { p_loja_id: string }; Returns: boolean }
+      criar_cotacao_de_os: { Args: { p_os_id: string }; Returns: string }
+      criar_cotacao_de_requisicao: {
+        Args: { p_requisicao_id: string }
+        Returns: string
+      }
+      criar_cotacao_direta: {
+        Args: { p_itens: Json; p_loja_id: string }
+        Returns: string
       }
       criar_transferencia: {
         Args: {
@@ -6118,6 +7242,11 @@ export type Database = {
         }
         Returns: Json
       }
+      fin_efetivar_transferencia: { Args: { p_id: string }; Returns: undefined }
+      fin_estornar_transferencia: {
+        Args: { p_id: string; p_motivo: string }
+        Returns: string
+      }
       gerar_codigo_fornecedor: { Args: never; Returns: string }
       gerar_ferias_periodos: {
         Args: { p_pessoa_id: string }
@@ -6125,6 +7254,10 @@ export type Database = {
       }
       gerar_notificacoes_rh: { Args: never; Returns: number }
       gerar_numero_os: { Args: { p_loja_id: string }; Returns: string }
+      gerar_pedidos_de_cotacao: {
+        Args: { p_cotacao_id: string }
+        Returns: string
+      }
       gerar_provisao_snapshots: {
         Args: { p_competencia?: string }
         Returns: Json
@@ -6147,6 +7280,10 @@ export type Database = {
       recompute_ferias_faltas: {
         Args: { p_pessoa_id: string }
         Returns: undefined
+      }
+      registrar_recebimento: {
+        Args: { p_itens: Json; p_nf: Json; p_pedido_id: string }
+        Returns: string
       }
       rpc_aplicar_substituicao: { Args: { p: Json }; Returns: undefined }
       rpc_criar_os_de_solicitacao: { Args: { p: Json }; Returns: string }

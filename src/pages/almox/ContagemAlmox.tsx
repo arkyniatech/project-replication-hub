@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Clipboard, FileText, AlertTriangle, CheckCircle, XCircle, Eye, Plus, Printer } from "lucide-react";
-import { useAlmoxStore } from "@/modules/almox/store/almoxStore";
+import { useSupabaseCatalogo } from "@/modules/almox/hooks/useSupabaseCatalogo";
+import { useSupabaseEstoque } from "@/modules/almox/hooks/useSupabaseEstoque";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useRbac } from "@/hooks/useRbac";
 import { toast } from "@/hooks/use-toast";
@@ -79,9 +80,10 @@ export default function ContagemAlmox() {
     incluirZerados: false
   });
 
-  const { catalogoItens, estoque, ajustarSaldo } = useAlmoxStore();
   const { lojaAtual } = useMultiunidade();
   const { can } = useRbac();
+  const { itens: catalogoItens } = useSupabaseCatalogo();
+  const { estoque, ajustarSaldo } = useSupabaseEstoque(lojaAtual?.id);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -111,8 +113,8 @@ export default function ContagemAlmox() {
       if (!can('almox:patrimonial') && item.tipo === 'PATRIMONIAL') return false;
       if (novaContagemForm.tipo !== 'TODOS' && item.tipo !== novaContagemForm.tipo) return false;
       if (novaContagemForm.grupo && item.grupo !== novaContagemForm.grupo) return false;
-      
-      const saldoItem = estoque.find(e => e.itemId === item.id && e.lojaId === lojaAtual.id);
+
+      const saldoItem = estoque.find(e => e.item_id === item.id);
       if (!novaContagemForm.incluirZerados && (!saldoItem || saldoItem.saldo === 0)) return false;
       
       return true;
@@ -126,7 +128,7 @@ export default function ContagemAlmox() {
       criadoEm: new Date().toISOString(),
       criadoPor: 'Admin',
       itens: itensParaContagem.map(item => {
-        const saldoItem = estoque.find(e => e.itemId === item.id && e.lojaId === lojaAtual.id);
+        const saldoItem = estoque.find(e => e.item_id === item.id);
         return {
           itemId: item.id,
           sku: item.sku,
@@ -153,7 +155,7 @@ export default function ContagemAlmox() {
       if (!div.acao || !div.justificativa) return;
       
       if (div.acao === 'AJUSTAR' && lojaAtual) {
-        ajustarSaldo(div.itemId, lojaAtual.id, div.diferenca, div.justificativa);
+        ajustarSaldo.mutate({ itemId: div.itemId, lojaId: lojaAtual.id, diferenca: div.diferenca, justificativa: div.justificativa });
         processadas++;
       }
     });
@@ -174,7 +176,7 @@ export default function ContagemAlmox() {
     setSessaoSelecionada(null);
   };
 
-  const grupos = [...new Set(catalogoItens.map(item => item.grupo))];
+  const grupos = [...new Set(catalogoItens.map(item => item.grupo).filter((g): g is string => !!g))];
 
   return (
     <div className="space-y-6">
@@ -292,15 +294,15 @@ export default function ContagemAlmox() {
 
             <div>
               <Label>Grupo (opcional)</Label>
-              <Select 
-                value={novaContagemForm.grupo} 
-                onValueChange={(value) => setNovaContagemForm(prev => ({ ...prev, grupo: value }))}
+              <Select
+                value={novaContagemForm.grupo || '__todos__'}
+                onValueChange={(value) => setNovaContagemForm(prev => ({ ...prev, grupo: value === '__todos__' ? '' : value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os grupos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os grupos</SelectItem>
+                  <SelectItem value="__todos__">Todos os grupos</SelectItem>
                   {grupos.map(grupo => (
                     <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>
                   ))}
