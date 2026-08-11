@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, FileText, Search, TrendingUp, TrendingDown } from "lucide-react";
-import { useAlmoxStore } from "@/modules/almox/store/almoxStore";
+import { useSupabaseMovimentos } from "@/modules/almox/hooks/useSupabaseMovimentos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -19,35 +19,33 @@ export default function MovimentosAlmox() {
   const [itemFilter, setItemFilter] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-  const { movimentos, catalogoItens } = useAlmoxStore();
   const { lojaAtual } = useMultiunidade();
+  const { movimentos } = useSupabaseMovimentos(lojaAtual?.id);
 
-  // Filtrar movimentos baseado nos filtros
+  // Filtrar movimentos baseado nos filtros (loja já filtrada no hook)
   const filteredMovimentos = movimentos.filter(movimento => {
-    if (movimento.lojaId !== lojaAtual?.id) return false;
     if (tipoFilter !== "all" && movimento.tipo !== tipoFilter) return false;
-    
-    const item = catalogoItens.find(i => i.id === movimento.itemId);
+
+    const item = movimento.item;
     if (!item) return false;
-    
-    if (itemFilter && !item.sku.toLowerCase().includes(itemFilter.toLowerCase()) && 
+
+    if (itemFilter && !(item.sku || '').toLowerCase().includes(itemFilter.toLowerCase()) &&
         !item.descricao.toLowerCase().includes(itemFilter.toLowerCase())) {
       return false;
     }
-    
+
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
-      item.sku.toLowerCase().includes(searchLower) ||
+    const matchesSearch =
+      (item.sku || '').toLowerCase().includes(searchLower) ||
       item.descricao.toLowerCase().includes(searchLower) ||
-      movimento.referencia?.toLowerCase().includes(searchLower) ||
-      '';
+      (movimento.referencia?.toLowerCase().includes(searchLower) ?? false);
 
     // Filtro por data
     if (dateRange?.from && dateRange?.to) {
-      const movDate = new Date(movimento.createdAt);
+      const movDate = new Date(movimento.created_at);
       if (movDate < dateRange.from || movDate > dateRange.to) return false;
     }
-    
+
     return matchesSearch;
   });
 
@@ -177,16 +175,16 @@ export default function MovimentosAlmox() {
             </TableHeader>
             <TableBody>
               {filteredMovimentos.map((movimento) => {
-                const item = catalogoItens.find(i => i.id === movimento.itemId);
+                const item = movimento.item;
                 if (!item) return null;
-                
+
                 return (
                   <TableRow key={movimento.id}>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{format(new Date(movimento.createdAt), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                        <div>{format(new Date(movimento.created_at), 'dd/MM/yyyy', { locale: ptBR })}</div>
                         <div className="text-muted-foreground">
-                          {format(new Date(movimento.createdAt), 'HH:mm', { locale: ptBR })}
+                          {format(new Date(movimento.created_at), 'HH:mm', { locale: ptBR })}
                         </div>
                       </div>
                     </TableCell>
@@ -198,7 +196,7 @@ export default function MovimentosAlmox() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-mono text-sm">{item.sku}</div>
+                        <div className="font-mono text-sm">{item.sku || '—'}</div>
                         <div className="text-sm text-muted-foreground">{item.descricao}</div>
                       </div>
                     </TableCell>
@@ -212,13 +210,13 @@ export default function MovimentosAlmox() {
                       </span>
                     </TableCell>
                     <TableCell className="font-mono">
-                      {movimento.custoUnitario ? (
-                        `R$ ${movimento.custoUnitario.toFixed(2)}`
+                      {movimento.custo_unitario ? (
+                        `R$ ${movimento.custo_unitario.toFixed(2)}`
                       ) : '--'}
                     </TableCell>
                     <TableCell className="font-mono">
-                      {movimento.custoUnitario ? (
-                        `R$ ${(movimento.custoUnitario * Math.abs(movimento.quantidade)).toFixed(2)}`
+                      {movimento.custo_unitario ? (
+                        `R$ ${(movimento.custo_unitario * Math.abs(movimento.quantidade)).toFixed(2)}`
                       ) : '--'}
                     </TableCell>
                     <TableCell>
@@ -231,7 +229,7 @@ export default function MovimentosAlmox() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {movimento.createdBy || 'Sistema'}
+                      {movimento.observacao || '—'}
                     </TableCell>
                   </TableRow>
                 );

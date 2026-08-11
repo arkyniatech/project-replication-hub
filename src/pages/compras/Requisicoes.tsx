@@ -1,19 +1,22 @@
 import { useState } from 'react';
-import { Plus, Search, Filter, FileText, Send, X, Edit2 } from 'lucide-react';
+import { Plus, Search, Send, X, Edit2, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useComprasStore, ItemRequisicao } from '@/modules/compras/store/comprasStore';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useSupabaseRequisicoes, type NovaRequisicaoInput, type RequisicaoComItens } from '@/modules/compras/hooks/useSupabaseRequisicoes';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
+import { useCurrentUserName } from '@/hooks/useCurrentUserName';
 import { useRbac } from '@/hooks/useRbac';
 import { toast } from 'sonner';
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   rascunho: 'bg-gray-100 text-gray-800',
   solicitado: 'bg-blue-100 text-blue-800',
   em_cotacao: 'bg-yellow-100 text-yellow-800',
@@ -21,147 +24,114 @@ const statusColors = {
   cancelado: 'bg-red-100 text-red-800'
 };
 
-const prioridadeColors = {
+const prioridadeColors: Record<string, string> = {
   baixa: 'bg-green-100 text-green-800',
-  media: 'bg-yellow-100 text-yellow-800', 
+  media: 'bg-yellow-100 text-yellow-800',
   alta: 'bg-red-100 text-red-800'
 };
 
+interface FormItem {
+  id: string;
+  sku: string;
+  descricao: string;
+  unidade: string;
+  quantidade: number;
+  obs: string;
+}
+
 export default function Requisicoes() {
   const { can } = useRbac();
-  const { requisicoes, criarRequisicao, editarRequisicao, enviarParaCotacao } = useComprasStore();
+  const { lojaAtual } = useMultiunidade();
+  const solicitanteNome = useCurrentUserName();
+  const { requisicoes, isLoading, criar, editar, solicitar, enviarParaCotacao } = useSupabaseRequisicoes(lojaAtual?.id);
+
   const [search, setSearch] = useState('');
   const [selectedCategoria, setSelectedCategoria] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Form state
   const [formData, setFormData] = useState({
-    lojaId: 'loja-1', // Mock
-    solicitante: '',
     centroCusto: '',
     categoria: '' as 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL' | '',
     prioridade: 'media' as 'baixa' | 'media' | 'alta',
     observacoes: '',
-    itens: [] as ItemRequisicao[]
+    itens: [] as FormItem[]
   });
 
-  const [newItem, setNewItem] = useState({
-    sku: '',
-    descricao: '',
-    unidade: 'UN',
-    quantidade: 1,
-    obs: ''
-  });
+  const [newItem, setNewItem] = useState({ sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
 
   const filteredRequisicoes = requisicoes.filter(req => {
     const matchSearch = req.numero.toLowerCase().includes(search.toLowerCase()) ||
-                       req.solicitante.toLowerCase().includes(search.toLowerCase()) ||
-                       req.itens.some(item => item.descricao.toLowerCase().includes(search.toLowerCase()));
+      (req.solicitante_nome || '').toLowerCase().includes(search.toLowerCase()) ||
+      req.itens.some(item => item.descricao.toLowerCase().includes(search.toLowerCase()));
     const matchCategoria = selectedCategoria === 'all' || req.categoria === selectedCategoria;
     const matchStatus = selectedStatus === 'all' || req.status === selectedStatus;
-    
     return matchSearch && matchCategoria && matchStatus;
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (!lojaAtual) { toast.error('Selecione uma loja'); return; }
     if (!formData.categoria || formData.itens.length === 0) {
       toast.error('Preencha a categoria e adicione pelo menos um item');
       return;
     }
 
-    if (editingId) {
-      editarRequisicao(editingId, {
-        ...formData,
-        categoria: formData.categoria as 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL'
-      });
-      toast.success('Requisição atualizada com sucesso');
-    } else {
-      criarRequisicao({
-        ...formData,
-        anexos: [],
-        status: 'rascunho',
-        categoria: formData.categoria as 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL'
-      });
-      toast.success('Requisição criada com sucesso');
-    }
+    const input: NovaRequisicaoInput = {
+      loja_id: lojaAtual.id,
+      categoria: formData.categoria as 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL',
+      prioridade: formData.prioridade,
+      centro_custo: formData.centroCusto || null,
+      observacoes: formData.observacoes || null,
+      itens: formData.itens.map(i => ({
+        sku: i.sku || null,
+        descricao: i.descricao,
+        unidade: i.unidade,
+        quantidade: i.quantidade,
+        obs: i.obs || null,
+      })),
+    };
 
-    resetForm();
+    if (editingId) {
+      editar.mutate({ id: editingId, input }, { onSuccess: resetForm });
+    } else {
+      criar.mutate(input, { onSuccess: resetForm });
+    }
   };
 
   const resetForm = () => {
-    setFormData({
-      lojaId: 'loja-1',
-      solicitante: '',
-      centroCusto: '',
-      categoria: '',
-      prioridade: 'media',
-      observacoes: '',
-      itens: []
-    });
-    setNewItem({
-      sku: '',
-      descricao: '',
-      unidade: 'UN',
-      quantidade: 1,
-      obs: ''
-    });
+    setFormData({ centroCusto: '', categoria: '', prioridade: 'media', observacoes: '', itens: [] });
+    setNewItem({ sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
     setEditingId(null);
     setShowForm(false);
   };
 
   const handleAddItem = () => {
-    if (!newItem.descricao.trim()) {
-      toast.error('Informe a descrição do item');
-      return;
-    }
-
-
-    const item: ItemRequisicao = {
-      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...newItem
-    };
-
-    setFormData(prev => ({
-      ...prev,
-      itens: [...prev.itens, item]
-    }));
-
-    setNewItem({
-      sku: '',
-      descricao: '',
-      unidade: 'UN',
-      quantidade: 1,
-      obs: ''
-    });
+    if (!newItem.descricao.trim()) { toast.error('Informe a descrição do item'); return; }
+    const item: FormItem = { id: `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, ...newItem };
+    setFormData(prev => ({ ...prev, itens: [...prev.itens, item] }));
+    setNewItem({ sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
   };
 
   const handleRemoveItem = (itemId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      itens: prev.itens.filter(item => item.id !== itemId)
-    }));
+    setFormData(prev => ({ ...prev, itens: prev.itens.filter(item => item.id !== itemId) }));
   };
 
-  const handleEnviarParaCotacao = (reqId: string) => {
-    const cotacaoId = enviarParaCotacao(reqId);
-    if (cotacaoId) {
-      toast.success('Requisição enviada para cotação');
-    }
-  };
-
-  const handleEdit = (req: typeof requisicoes[0]) => {
+  const handleEdit = (req: RequisicaoComItens) => {
     setFormData({
-      lojaId: req.lojaId,
-      solicitante: req.solicitante,
-      centroCusto: req.centroCusto || '',
-      categoria: req.categoria,
-      prioridade: req.prioridade,
+      centroCusto: req.centro_custo || '',
+      categoria: req.categoria as 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL',
+      prioridade: req.prioridade as 'baixa' | 'media' | 'alta',
       observacoes: req.observacoes || '',
-      itens: req.itens
+      itens: req.itens.map(i => ({
+        id: i.id,
+        sku: i.sku || '',
+        descricao: i.descricao,
+        unidade: i.unidade,
+        quantidade: Number(i.quantidade),
+        obs: i.obs || '',
+      })),
     });
     setEditingId(req.id);
     setShowForm(true);
@@ -173,11 +143,9 @@ export default function Requisicoes() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Central de Requisições</h1>
-          <p className="text-muted-foreground">
-            Gerencie requisições internas de compras
-          </p>
+          <p className="text-muted-foreground">Gerencie requisições internas de compras</p>
         </div>
-        
+
         {can('compras:req:create') && (
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
@@ -188,23 +156,17 @@ export default function Requisicoes() {
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>
-                  {editingId ? 'Editar Requisição' : 'Nova Requisição'}
-                </DialogTitle>
+                <DialogTitle>{editingId ? 'Editar Requisição' : 'Nova Requisição'}</DialogTitle>
               </DialogHeader>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="solicitante">Solicitante *</Label>
-                    <Input
-                      id="solicitante"
-                      value={formData.solicitante}
-                      onChange={(e) => setFormData(prev => ({ ...prev, solicitante: e.target.value }))}
-                      required
-                    />
+                    <Label htmlFor="solicitante">Solicitante</Label>
+                    <Input id="solicitante" value={solicitanteNome} disabled readOnly />
+                    <p className="text-xs text-muted-foreground mt-1">Preenchido automaticamente com o usuário logado</p>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="centroCusto">Centro de Custo</Label>
                     <Input
@@ -213,11 +175,11 @@ export default function Requisicoes() {
                       onChange={(e) => setFormData(prev => ({ ...prev, centroCusto: e.target.value }))}
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="categoria">Categoria *</Label>
-                    <Select 
-                      value={formData.categoria} 
+                    <Select
+                      value={formData.categoria}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, categoria: value as any }))}
                     >
                       <SelectTrigger>
@@ -230,11 +192,11 @@ export default function Requisicoes() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="prioridade">Prioridade</Label>
-                    <Select 
-                      value={formData.prioridade} 
+                    <Select
+                      value={formData.prioridade}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, prioridade: value as any }))}
                     >
                       <SelectTrigger>
@@ -264,8 +226,7 @@ export default function Requisicoes() {
                   <div className="flex items-center justify-between">
                     <Label className="text-base font-medium">Itens da Requisição</Label>
                   </div>
-                  
-                  {/* Add new item */}
+
                   <Card>
                     <CardContent className="pt-4">
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -278,7 +239,7 @@ export default function Requisicoes() {
                             placeholder="Opcional"
                           />
                         </div>
-                        
+
                         <div className="md:col-span-9">
                           <Label htmlFor="descricao">Descrição *</Label>
                           <Textarea
@@ -291,11 +252,10 @@ export default function Requisicoes() {
                           />
                         </div>
 
-                        
                         <div className="md:col-span-3">
                           <Label htmlFor="unidade">Unidade</Label>
-                          <Select 
-                            value={newItem.unidade} 
+                          <Select
+                            value={newItem.unidade}
                             onValueChange={(value) => setNewItem(prev => ({ ...prev, unidade: value }))}
                           >
                             <SelectTrigger>
@@ -311,7 +271,7 @@ export default function Requisicoes() {
                             </SelectContent>
                           </Select>
                         </div>
-                        
+
                         <div className="md:col-span-3">
                           <Label htmlFor="quantidade">Quantidade</Label>
                           <Input
@@ -322,18 +282,14 @@ export default function Requisicoes() {
                             onChange={(e) => setNewItem(prev => ({ ...prev, quantidade: parseInt(e.target.value) || 1 }))}
                           />
                         </div>
-                        
-                        <div className="md:col-span-6 flex items-end">
-                          <Button type="button" onClick={handleAddItem}>
-                            Adicionar
-                          </Button>
-                        </div>
 
+                        <div className="md:col-span-6 flex items-end">
+                          <Button type="button" onClick={handleAddItem}>Adicionar</Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Items list */}
                   {formData.itens.length > 0 && (
                     <Card>
                       <CardContent className="pt-4">
@@ -343,16 +299,9 @@ export default function Requisicoes() {
                               <div className="flex-1">
                                 <span className="font-medium">{item.sku}</span>
                                 <span className="ml-2 text-muted-foreground">{item.descricao}</span>
-                                <span className="ml-2 text-sm">
-                                  {item.quantidade} {item.unidade}
-                                </span>
+                                <span className="ml-2 text-sm">{item.quantidade} {item.unidade}</span>
                               </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveItem(item.id)}
-                              >
+                              <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveItem(item.id)}>
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
@@ -364,10 +313,8 @@ export default function Requisicoes() {
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={resetForm}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
+                  <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>
+                  <Button type="submit" disabled={criar.isPending || editar.isPending}>
                     {editingId ? 'Atualizar' : 'Criar'} Requisição
                   </Button>
                 </div>
@@ -392,7 +339,7 @@ export default function Requisicoes() {
                 />
               </div>
             </div>
-            
+
             <Select value={selectedCategoria} onValueChange={setSelectedCategoria}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Categoria" />
@@ -425,6 +372,9 @@ export default function Requisicoes() {
       {/* Table */}
       <Card>
         <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -443,9 +393,9 @@ export default function Requisicoes() {
               {filteredRequisicoes.map((req) => (
                 <TableRow key={req.id}>
                   <TableCell className="font-medium">{req.numero}</TableCell>
-                  <TableCell>Loja Principal</TableCell>
-                  <TableCell>{req.solicitante}</TableCell>
-                  <TableCell>{req.centroCusto || '-'}</TableCell>
+                  <TableCell>{lojaAtual?.nome || 'Loja'}</TableCell>
+                  <TableCell>{req.solicitante_nome}</TableCell>
+                  <TableCell>{req.centro_custo || '-'}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{req.categoria}</Badge>
                   </TableCell>
@@ -458,13 +408,11 @@ export default function Requisicoes() {
                     <div className="flex gap-1">
                       {req.itens.slice(0, 2).map((item, idx) => (
                         <Badge key={idx} variant="secondary" className="text-xs">
-                          {item.sku}
+                          {item.sku || item.descricao.slice(0, 10)}
                         </Badge>
                       ))}
                       {req.itens.length > 2 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{req.itens.length - 2}
-                        </Badge>
+                        <Badge variant="secondary" className="text-xs">+{req.itens.length - 2}</Badge>
                       )}
                     </div>
                   </TableCell>
@@ -476,30 +424,47 @@ export default function Requisicoes() {
                   <TableCell>
                     <div className="flex gap-2">
                       {can('compras:req:view') && req.status === 'rascunho' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(req)}
-                        >
+                        <Button variant="ghost" size="sm" title="Editar" onClick={() => handleEdit(req)}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
                       )}
-                      
+
+                      {/* Item 1: destrava o fluxo — rascunho -> solicitado */}
+                      {can('compras:req:create') && req.status === 'rascunho' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Solicitar (enviar para compras)"
+                          onClick={() => solicitar.mutate(req.id)}
+                        >
+                          <ClipboardCheck className="h-4 w-4 mr-1" /> Solicitar
+                        </Button>
+                      )}
+
                       {can('compras:cot:create') && req.status === 'solicitado' && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => handleEnviarParaCotacao(req.id)}
+                          title="Abrir cotação"
+                          onClick={() => enviarParaCotacao.mutate(req.id)}
                         >
-                          <Send className="h-4 w-4" />
+                          <Send className="h-4 w-4 mr-1" /> Cotar
                         </Button>
                       )}
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredRequisicoes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    Nenhuma requisição encontrada
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
     </div>

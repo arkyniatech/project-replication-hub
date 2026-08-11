@@ -7,7 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, AlertTriangle, FileText, Calendar, TrendingUp, TrendingDown } from "lucide-react";
-import { useAlmoxStore } from "@/modules/almox/store/almoxStore";
+import { useSupabaseCatalogo } from "@/modules/almox/hooks/useSupabaseCatalogo";
+import { useSupabaseEstoque } from "@/modules/almox/hooks/useSupabaseEstoque";
+import { useSupabaseMovimentos } from "@/modules/almox/hooks/useSupabaseMovimentos";
 import { useRbac } from "@/hooks/useRbac";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { toast } from "@/hooks/use-toast";
@@ -32,9 +34,11 @@ export default function EstoqueUnificado() {
     tipo: "AJUSTE_POSITIVO" as "AJUSTE_POSITIVO" | "AJUSTE_NEGATIVO"
   });
 
-  const { catalogoItens, estoque, movimentos, ajustarSaldo } = useAlmoxStore();
   const { can } = useRbac();
   const { lojaAtual } = useMultiunidade();
+  const { itens: catalogoItens } = useSupabaseCatalogo();
+  const { estoque, ajustarSaldo } = useSupabaseEstoque(lojaAtual?.id);
+  const { movimentos } = useSupabaseMovimentos(lojaAtual?.id);
 
   // Filtrar itens baseado nos filtros
   const filteredItens = catalogoItens.filter(item => {
@@ -43,48 +47,46 @@ export default function EstoqueUnificado() {
     if (!can('almox:patrimonial') && item.tipo === 'PATRIMONIAL') return false;
     
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
+    const grupo = item.grupo || '';
+    const matchesSearch =
       item.sku.toLowerCase().includes(searchLower) ||
       item.descricao.toLowerCase().includes(searchLower) ||
-      item.grupo.toLowerCase().includes(searchLower) ||
+      grupo.toLowerCase().includes(searchLower) ||
       (item.modelo && item.modelo.toLowerCase().includes(searchLower));
-    
-    const matchesGrupo = grupoFilter === "all" || !grupoFilter || item.grupo.toLowerCase().includes(grupoFilter.toLowerCase());
-    
+
+    const matchesGrupo = grupoFilter === "all" || !grupoFilter || grupo.toLowerCase().includes(grupoFilter.toLowerCase());
+
     return matchesSearch && matchesGrupo;
   });
 
-  // Filtrar movimentos
+  // Filtrar movimentos (loja já filtrada no hook)
   const filteredMovimentos = movimentos.filter(movimento => {
-    if (movimento.lojaId !== lojaAtual?.id) return false;
-    
-    const item = catalogoItens.find(i => i.id === movimento.itemId);
+    const item = movimento.item;
     if (!item) return false;
-    
-    if (itemFilter && !item.sku.toLowerCase().includes(itemFilter.toLowerCase()) && 
+
+    if (itemFilter && !(item.sku || '').toLowerCase().includes(itemFilter.toLowerCase()) &&
         !item.descricao.toLowerCase().includes(itemFilter.toLowerCase())) {
       return false;
     }
-    
+
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
-      item.sku.toLowerCase().includes(searchLower) ||
+    const matchesSearch =
+      (item.sku || '').toLowerCase().includes(searchLower) ||
       item.descricao.toLowerCase().includes(searchLower) ||
-      movimento.referencia?.toLowerCase().includes(searchLower) ||
-      '';
-    
+      (movimento.referencia?.toLowerCase().includes(searchLower) ?? false);
+
     return matchesSearch;
   });
 
-  // Obter saldo do item para a loja ativa
+  // Obter saldo do item para a loja ativa (estoque já filtrado por loja no hook)
   const getSaldoItem = (itemId: string) => {
-    return estoque.find(e => e.itemId === itemId && e.lojaId === lojaAtual?.id) || 
-           { saldo: 0, controle: 'SALDO', series: [] };
+    return estoque.find(e => e.item_id === itemId) ||
+           { saldo: 0, controle: 'SALDO', series: [] as unknown };
   };
 
   // Verificar se o item está com estoque crítico
   const isEstoqueCritico = (item: any, saldoAtual: number) => {
-    return item.min && saldoAtual <= item.min;
+    return item.estoque_minimo != null && saldoAtual <= item.estoque_minimo;
   };
 
   const handleAjustarSaldo = (item: any) => {
@@ -132,15 +134,10 @@ export default function EstoqueUnificado() {
       return;
     }
 
-    ajustarSaldo(selectedItem.id, lojaAtual.id, diferenca, ajusteForm.justificativa);
-
-    toast({
-      title: "Ajuste realizado",
-      description: `Saldo do item ${selectedItem.sku} ajustado com sucesso.`
-    });
-
-    setShowAjusteModal(false);
-    setSelectedItem(null);
+    ajustarSaldo.mutate(
+      { itemId: selectedItem.id, lojaId: lojaAtual.id, diferenca, justificativa: ajusteForm.justificativa },
+      { onSuccess: () => { setShowAjusteModal(false); setSelectedItem(null); } }
+    );
   };
 
   const getMovimentoIcon = (tipo: string) => {
@@ -171,7 +168,7 @@ export default function EstoqueUnificado() {
     return isEntrada ? 'default' : 'secondary';
   };
 
-  const grupos = [...new Set(catalogoItens.map(item => item.grupo))];
+  const grupos = [...new Set(catalogoItens.map(item => item.grupo).filter((g): g is string => !!g))];
 
   return (
     <div className="space-y-6">
@@ -299,7 +296,7 @@ export default function EstoqueUnificado() {
                             {item.tipo}
                           </Badge>
                         </TableCell>
-                        <TableCell>{item.grupo}</TableCell>
+                        <TableCell>{item.grupo || '-'}</TableCell>
                         <TableCell>
                           <Badge variant="outline">
                             {item.controle}
@@ -309,7 +306,7 @@ export default function EstoqueUnificado() {
                           {saldoData.saldo}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {item.estoqueMinimo && item.estoqueMaximo ? `${item.estoqueMinimo}/${item.estoqueMaximo}` : '--'}
+                          {item.estoque_minimo != null && item.estoque_maximo != null ? `${item.estoque_minimo}/${item.estoque_maximo}` : '--'}
                         </TableCell>
                         <TableCell>
                           {critico ? (
@@ -369,16 +366,16 @@ export default function EstoqueUnificado() {
                 </TableHeader>
                 <TableBody>
                   {filteredMovimentos.map((movimento) => {
-                    const item = catalogoItens.find(i => i.id === movimento.itemId);
+                    const item = movimento.item;
                     if (!item) return null;
-                    
+
                     return (
                       <TableRow key={movimento.id}>
                         <TableCell>
                           <div className="text-sm">
-                            <div>{format(new Date(movimento.createdAt), 'dd/MM/yyyy', { locale: ptBR })}</div>
+                            <div>{format(new Date(movimento.created_at), 'dd/MM/yyyy', { locale: ptBR })}</div>
                             <div className="text-muted-foreground">
-                              {format(new Date(movimento.createdAt), 'HH:mm', { locale: ptBR })}
+                              {format(new Date(movimento.created_at), 'HH:mm', { locale: ptBR })}
                             </div>
                           </div>
                         </TableCell>
@@ -390,7 +387,7 @@ export default function EstoqueUnificado() {
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-mono text-sm">{item.sku}</div>
+                            <div className="font-mono text-sm">{item.sku || '—'}</div>
                             <div className="text-sm text-muted-foreground">{item.descricao}</div>
                           </div>
                         </TableCell>
@@ -404,13 +401,13 @@ export default function EstoqueUnificado() {
                           </span>
                         </TableCell>
                         <TableCell className="font-mono">
-                          {movimento.custoUnitario ? (
-                            `R$ ${movimento.custoUnitario.toFixed(2)}`
+                          {movimento.custo_unitario ? (
+                            `R$ ${movimento.custo_unitario.toFixed(2)}`
                           ) : '--'}
                         </TableCell>
                         <TableCell className="font-mono">
-                          {movimento.custoUnitario ? (
-                            `R$ ${(movimento.custoUnitario * Math.abs(movimento.quantidade)).toFixed(2)}`
+                          {movimento.custo_unitario ? (
+                            `R$ ${(movimento.custo_unitario * Math.abs(movimento.quantidade)).toFixed(2)}`
                           ) : '--'}
                         </TableCell>
                         <TableCell>
@@ -423,7 +420,7 @@ export default function EstoqueUnificado() {
                           </div>
                         </TableCell>
                         <TableCell className="text-sm">
-                          {movimento.createdBy || 'Sistema'}
+                          {movimento.observacao || '—'}
                         </TableCell>
                       </TableRow>
                     );

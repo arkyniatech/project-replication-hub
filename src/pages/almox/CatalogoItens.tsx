@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAlmoxStore, CatalogoItem } from '@/modules/almox/store/almoxStore';
+import { useSupabaseCatalogo, type CatalogoItem } from '@/modules/almox/hooks/useSupabaseCatalogo';
 import { useRbac } from '@/hooks/useRbac';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { toast } from 'sonner';
 
 const tipoColors = {
@@ -27,7 +28,7 @@ const controleColors = {
 
 export default function CatalogoItens() {
   const { can } = useRbac();
-  const { catalogoItens, cadastrarItem, editarItem, inativarItem } = useAlmoxStore();
+  const { itens: catalogoItens, isLoading, cadastrar, editar, inativar } = useSupabaseCatalogo();
   const [search, setSearch] = useState('');
   const [selectedTipo, setSelectedTipo] = useState<string>('all');
   const [selectedTab, setSelectedTab] = useState<'all' | 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL'>('all');
@@ -68,30 +69,34 @@ export default function CatalogoItens() {
     }
 
     // Check for duplicate SKU
-    const existingSku = catalogoItens.find(item => 
+    const existingSku = catalogoItens.find(item =>
       item.sku === formData.sku && item.id !== editingId
     );
-    
+
     if (existingSku) {
       toast.error('SKU já existe no catálogo');
       return;
     }
 
-    if (editingId) {
-      editarItem(editingId, formData);
-      toast.success('Item atualizado com sucesso');
-    } else {
-      const { estoqueMinimo, estoqueMaximo, observacoes, ...data } = formData;
-      cadastrarItem({
-        ...data,
-        estoqueMinimo,
-        estoqueMaximo,
-        observacoes
-      });
-      toast.success('Item cadastrado com sucesso');
-    }
+    const payload = {
+      tipo: formData.tipo,
+      sku: formData.sku,
+      descricao: formData.descricao,
+      unidade: formData.unidade,
+      grupo: formData.grupo || null,
+      modelo: formData.modelo || null,
+      controle: formData.controle,
+      ativo: formData.ativo,
+      estoque_minimo: formData.estoqueMinimo ?? null,
+      estoque_maximo: formData.estoqueMaximo ?? null,
+      observacoes: formData.observacoes || null,
+    };
 
-    resetForm();
+    if (editingId) {
+      editar.mutate({ id: editingId, ...payload }, { onSuccess: resetForm });
+    } else {
+      cadastrar.mutate(payload, { onSuccess: resetForm });
+    }
   };
 
   const resetForm = () => {
@@ -114,16 +119,16 @@ export default function CatalogoItens() {
 
   const handleEdit = (item: CatalogoItem) => {
     setFormData({
-      tipo: item.tipo,
+      tipo: item.tipo as 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL',
       sku: item.sku,
       descricao: item.descricao,
       unidade: item.unidade,
       grupo: item.grupo || '',
       modelo: item.modelo || '',
-      controle: item.controle,
+      controle: item.controle as 'SERIE' | 'SALDO',
       ativo: item.ativo,
-      estoqueMinimo: item.estoqueMinimo,
-      estoqueMaximo: item.estoqueMaximo,
+      estoqueMinimo: item.estoque_minimo ?? undefined,
+      estoqueMaximo: item.estoque_maximo ?? undefined,
       observacoes: item.observacoes || ''
     });
     setEditingId(item.id);
@@ -373,6 +378,9 @@ export default function CatalogoItens() {
       {/* Table */}
       <Card>
         <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -400,24 +408,24 @@ export default function CatalogoItens() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={tipoColors[item.tipo]}>
+                    <Badge className={tipoColors[item.tipo as keyof typeof tipoColors]}>
                       {item.tipo}
                     </Badge>
                   </TableCell>
                   <TableCell>{item.grupo || '-'}</TableCell>
                   <TableCell>{item.unidade}</TableCell>
                   <TableCell>
-                    <Badge className={controleColors[item.controle]}>
+                    <Badge className={controleColors[item.controle as keyof typeof controleColors]}>
                       {item.controle}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      {item.estoqueMinimo && (
-                        <div>Mín: {item.estoqueMinimo}</div>
+                      {item.estoque_minimo != null && (
+                        <div>Mín: {item.estoque_minimo}</div>
                       )}
-                      {item.estoqueMaximo && (
-                        <div>Máx: {item.estoqueMaximo}</div>
+                      {item.estoque_maximo != null && (
+                        <div>Máx: {item.estoque_maximo}</div>
                       )}
                     </div>
                   </TableCell>
@@ -453,6 +461,7 @@ export default function CatalogoItens() {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
     </div>
