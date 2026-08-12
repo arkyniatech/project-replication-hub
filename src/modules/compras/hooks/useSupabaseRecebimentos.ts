@@ -34,7 +34,8 @@ export function useSupabaseRecebimentos() {
       qc.invalidateQueries({ queryKey: ['compras-pedidos'] });
       qc.invalidateQueries({ queryKey: ['almox-estoque'] });
       qc.invalidateQueries({ queryKey: ['almox-movimentos'] });
-      toast.success('Recebimento registrado e estoque atualizado');
+      // Estoque só é atualizado para itens vinculados ao catálogo (por item_catalogo_id ou SKU).
+      toast.success('Recebimento registrado');
     },
     onError: (e: any) => { console.error(e); toast.error(e.message || 'Erro ao registrar recebimento'); },
   });

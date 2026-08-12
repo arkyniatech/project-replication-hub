@@ -170,7 +170,7 @@ export default function MovimentosAlmox() {
                 <TableHead>Custo Unit.</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Referência</TableHead>
-                <TableHead>Usuário</TableHead>
+                <TableHead>Observação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

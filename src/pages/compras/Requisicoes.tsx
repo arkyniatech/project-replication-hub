@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useSupabaseRequisicoes, type NovaRequisicaoInput, type RequisicaoComItens } from '@/modules/compras/hooks/useSupabaseRequisicoes';
+import { useSupabaseCatalogo } from '@/modules/almox/hooks/useSupabaseCatalogo';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { useCurrentUserName } from '@/hooks/useCurrentUserName';
 import { useRbac } from '@/hooks/useRbac';
@@ -32,6 +33,7 @@ const prioridadeColors: Record<string, string> = {
 
 interface FormItem {
   id: string;
+  item_catalogo_id: string | null;
   sku: string;
   descricao: string;
   unidade: string;
@@ -44,6 +46,7 @@ export default function Requisicoes() {
   const { lojaAtual } = useMultiunidade();
   const solicitanteNome = useCurrentUserName();
   const { requisicoes, isLoading, criar, editar, solicitar, enviarParaCotacao } = useSupabaseRequisicoes(lojaAtual?.id);
+  const { itens: catalogo } = useSupabaseCatalogo();
 
   const [search, setSearch] = useState('');
   const [selectedCategoria, setSelectedCategoria] = useState<string>('all');
@@ -59,7 +62,7 @@ export default function Requisicoes() {
     itens: [] as FormItem[]
   });
 
-  const [newItem, setNewItem] = useState({ sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
+  const [newItem, setNewItem] = useState({ item_catalogo_id: null as string | null, sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
 
   const filteredRequisicoes = requisicoes.filter(req => {
     const matchSearch = req.numero.toLowerCase().includes(search.toLowerCase()) ||
@@ -85,6 +88,7 @@ export default function Requisicoes() {
       centro_custo: formData.centroCusto || null,
       observacoes: formData.observacoes || null,
       itens: formData.itens.map(i => ({
+        item_catalogo_id: i.item_catalogo_id,
         sku: i.sku || null,
         descricao: i.descricao,
         unidade: i.unidade,
@@ -102,7 +106,7 @@ export default function Requisicoes() {
 
   const resetForm = () => {
     setFormData({ centroCusto: '', categoria: '', prioridade: 'media', observacoes: '', itens: [] });
-    setNewItem({ sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
+    setNewItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
     setEditingId(null);
     setShowForm(false);
   };
@@ -111,7 +115,7 @@ export default function Requisicoes() {
     if (!newItem.descricao.trim()) { toast.error('Informe a descrição do item'); return; }
     const item: FormItem = { id: `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, ...newItem };
     setFormData(prev => ({ ...prev, itens: [...prev.itens, item] }));
-    setNewItem({ sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
+    setNewItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -126,6 +130,7 @@ export default function Requisicoes() {
       observacoes: req.observacoes || '',
       itens: req.itens.map(i => ({
         id: i.id,
+        item_catalogo_id: i.item_catalogo_id ?? null,
         sku: i.sku || '',
         descricao: i.descricao,
         unidade: i.unidade,
@@ -230,6 +235,26 @@ export default function Requisicoes() {
                   <Card>
                     <CardContent className="pt-4">
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div className="md:col-span-12">
+                          <Label>Buscar do catálogo (opcional — vincula ao estoque)</Label>
+                          <Select
+                            value={newItem.item_catalogo_id ?? '__livre__'}
+                            onValueChange={(v) => {
+                              if (v === '__livre__') { setNewItem(prev => ({ ...prev, item_catalogo_id: null })); return; }
+                              const it = catalogo.find(c => c.id === v);
+                              if (it) setNewItem(prev => ({ ...prev, item_catalogo_id: it.id, sku: it.sku, descricao: it.descricao, unidade: it.unidade }));
+                            }}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Item livre (digite abaixo)" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__livre__">— Item livre —</SelectItem>
+                              {catalogo.map(c => (
+                                <SelectItem key={c.id} value={c.id}>{c.sku} — {c.descricao}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
                         <div className="md:col-span-3">
                           <Label htmlFor="sku">SKU</Label>
                           <Input
