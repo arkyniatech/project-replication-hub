@@ -216,6 +216,150 @@ export type Database = {
         }
         Relationships: []
       }
+      almox_contagem_itens: {
+        Row: {
+          acao: string | null
+          contado_em: string | null
+          contado_por: string | null
+          contagem_id: string
+          created_at: string
+          created_by: string | null
+          descricao: string
+          grupo: string | null
+          id: string
+          item_id: string
+          justificativa: string | null
+          loja_id: string
+          observacao: string | null
+          processado: boolean
+          quantidade_contada: number | null
+          saldo_sistema: number
+          sku: string | null
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          acao?: string | null
+          contado_em?: string | null
+          contado_por?: string | null
+          contagem_id: string
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          grupo?: string | null
+          id?: string
+          item_id: string
+          justificativa?: string | null
+          loja_id: string
+          observacao?: string | null
+          processado?: boolean
+          quantidade_contada?: number | null
+          saldo_sistema?: number
+          sku?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          acao?: string | null
+          contado_em?: string | null
+          contado_por?: string | null
+          contagem_id?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          grupo?: string | null
+          id?: string
+          item_id?: string
+          justificativa?: string | null
+          loja_id?: string
+          observacao?: string | null
+          processado?: boolean
+          quantidade_contada?: number | null
+          saldo_sistema?: number
+          sku?: string | null
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "almox_contagem_itens_contagem_id_fkey"
+            columns: ["contagem_id"]
+            isOneToOne: false
+            referencedRelation: "almox_contagens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "almox_contagem_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "almox_catalogo_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "almox_contagem_itens_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      almox_contagens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          grupo: string | null
+          id: string
+          incluir_zerados: boolean
+          loja_id: string
+          numero: string
+          observacoes: string | null
+          processado_em: string | null
+          processado_por: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          grupo?: string | null
+          id?: string
+          incluir_zerados?: boolean
+          loja_id: string
+          numero: string
+          observacoes?: string | null
+          processado_em?: string | null
+          processado_por?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          grupo?: string | null
+          id?: string
+          incluir_zerados?: boolean
+          loja_id?: string
+          numero?: string
+          observacoes?: string | null
+          processado_em?: string | null
+          processado_por?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "almox_contagens_loja_id_fkey"
+            columns: ["loja_id"]
+            isOneToOne: false
+            referencedRelation: "lojas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       almox_estoque: {
         Row: {
           controle: string
@@ -7213,6 +7357,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      abrir_contagem_almox: {
+        Args: {
+          p_grupo?: string
+          p_incluir_zerados?: boolean
+          p_loja_id: string
+          p_observacoes?: string
+          p_tipo?: string
+        }
+        Returns: string
+      }
       ajustar_saldo_estoque: {
         Args: {
           p_diferenca: number
@@ -7225,6 +7379,10 @@ export type Database = {
       atualizar_status_ferias: { Args: never; Returns: undefined }
       atualizar_status_transferencia: {
         Args: { p_recusa?: Json; p_status: string; p_transferencia_id: string }
+        Returns: undefined
+      }
+      cancelar_contagem_almox: {
+        Args: { p_contagem_id: string }
         Returns: undefined
       }
       compras_pode_cotar_os: { Args: { p_loja_id: string }; Returns: boolean }
@@ -7283,6 +7441,10 @@ export type Database = {
       job_rh_diario: { Args: never; Returns: number }
       param_trab: {
         Args: { p_chave: string; p_empresa?: string }
+        Returns: number
+      }
+      processar_contagem_almox: {
+        Args: { p_contagem_id: string }
         Returns: number
       }
       recompute_ferias_faltas: {

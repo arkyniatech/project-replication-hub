@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Search, Eye, Play, CheckCircle, Printer, Calendar, User, Building2, Loader2
+  Search, Eye, Play, CheckCircle, Calendar, User, Building2, Loader2
 } from "lucide-react";
 import { useSupabaseConferencia, type StatusConferencia } from "@/hooks/useSupabaseConferencia";
 import { useMultiunidade } from "@/hooks/useMultiunidade";

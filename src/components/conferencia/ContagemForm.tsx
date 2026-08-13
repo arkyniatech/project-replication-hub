@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
-  ClipboardCheck, Save, CheckCircle, Search, Printer, ArrowLeft, Calendar, User, Loader2
+  ClipboardCheck, Save, CheckCircle, Search, ArrowLeft, Calendar, User, Loader2
 } from "lucide-react";
 import { useSupabaseConferencia, type ContagemSessao } from "@/hooks/useSupabaseConferencia";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
