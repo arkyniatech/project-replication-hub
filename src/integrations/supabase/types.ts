@@ -1802,6 +1802,7 @@ export type Database = {
           created_by: string | null
           data_fim: string | null
           data_inicio: string
+          data_inicio_original: string | null
           data_prevista_fim: string | null
           documentos: Json | null
           forma_pagamento: string | null
@@ -1815,6 +1816,7 @@ export type Database = {
           status: string
           timeline: Json | null
           updated_at: string
+          valor_original: number | null
           valor_pago: number
           valor_pendente: number
           valor_total: number
@@ -1831,6 +1833,7 @@ export type Database = {
           created_by?: string | null
           data_fim?: string | null
           data_inicio: string
+          data_inicio_original?: string | null
           data_prevista_fim?: string | null
           documentos?: Json | null
           forma_pagamento?: string | null
@@ -1844,6 +1847,7 @@ export type Database = {
           status?: string
           timeline?: Json | null
           updated_at?: string
+          valor_original?: number | null
           valor_pago?: number
           valor_pendente?: number
           valor_total?: number
@@ -1860,6 +1864,7 @@ export type Database = {
           created_by?: string | null
           data_fim?: string | null
           data_inicio?: string
+          data_inicio_original?: string | null
           data_prevista_fim?: string | null
           documentos?: Json | null
           forma_pagamento?: string | null
@@ -1873,6 +1878,7 @@ export type Database = {
           status?: string
           timeline?: Json | null
           updated_at?: string
+          valor_original?: number | null
           valor_pago?: number
           valor_pendente?: number
           valor_total?: number
@@ -7221,6 +7227,8 @@ export type Database = {
         Args: { p_recusa?: Json; p_status: string; p_transferencia_id: string }
         Returns: undefined
       }
+      compras_pode_cotar_os: { Args: { p_loja_id: string }; Returns: boolean }
+      compras_pode_gerenciar: { Args: { p_loja_id: string }; Returns: boolean }
       compras_pode_loja: { Args: { p_loja_id: string }; Returns: boolean }
       criar_cotacao_de_os: { Args: { p_os_id: string }; Returns: string }
       criar_cotacao_de_requisicao: {
