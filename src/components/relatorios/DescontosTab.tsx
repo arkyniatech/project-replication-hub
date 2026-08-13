@@ -23,6 +23,8 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
   // valor de tabela dos itens + frete. O desconto da política comercial é
   // aplicado ao valor_total, enquanto os itens guardam o preço de tabela em
   // preco_total — então a diferença revela o desconto concedido.
+  // Usa valor_original (venda inicial) e não valor_total, que acumula as
+  // renovações e faria todo contrato renovado aparecer como "Cheio" (#52).
   const linhas = useMemo(() => {
     return (contratos || [])
       .filter((c: any) => {
@@ -35,7 +37,7 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
         );
         const frete = Number(c.logistica?.frete ?? c.logistica?.taxaDeslocamento?.valor ?? 0);
         const valorTabela = grossItens + frete;
-        const valorFinal = Number(c.valor_total || 0);
+        const valorFinal = Number(c.valor_original ?? c.valor_total ?? 0);
         const desconto = Math.max(0, valorTabela - valorFinal);
         const temDesconto = desconto > 0.01;
         const descontoPct = valorTabela > 0 ? (desconto / valorTabela) * 100 : 0;
