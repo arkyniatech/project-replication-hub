@@ -28,7 +28,7 @@ const steps: WizardStep[] = [
 ];
 
 export default function Recebimento() {
-  const { can } = useRbac();
+  const { can, isLoading: rbacLoading } = useRbac();
   const { lojaAtual } = useMultiunidade();
   const { pedidos: pedidosCompra } = useSupabasePedidosCompra(lojaAtual?.id);
   const { registrar } = useSupabaseRecebimentos();
@@ -43,11 +43,18 @@ export default function Recebimento() {
   });
   const [itensRecebimento, setItensRecebimento] = useState<{
     [itemId: string]: {
-      quantidadeRecebida: number;
+      quantidadeRecebida: string;   // texto enquanto digita; convertido no envio
       series?: string[];
       observacao?: string;
     };
   }>({});
+
+  const qtdDigitada = (itemId: string): number => {
+    const bruto = (itensRecebimento[itemId]?.quantidadeRecebida ?? '').trim().replace(',', '.');
+    if (bruto === '') return 0;
+    const n = Number(bruto);
+    return Number.isFinite(n) ? n : 0;
+  };
 
   const selectedPOData = selectedPO ? pedidosCompra.find(p => p.id === selectedPO) : null;
   
@@ -68,10 +75,16 @@ export default function Recebimento() {
     }
     
     if (currentStep === 3) {
-      const hasItems = Object.keys(itensRecebimento).length > 0;
-      const hasValidQuantities = Object.values(itensRecebimento).some(item => item.quantidadeRecebida > 0);
-      
-      if (!hasItems || !hasValidQuantities) {
+      const idsDigitados = Object.keys(itensRecebimento);
+      const algumInvalido = idsDigitados.some(id => {
+        const bruto = (itensRecebimento[id]?.quantidadeRecebida ?? '').trim();
+        return bruto !== '' && !Number.isFinite(Number(bruto.replace(',', '.')));
+      });
+      if (algumInvalido) {
+        toast.error('Há quantidade inválida — confira os campos preenchidos');
+        return;
+      }
+      if (!idsDigitados.some(id => qtdDigitada(id) > 0)) {
         toast.error('Informe pelo menos um item com quantidade recebida');
         return;
       }
@@ -84,12 +97,14 @@ export default function Recebimento() {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleItemQuantityChange = (itemId: string, quantidade: number) => {
+  // texto cru: pedido pode ter quantidade fracionada (2,5 KG) e converter a
+  // cada tecla impede digitar o decimal — com parseInt o resto nunca fechava.
+  const handleItemQuantityChange = (itemId: string, valor: string) => {
     setItensRecebimento(prev => ({
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        quantidadeRecebida: quantidade
+        quantidadeRecebida: valor
       }
     }));
   };
@@ -113,10 +128,10 @@ export default function Recebimento() {
       pedidoId: selectedPO,
       nf: { numero: nfData.numero, emissao: nfData.emissao, chave: nfData.chave },
       itens: Object.entries(itensRecebimento)
-        .filter(([, data]) => data.quantidadeRecebida > 0)
+        .filter(([pedidoItemId]) => qtdDigitada(pedidoItemId) > 0)
         .map(([pedidoItemId, data]) => ({
           pedido_item_id: pedidoItemId,
-          quantidade_recebida: data.quantidadeRecebida,
+          quantidade_recebida: qtdDigitada(pedidoItemId),
           series: data.series,
           observacao: data.observacao,
         })),
@@ -136,6 +151,12 @@ export default function Recebimento() {
       currency: 'BRL'
     }).format(value);
   };
+
+  // enquanto as permissões carregam, can() responde false para todos —
+  // mostrar "Acesso Restrito" aqui barraria um gestor legítimo.
+  if (rbacLoading) {
+    return <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>;
+  }
 
   if (!can('compras:rec:operar')) {
     return (
@@ -320,17 +341,17 @@ export default function Recebimento() {
                           <Input
                             type="number"
                             min="0"
+                            step="any"
+                            inputMode="decimal"
                             max={Number(item.quantidade)}
-                            value={recebimentoItem?.quantidadeRecebida || 0}
-                            onChange={(e) => handleItemQuantityChange(
-                              item.id,
-                              parseInt(e.target.value) || 0
-                            )}
-                            className="w-20"
+                            placeholder="0"
+                            value={recebimentoItem?.quantidadeRecebida ?? ''}
+                            onChange={(e) => handleItemQuantityChange(item.id, e.target.value)}
+                            className="w-24"
                           />
                         </TableCell>
                         <TableCell>
-                          {isSerial && recebimentoItem?.quantidadeRecebida ? (
+                          {isSerial && qtdDigitada(item.id) > 0 ? (
                             <Input
                               placeholder="S001, S002, ..."
                               value={recebimentoItem.series?.join(', ') || ''}
@@ -405,9 +426,10 @@ export default function Recebimento() {
                 <CardContent>
                   <div className="space-y-3">
                     {Object.entries(itensRecebimento)
-                      .filter(([_, data]) => data.quantidadeRecebida > 0)
+                      .filter(([itemId]) => qtdDigitada(itemId) > 0)
                       .map(([itemId, data]) => {
                         const poItem = selectedPOData.itens.find(i => i.id === itemId);
+                        const qtd = qtdDigitada(itemId);
                         return poItem ? (
                           <div key={itemId} className="flex justify-between items-center p-2 border rounded">
                             <div>
@@ -419,9 +441,9 @@ export default function Recebimento() {
                               )}
                             </div>
                             <div className="text-right">
-                              <p className="font-medium">Qtd: {data.quantidadeRecebida}</p>
+                              <p className="font-medium">Qtd: {qtd}</p>
                               <p className="text-sm text-muted-foreground">
-                                {formatCurrency(Number(poItem.preco_unit) * data.quantidadeRecebida)}
+                                {formatCurrency(Number(poItem.preco_unit) * qtd)}
                               </p>
                             </div>
                           </div>

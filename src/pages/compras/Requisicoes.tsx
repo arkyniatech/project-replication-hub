@@ -62,7 +62,9 @@ export default function Requisicoes() {
     itens: [] as FormItem[]
   });
 
-  const [newItem, setNewItem] = useState({ item_catalogo_id: null as string | null, sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
+  // quantidade fica como texto: com estado numérico, digitar "0" e depois "."
+  // faz a re-renderização apagar o ponto, tornando 0,5 impossível de digitar.
+  const [newItem, setNewItem] = useState({ item_catalogo_id: null as string | null, sku: '', descricao: '', unidade: 'UN', quantidade: '1', obs: '' });
 
   const filteredRequisicoes = requisicoes.filter(req => {
     const matchSearch = req.numero.toLowerCase().includes(search.toLowerCase()) ||
@@ -106,16 +108,25 @@ export default function Requisicoes() {
 
   const resetForm = () => {
     setFormData({ centroCusto: '', categoria: '', prioridade: 'media', observacoes: '', itens: [] });
-    setNewItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
+    setNewItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: '1', obs: '' });
     setEditingId(null);
     setShowForm(false);
   };
 
   const handleAddItem = () => {
     if (!newItem.descricao.trim()) { toast.error('Informe a descrição do item'); return; }
-    const item: FormItem = { id: `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, ...newItem };
+    const quantidade = Number(newItem.quantidade.replace(',', '.'));
+    if (!Number.isFinite(quantidade) || quantidade <= 0) {
+      toast.error('Informe uma quantidade maior que zero');
+      return;
+    }
+    const item: FormItem = {
+      id: `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      ...newItem,
+      quantidade,
+    };
     setFormData(prev => ({ ...prev, itens: [...prev.itens, item] }));
-    setNewItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: 1, obs: '' });
+    setNewItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: '1', obs: '' });
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -304,8 +315,9 @@ export default function Requisicoes() {
                             type="number"
                             min="1"
                             value={newItem.quantidade}
+                            inputMode="decimal"
                             step="any"
-                            onChange={(e) => setNewItem(prev => ({ ...prev, quantidade: parseFloat(e.target.value) || 1 }))}
+                            onChange={(e) => setNewItem(prev => ({ ...prev, quantidade: e.target.value }))}
                           />
                         </div>
 

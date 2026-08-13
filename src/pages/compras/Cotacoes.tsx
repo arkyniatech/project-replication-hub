@@ -63,7 +63,8 @@ export default function Cotacoes() {
 
   // Item 2: nova cotação direta (avulsa)
   const [novaCotItens, setNovaCotItens] = useState<ItemAvulsoForm[]>([]);
-  const [novoDirectItem, setNovoDirectItem] = useState({ item_catalogo_id: null as string | null, sku: '', descricao: '', unidade: 'UN', quantidade: 1 });
+  // quantidade como texto: com estado numérico não é possível digitar "0,5"
+  const [novoDirectItem, setNovoDirectItem] = useState({ item_catalogo_id: null as string | null, sku: '', descricao: '', unidade: 'UN', quantidade: '1' });
 
   const filteredCotacoes = cotacoes.filter(cot => {
     const matchSearch = cot.numero.toLowerCase().includes(search.toLowerCase()) ||
@@ -150,8 +151,17 @@ export default function Cotacoes() {
 
   const handleAddDirectItem = () => {
     if (!novoDirectItem.descricao.trim()) { toast.error('Informe a descrição do item'); return; }
-    setNovaCotItens(prev => [...prev, { id: `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, ...novoDirectItem }]);
-    setNovoDirectItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: 1 });
+    const quantidade = Number(novoDirectItem.quantidade.replace(',', '.'));
+    if (!Number.isFinite(quantidade) || quantidade <= 0) {
+      toast.error('Informe uma quantidade maior que zero');
+      return;
+    }
+    setNovaCotItens(prev => [...prev, {
+      id: `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      ...novoDirectItem,
+      quantidade,
+    }]);
+    setNovoDirectItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: '1' });
   };
 
   const handleCriarDireta = () => {
@@ -447,7 +457,7 @@ export default function Cotacoes() {
                   </div>
                   <div className="md:col-span-2">
                     <Label>Qtd</Label>
-                    <Input type="number" min="0" step="any" value={novoDirectItem.quantidade} onChange={(e) => setNovoDirectItem(p => ({ ...p, quantidade: parseFloat(e.target.value) || 1 }))} />
+                    <Input type="number" min="0" step="any" inputMode="decimal" value={novoDirectItem.quantidade} onChange={(e) => setNovoDirectItem(p => ({ ...p, quantidade: e.target.value }))} />
                   </div>
                   <div className="md:col-span-12">
                     <Button type="button" variant="outline" onClick={handleAddDirectItem}>Adicionar item</Button>
