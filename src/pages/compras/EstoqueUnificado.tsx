@@ -110,9 +110,9 @@ export default function EstoqueUnificado() {
   };
 
   const handleConfirmarAjuste = () => {
-    if (!selectedItem || !lojaAtual) return;
+    if (!selectedItem || !lojaAtual || ajustarSaldo.isPending) return;
 
-    const novoSaldo = parseFloat(ajusteForm.novoSaldo);
+    const novoSaldo = parseFloat(String(ajusteForm.novoSaldo).replace(',', '.'));
     const saldoAtual = getSaldoItem(selectedItem.id).saldo;
     const diferenca = novoSaldo - saldoAtual;
 
@@ -489,8 +489,8 @@ export default function EstoqueUnificado() {
                 <Button variant="outline" onClick={() => setShowAjusteModal(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleConfirmarAjuste}>
-                  Confirmar Ajuste
+                <Button onClick={handleConfirmarAjuste} disabled={ajustarSaldo.isPending}>
+                  {ajustarSaldo.isPending ? 'Ajustando...' : 'Confirmar Ajuste'}
                 </Button>
               </div>
             </div>
