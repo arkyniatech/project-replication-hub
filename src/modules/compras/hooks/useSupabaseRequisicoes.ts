@@ -76,11 +76,22 @@ export function useSupabaseRequisicoes(lojaId?: string) {
         .update({ centro_custo: cab.centro_custo, categoria: cab.categoria, prioridade: cab.prioridade, observacoes: cab.observacoes })
         .eq('id', id);
       if (error) throw error;
-      await supabase.from('compras_requisicao_itens').delete().eq('requisicao_id', id);
+
+      // Insere os novos itens ANTES de apagar os antigos: se o insert falhar,
+      // a requisição continua com os itens originais em vez de ficar vazia.
+      const antigos = await supabase.from('compras_requisicao_itens').select('id').eq('requisicao_id', id);
+      if (antigos.error) throw antigos.error;
+
       if (itens.length) {
         const rows = itens.map((i) => ({ ...i, requisicao_id: id, loja_id: input.loja_id }));
         const { error: e2 } = await supabase.from('compras_requisicao_itens').insert(rows);
         if (e2) throw e2;
+      }
+
+      const idsAntigos = (antigos.data ?? []).map((r) => r.id);
+      if (idsAntigos.length) {
+        const { error: e3 } = await supabase.from('compras_requisicao_itens').delete().in('id', idsAntigos);
+        if (e3) throw e3;
       }
     },
     onSuccess: () => { invalidate(); toast.success('Requisição atualizada'); },

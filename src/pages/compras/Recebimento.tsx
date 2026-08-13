@@ -106,7 +106,7 @@ export default function Recebimento() {
   };
 
   const handleFinish = () => {
-    if (!selectedPOData) return;
+    if (!selectedPOData || registrar.isPending) return;
 
     // RPC transacional: grava recebimento + dá entrada no estoque + atualiza status do pedido
     registrar.mutate({
@@ -136,6 +136,18 @@ export default function Recebimento() {
       currency: 'BRL'
     }).format(value);
   };
+
+  if (!can('compras:rec:operar')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-3">
+        <div className="text-5xl">🔒</div>
+        <h2 className="text-xl font-semibold">Acesso Restrito</h2>
+        <p className="text-muted-foreground max-w-md">
+          Você não possui permissão para registrar recebimento de materiais.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -434,9 +446,9 @@ export default function Recebimento() {
         </Button>
         
         {currentStep === steps.length ? (
-          <Button onClick={handleFinish}>
+          <Button onClick={handleFinish} disabled={registrar.isPending}>
             <Package className="mr-2 h-4 w-4" />
-            Finalizar Recebimento
+            {registrar.isPending ? 'Registrando...' : 'Finalizar Recebimento'}
           </Button>
         ) : (
           <Button onClick={handleNextStep}>

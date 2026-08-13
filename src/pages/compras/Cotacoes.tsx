@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useSupabaseCotacoes, type CotacaoCompleta } from '@/modules/compras/hooks/useSupabaseCotacoes';
+import { useSupabaseCatalogo } from '@/modules/almox/hooks/useSupabaseCatalogo';
 import { useSupabaseFornecedores } from '@/hooks/useSupabaseFornecedores';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { useRbac } from '@/hooks/useRbac';
@@ -27,13 +28,14 @@ const statusColors: Record<string, string> = {
 const origemLabel: Record<string, string> = { REQ: 'Requisição', OS: 'OS', DIRETA: 'Direta' };
 
 interface PrecoItemForm { itemId: string; sku: string; descricao: string; quantidade: number; precoUnit: number; prazoEntrega: number; observacao: string; }
-interface ItemAvulsoForm { id: string; sku: string; descricao: string; unidade: string; quantidade: number; }
+interface ItemAvulsoForm { id: string; item_catalogo_id: string | null; sku: string; descricao: string; unidade: string; quantidade: number; }
 
 export default function Cotacoes() {
   const { can } = useRbac();
   const { lojaAtual } = useMultiunidade();
   const { cotacoes, isLoading, adicionarProposta, criarDireta, enviarParaAprovacao, aprovar, gerarPedidos } = useSupabaseCotacoes(lojaAtual?.id);
   const { fornecedores } = useSupabaseFornecedores();
+  const { itens: catalogo } = useSupabaseCatalogo();
 
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -61,7 +63,7 @@ export default function Cotacoes() {
 
   // Item 2: nova cotação direta (avulsa)
   const [novaCotItens, setNovaCotItens] = useState<ItemAvulsoForm[]>([]);
-  const [novoDirectItem, setNovoDirectItem] = useState({ sku: '', descricao: '', unidade: 'UN', quantidade: 1 });
+  const [novoDirectItem, setNovoDirectItem] = useState({ item_catalogo_id: null as string | null, sku: '', descricao: '', unidade: 'UN', quantidade: 1 });
 
   const filteredCotacoes = cotacoes.filter(cot => {
     const matchSearch = cot.numero.toLowerCase().includes(search.toLowerCase()) ||
@@ -130,24 +132,26 @@ export default function Cotacoes() {
   };
 
   const initFornecedorForm = (cotacao: CotacaoCompleta) => {
-    setFornecedorData(prev => ({
-      ...prev,
+    // começa limpo: evita herdar fornecedor/frete de um preenchimento cancelado
+    setFornecedorData({
+      fornecedorId: '', frete: 0, impostos: 0, desconto: 0,
+      prazoGeralDias: 30, condicoesPagamento: '30 dias', validadeProposta: '',
       itens: cotacao.itens.map(item => ({
         itemId: item.id,
         sku: item.sku || '',
         descricao: item.descricao,
         quantidade: Number(item.quantidade),
         precoUnit: 0,
-        prazoEntrega: prev.prazoGeralDias,
+        prazoEntrega: 30,
         observacao: ''
       }))
-    }));
+    });
   };
 
   const handleAddDirectItem = () => {
     if (!novoDirectItem.descricao.trim()) { toast.error('Informe a descrição do item'); return; }
     setNovaCotItens(prev => [...prev, { id: `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, ...novoDirectItem }]);
-    setNovoDirectItem({ sku: '', descricao: '', unidade: 'UN', quantidade: 1 });
+    setNovoDirectItem({ item_catalogo_id: null, sku: '', descricao: '', unidade: 'UN', quantidade: 1 });
   };
 
   const handleCriarDireta = () => {
@@ -155,7 +159,13 @@ export default function Cotacoes() {
     if (novaCotItens.length === 0) { toast.error('Adicione ao menos um item'); return; }
     criarDireta.mutate({
       lojaId: lojaAtual.id,
-      itens: novaCotItens.map(i => ({ sku: i.sku || null, descricao: i.descricao, unidade: i.unidade, quantidade: i.quantidade })),
+      itens: novaCotItens.map(i => ({
+        item_catalogo_id: i.item_catalogo_id,
+        sku: i.sku || null,
+        descricao: i.descricao,
+        unidade: i.unidade,
+        quantidade: i.quantidade,
+      })),
     }, {
       onSuccess: () => { setShowNovaCotacao(false); setNovaCotItens([]); },
     });
@@ -357,7 +367,9 @@ export default function Cotacoes() {
                                 </Button>
                               )}
                               {can('compras:cot:edit') && selectedCotacaoData.status === 'em_andamento' && selectedCotacaoData.propostas.length >= 2 && (
-                                <Button onClick={() => handleEnviarParaAprovacao(selectedCotacaoData.id)}>Enviar para Aprovação</Button>
+                                <Button onClick={() => handleEnviarParaAprovacao(selectedCotacaoData.id)} disabled={enviarParaAprovacao.isPending}>
+                                  Enviar para Aprovação
+                                </Button>
                               )}
                               {can('compras:approve') && selectedCotacaoData.status === 'para_aprovacao' && (
                                 <Button onClick={() => setShowApprovalModal(true)}>
@@ -365,8 +377,9 @@ export default function Cotacoes() {
                                 </Button>
                               )}
                               {can('compras:po:create') && selectedCotacaoData.status === 'aprovado' && (
-                                <Button onClick={() => handleGerarPOs(selectedCotacaoData.id)}>
-                                  <FileText className="mr-2 h-4 w-4" /> Gerar Pedido
+                                <Button onClick={() => handleGerarPOs(selectedCotacaoData.id)} disabled={gerarPedidos.isPending}>
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  {gerarPedidos.isPending ? 'Gerando...' : 'Gerar Pedido'}
                                 </Button>
                               )}
                             </div>
@@ -401,6 +414,25 @@ export default function Cotacoes() {
             <Card>
               <CardContent className="pt-4">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                  <div className="md:col-span-12">
+                    <Label>Buscar do catálogo (opcional — vincula ao estoque)</Label>
+                    <Select
+                      value={novoDirectItem.item_catalogo_id ?? '__livre__'}
+                      onValueChange={(v) => {
+                        if (v === '__livre__') { setNovoDirectItem(p => ({ ...p, item_catalogo_id: null })); return; }
+                        const it = catalogo.find(c => c.id === v);
+                        if (it) setNovoDirectItem(p => ({ ...p, item_catalogo_id: it.id, sku: it.sku, descricao: it.descricao, unidade: it.unidade }));
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Item livre (digite abaixo)" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__livre__">— Item livre —</SelectItem>
+                        {catalogo.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.sku} — {c.descricao}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="md:col-span-3">
                     <Label>SKU</Label>
                     <Input value={novoDirectItem.sku} onChange={(e) => setNovoDirectItem(p => ({ ...p, sku: e.target.value }))} placeholder="Opcional" />
@@ -415,7 +447,7 @@ export default function Cotacoes() {
                   </div>
                   <div className="md:col-span-2">
                     <Label>Qtd</Label>
-                    <Input type="number" min="1" value={novoDirectItem.quantidade} onChange={(e) => setNovoDirectItem(p => ({ ...p, quantidade: parseInt(e.target.value) || 1 }))} />
+                    <Input type="number" min="0" step="any" value={novoDirectItem.quantidade} onChange={(e) => setNovoDirectItem(p => ({ ...p, quantidade: parseFloat(e.target.value) || 1 }))} />
                   </div>
                   <div className="md:col-span-12">
                     <Button type="button" variant="outline" onClick={handleAddDirectItem}>Adicionar item</Button>

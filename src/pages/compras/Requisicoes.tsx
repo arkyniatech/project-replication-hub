@@ -304,7 +304,8 @@ export default function Requisicoes() {
                             type="number"
                             min="1"
                             value={newItem.quantidade}
-                            onChange={(e) => setNewItem(prev => ({ ...prev, quantidade: parseInt(e.target.value) || 1 }))}
+                            step="any"
+                            onChange={(e) => setNewItem(prev => ({ ...prev, quantidade: parseFloat(e.target.value) || 1 }))}
                           />
                         </div>
 
@@ -460,6 +461,7 @@ export default function Requisicoes() {
                           variant="outline"
                           size="sm"
                           title="Solicitar (enviar para compras)"
+                          disabled={solicitar.isPending}
                           onClick={() => solicitar.mutate(req.id)}
                         >
                           <ClipboardCheck className="h-4 w-4 mr-1" /> Solicitar
@@ -471,6 +473,7 @@ export default function Requisicoes() {
                           variant="outline"
                           size="sm"
                           title="Abrir cotação"
+                          disabled={enviarParaCotacao.isPending}
                           onClick={() => enviarParaCotacao.mutate(req.id)}
                         >
                           <Send className="h-4 w-4 mr-1" /> Cotar

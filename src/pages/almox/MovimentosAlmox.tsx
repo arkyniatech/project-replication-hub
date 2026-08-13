@@ -10,14 +10,12 @@ import { useSupabaseMovimentos } from "@/modules/almox/hooks/useSupabaseMoviment
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DateRange } from "react-day-picker";
-// import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 export default function MovimentosAlmox() {
   const [searchTerm, setSearchTerm] = useState("");
   const [tipoFilter, setTipoFilter] = useState<string>("all");
   const [itemFilter, setItemFilter] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [dataInicio, setDataInicio] = useState("");
 
   const { lojaAtual } = useMultiunidade();
   const { movimentos } = useSupabaseMovimentos(lojaAtual?.id);
@@ -40,10 +38,9 @@ export default function MovimentosAlmox() {
       item.descricao.toLowerCase().includes(searchLower) ||
       (movimento.referencia?.toLowerCase().includes(searchLower) ?? false);
 
-    // Filtro por data
-    if (dateRange?.from && dateRange?.to) {
-      const movDate = new Date(movimento.created_at);
-      if (movDate < dateRange.from || movDate > dateRange.to) return false;
+    // Filtro por data (a partir de)
+    if (dataInicio) {
+      if (new Date(movimento.created_at) < new Date(`${dataInicio}T00:00:00`)) return false;
     }
 
     return matchesSearch;
@@ -139,10 +136,11 @@ export default function MovimentosAlmox() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Período</label>
+              <label className="text-sm font-medium">A partir de</label>
               <Input
                 type="date"
-                placeholder="Data inicial"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
               />
             </div>
             <div className="flex items-end">

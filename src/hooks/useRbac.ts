@@ -67,7 +67,7 @@ const ROLE_TO_CLAIMS: Partial<Record<AppRole, Claim[]>> = {
     'rh:users',
     'org:multi_loja_report',
     'manutencaoOS:ver', 'manutencaoOS:operar', 'manutencaoOS:liberar', 'manutencaoOS:cinza', 'manutencaoOS:config',
-    'compras:view', 'compras:req:create', 'compras:req:view', 'compras:cot:create', 'compras:cot:edit', 'compras:po:create', 'compras:approve',
+    'compras:view', 'compras:req:create', 'compras:req:view', 'compras:cot:create', 'compras:cot:edit', 'compras:po:create', 'compras:rec:operar', 'compras:approve',
     'almox:view', 'almox:ajustar', 'almox:patrimonial', 'almox:contagem:processar'
   ],
   rh: [
