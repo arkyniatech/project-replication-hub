@@ -36,6 +36,7 @@ import { supabaseClienteToLegacy } from "@/lib/cliente-adapter";
 import { TaxaDeslocamentoService } from "@/services/taxaDeslocamentoService";
 import { useTaxaDeslocamentoStore } from "@/stores/taxaDeslocamentoStore";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 import { useDisponibilidadeRT } from "@/hooks/useDisponibilidadeRT";
 import { validarDisponibilidadeReal } from "@/hooks/useValidarDisponibilidadeReal";
 import { Loader2 } from "lucide-react";
@@ -107,6 +108,7 @@ export default function NovoContratoV2() {
   const {
     lojaAtual
   } = useMultiunidade();
+  const usuarioNomeAtual = useCurrentUserName();
   const [searchParams, setSearchParams] = useSearchParams();
   const [etapaAtual, setEtapaAtual] = useState(0);
   const [hasChanges, setHasChanges] = useState(false);
@@ -809,11 +811,12 @@ export default function NovoContratoV2() {
         observacoes: contrato.condicoes.observacoes || null,
         observacoes_internas: null,
         documentos: [],
+        created_by: (await supabase.auth.getUser()).data.user?.id ?? null,
         timeline: [{
           ts: new Date().toISOString(),
           tipo: 'CRIACAO',
           descricao: 'Contrato criado',
-          usuario: 'Sistema'
+          usuario: usuarioNomeAtual
         }],
         ativo: true
       };

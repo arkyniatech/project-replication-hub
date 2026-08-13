@@ -13,6 +13,8 @@ import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useNumeracao } from "@/hooks/useNumeracao";
 import RegistrarRecebimentoModal from "@/components/contas-receber/RegistrarRecebimentoModal";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUserName } from "@/hooks/useCurrentUserName";
+import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
 
 // Helper para formatar datas sem conversão de timezone
@@ -58,6 +60,8 @@ export default function RenovarContratoModal({
   const { createTitulo, titulos } = useSupabaseTitulos(contrato?.lojaId, contrato?.clienteId);
   const { gerarNumero } = useNumeracao();
   const { addHistoricoEvent } = useSupabaseEquipamentos();
+  const usuarioNome = useCurrentUserName();
+  const { user } = useAuth();
 
   // Calcular nova data de início (mesma data de término - diárias de 24h)
   React.useEffect(() => {
@@ -385,8 +389,8 @@ export default function RenovarContratoModal({
         {
           id: crypto.randomUUID(),
           ts: Date.now(),
-          usuarioId: "1",
-          usuarioNome: "Admin",
+          usuarioId: user?.id ?? null,
+          usuarioNome,
           tipo: "RENOVACAO",
           resumo: `Renovação: ${numPeriodos}x ${periodo} dias - R$ ${valorRenovacaoCalculado.toLocaleString('pt-BR')} (Total atualizado: R$ ${novoValorTotal.toLocaleString('pt-BR')})`,
         }
@@ -395,7 +399,9 @@ export default function RenovarContratoModal({
       console.log('[RenovarContrato] Atualizando contrato...');
       const resultado = await updateContrato.mutateAsync({
         id: String(contrato.id),
-        data_inicio: dataInicioFormatada, // Atualizar também o início
+        // data_inicio passa a refletir o período vigente; o nascimento do
+        // contrato fica em data_inicio_original, preservado por trigger (#52).
+        data_inicio: dataInicioFormatada,
         data_fim: dataFimFormatada,
         data_prevista_fim: dataFimFormatada,
         valor_total: novoValorTotal,
@@ -467,7 +473,7 @@ export default function RenovarContratoModal({
             timestamp: new Date().toISOString(),
             tipo: 'criacao',
             descricao: 'Título criado por renovação de contrato',
-            usuario: 'Admin',
+            usuario: usuarioNome,
           }],
         });
         console.log('[RenovarContrato] Título de renovação criado com sucesso');
@@ -511,7 +517,7 @@ export default function RenovarContratoModal({
             valor: valorRenovacaoCalculado,
             vinculacao: 'CONTRATO',
             status: 'ATIVO',
-            criado_por: null,
+            criado_por: user?.id ?? null,
           }])
           .select()
           .single();
@@ -536,7 +542,7 @@ export default function RenovarContratoModal({
               event: {
                 tipo: 'CONTRATO_RENOVADO',
                 descricao: `Contrato ${contrato.numero} renovado - ${numPeriodos}x ${periodo} dias`,
-                usuario: 'Admin',
+                usuario: usuarioNome,
                 meta: {
                   contratoId: String(contrato.id),
                   contratoNumero: contrato.numero,
