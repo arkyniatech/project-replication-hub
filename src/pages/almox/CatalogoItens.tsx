@@ -136,8 +136,7 @@ export default function CatalogoItens() {
   };
 
   const handleInativar = (itemId: string) => {
-    inativarItem(itemId);
-    toast.success('Item inativado');
+    inativar.mutate(itemId);
   };
 
   // Check RBAC for Patrimonial
@@ -168,7 +167,7 @@ export default function CatalogoItens() {
           </p>
         </div>
         
-        {(can('almox:view') && (selectedTab !== 'PATRIMONIAL' || canEditPatrimonial)) && (
+        {(can('almox:ajustar') && (selectedTab !== 'PATRIMONIAL' || canEditPatrimonial)) && (
           <Dialog open={showForm} onOpenChange={setShowForm}>
             <DialogTrigger asChild>
               <Button onClick={() => resetForm()}>

@@ -112,9 +112,18 @@ export default function EstoqueUnificado() {
   const handleConfirmarAjuste = () => {
     if (!selectedItem || !lojaAtual) return;
 
-    const novoSaldo = parseInt(ajusteForm.novoSaldo);
+    const novoSaldo = parseFloat(ajusteForm.novoSaldo);
     const saldoAtual = getSaldoItem(selectedItem.id).saldo;
     const diferenca = novoSaldo - saldoAtual;
+
+    if (!Number.isFinite(novoSaldo)) {
+      toast({
+        title: "Saldo inválido",
+        description: "Informe um número para o novo saldo.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (diferenca === 0) {
       toast({

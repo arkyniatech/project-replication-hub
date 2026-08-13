@@ -47,29 +47,7 @@ interface DivergenciaItem extends ItemContagem {
 }
 
 export default function ContagemAlmox() {
-  const [sessoes, setSessoes] = useState<SessaoContagem[]>([
-    {
-      id: 'CONT-001',
-      loja: 'Matriz',
-      tipo: 'PECA',
-      status: 'ANALISANDO',
-      criadoEm: new Date().toISOString(),
-      criadoPor: 'Admin',
-      itens: [],
-      divergencias: [
-        {
-          itemId: '1',
-          sku: 'PC-001',
-          descricao: 'Parafuso M8 x 50mm',
-          saldoSistema: 100,
-          quantidadeContada: 95,
-          diferenca: -5,
-          percentualDiferenca: -5,
-          observacao: 'Faltam 5 unidades'
-        }
-      ]
-    }
-  ]);
+  const [sessoes, setSessoes] = useState<SessaoContagem[]>([]);
 
   const [showNovaContagem, setShowNovaContagem] = useState(false);
   const [showProcessarDivergencias, setShowProcessarDivergencias] = useState(false);
@@ -147,29 +125,44 @@ export default function ContagemAlmox() {
     });
   };
 
-  const handleProcessarDivergencias = () => {
-    if (!sessaoSelecionada?.divergencias) return;
+  const handleProcessarDivergencias = async () => {
+    if (!sessaoSelecionada?.divergencias || !lojaAtual) return;
 
-    let processadas = 0;
-    sessaoSelecionada.divergencias.forEach(div => {
-      if (!div.acao || !div.justificativa) return;
-      
-      if (div.acao === 'AJUSTAR' && lojaAtual) {
-        ajustarSaldo.mutate({ itemId: div.itemId, lojaId: lojaAtual.id, diferenca: div.diferenca, justificativa: div.justificativa });
-        processadas++;
-      }
-    });
+    const aAjustar = sessaoSelecionada.divergencias.filter(
+      div => div.acao === 'AJUSTAR' && div.justificativa
+    );
 
-    // Atualizar status da sessão
-    setSessoes(prev => prev.map(s => 
-      s.id === sessaoSelecionada.id 
+    // Só finaliza a sessão se TODOS os ajustes forem gravados de fato.
+    const resultados = await Promise.allSettled(
+      aAjustar.map(div => ajustarSaldo.mutateAsync({
+        itemId: div.itemId,
+        lojaId: lojaAtual.id,
+        diferenca: div.diferenca,
+        justificativa: div.justificativa!,
+      }))
+    );
+
+    const ok = resultados.filter(r => r.status === 'fulfilled').length;
+    const falhas = resultados.length - ok;
+
+    if (falhas > 0) {
+      toast({
+        title: "Processamento incompleto",
+        description: `${ok} ajuste(s) aplicados, ${falhas} falharam. A sessão continua aberta.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSessoes(prev => prev.map(s =>
+      s.id === sessaoSelecionada.id
         ? { ...s, status: 'FINALIZADA' as const }
         : s
     ));
 
     toast({
       title: "Divergências processadas",
-      description: `${processadas} ajustes realizados com sucesso.`
+      description: `${ok} ajuste(s) realizados com sucesso.`
     });
 
     setShowProcessarDivergencias(false);
