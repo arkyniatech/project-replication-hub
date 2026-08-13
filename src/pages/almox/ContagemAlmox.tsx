@@ -1,281 +1,235 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-import { Clipboard, FileText, AlertTriangle, CheckCircle, XCircle, Eye, Plus, Printer } from "lucide-react";
-import { useSupabaseCatalogo } from "@/modules/almox/hooks/useSupabaseCatalogo";
-import { useSupabaseEstoque } from "@/modules/almox/hooks/useSupabaseEstoque";
-import { useMultiunidade } from "@/hooks/useMultiunidade";
-import { useRbac } from "@/hooks/useRbac";
-import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Plus, ClipboardList, Pencil, ClipboardCheck, XCircle } from 'lucide-react';
+import { useSupabaseContagens } from '@/modules/almox/hooks/useSupabaseContagens';
+import { useSupabaseCatalogo } from '@/modules/almox/hooks/useSupabaseCatalogo';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
+import { useRbac } from '@/hooks/useRbac';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
+import ContagemDigitacao from './ContagemDigitacao';
+import ContagemRevisao from './ContagemRevisao';
 
-interface SessaoContagem {
-  id: string;
-  loja: string;
-  tipo: 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL' | 'TODOS';
-  status: 'PREPARANDO' | 'CONTANDO' | 'ANALISANDO' | 'FINALIZADA';
-  criadoEm: string;
-  criadoPor: string;
-  itens: ItemContagem[];
-  divergencias?: DivergenciaItem[];
-}
-
-interface ItemContagem {
-  itemId: string;
-  sku: string;
-  descricao: string;
-  saldoSistema: number;
-  quantidadeContada?: number;
-  observacao?: string;
-}
-
-interface DivergenciaItem extends ItemContagem {
-  diferenca: number;
-  percentualDiferenca: number;
-  acao?: 'AJUSTAR' | 'INVESTIGAR' | 'BAIXA';
-  justificativa?: string;
-  aprovado?: boolean;
-}
+const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  aberta: 'default',
+  processada: 'outline',
+  cancelada: 'secondary',
+};
 
 export default function ContagemAlmox() {
-  const [sessoes, setSessoes] = useState<SessaoContagem[]>([]);
+  const { can } = useRbac();
+  const { lojaAtual } = useMultiunidade();
+  const { contagens, isLoading, abrir, cancelar } = useSupabaseContagens(lojaAtual?.id);
+  const { itens: catalogoItens } = useSupabaseCatalogo();
 
-  const [showNovaContagem, setShowNovaContagem] = useState(false);
-  const [showProcessarDivergencias, setShowProcessarDivergencias] = useState(false);
-  const [sessaoSelecionada, setSessaoSelecionada] = useState<SessaoContagem | null>(null);
-  const [novaContagemForm, setNovaContagemForm] = useState({
+  // sessão ativa via query param — sub-rota faria a aba do ComprasLayout pular,
+  // porque getCurrentTab() compara o path por igualdade exata.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const contagemId = searchParams.get('contagem');
+  const modo = searchParams.get('modo') ?? 'contar';
+
+  const [showNova, setShowNova] = useState(false);
+  const [form, setForm] = useState({
     tipo: 'TODOS' as 'PATRIMONIAL' | 'PECA' | 'CONSUMIVEL' | 'TODOS',
     grupo: '',
-    incluirZerados: false
+    incluirZerados: false,
+    observacoes: '',
   });
 
-  const { lojaAtual } = useMultiunidade();
-  const { can } = useRbac();
-  const { itens: catalogoItens } = useSupabaseCatalogo();
-  const { estoque, ajustarSaldo } = useSupabaseEstoque(lojaAtual?.id);
+  const podeProcessar = can('almox:contagem:processar');
+  const grupos = [...new Set(catalogoItens.map(i => i.grupo).filter((g): g is string => !!g))];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PREPARANDO': return 'secondary';
-      case 'CONTANDO': return 'default';
-      case 'ANALISANDO': return 'destructive';
-      case 'FINALIZADA': return 'outline';
-      default: return 'secondary';
-    }
-  };
+  const abrirContagem = (id: string, m: 'contar' | 'revisar' = 'contar') =>
+    setSearchParams({ contagem: id, modo: m });
+  const voltarParaLista = () => setSearchParams({});
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'PREPARANDO': return 'Preparando';
-      case 'CONTANDO': return 'Em Contagem';
-      case 'ANALISANDO': return 'Analisando';
-      case 'FINALIZADA': return 'Finalizada';
-      default: return status;
-    }
-  };
-
-  const handleCriarSessao = () => {
-    if (!lojaAtual) return;
-
-    // Filtrar itens baseado nos critérios
-    const itensParaContagem = catalogoItens.filter(item => {
-      if (!can('almox:patrimonial') && item.tipo === 'PATRIMONIAL') return false;
-      if (novaContagemForm.tipo !== 'TODOS' && item.tipo !== novaContagemForm.tipo) return false;
-      if (novaContagemForm.grupo && item.grupo !== novaContagemForm.grupo) return false;
-
-      const saldoItem = estoque.find(e => e.item_id === item.id);
-      if (!novaContagemForm.incluirZerados && (!saldoItem || saldoItem.saldo === 0)) return false;
-      
-      return true;
-    });
-
-    const novaSessao: SessaoContagem = {
-      id: `CONT-${String(sessoes.length + 1).padStart(3, '0')}`,
-      loja: lojaAtual.nome,
-      tipo: novaContagemForm.tipo,
-      status: 'PREPARANDO',
-      criadoEm: new Date().toISOString(),
-      criadoPor: 'Admin',
-      itens: itensParaContagem.map(item => {
-        const saldoItem = estoque.find(e => e.item_id === item.id);
-        return {
-          itemId: item.id,
-          sku: item.sku,
-          descricao: item.descricao,
-          saldoSistema: saldoItem?.saldo || 0
-        };
-      })
-    };
-
-    setSessoes(prev => [...prev, novaSessao]);
-    setShowNovaContagem(false);
-    
-    toast({
-      title: "Sessão criada",
-      description: `Sessão ${novaSessao.id} criada com ${novaSessao.itens.length} itens.`
-    });
-  };
-
-  const handleProcessarDivergencias = async () => {
-    if (!sessaoSelecionada?.divergencias || !lojaAtual) return;
-
-    const aAjustar = sessaoSelecionada.divergencias.filter(
-      div => div.acao === 'AJUSTAR' && div.justificativa
-    );
-
-    // Só finaliza a sessão se TODOS os ajustes forem gravados de fato.
-    const resultados = await Promise.allSettled(
-      aAjustar.map(div => ajustarSaldo.mutateAsync({
-        itemId: div.itemId,
+  const handleCriar = () => {
+    if (!lojaAtual) { toast.error('Selecione uma loja'); return; }
+    abrir.mutate(
+      {
         lojaId: lojaAtual.id,
-        diferenca: div.diferenca,
-        justificativa: div.justificativa!,
-      }))
+        tipo: form.tipo,
+        grupo: form.grupo || null,
+        incluirZerados: form.incluirZerados,
+        observacoes: form.observacoes || null,
+      },
+      {
+        onSuccess: (id) => {
+          setShowNova(false);
+          setForm({ tipo: 'TODOS', grupo: '', incluirZerados: false, observacoes: '' });
+          abrirContagem(id, 'contar');
+        },
+      }
     );
-
-    const ok = resultados.filter(r => r.status === 'fulfilled').length;
-    const falhas = resultados.length - ok;
-
-    if (falhas > 0) {
-      toast({
-        title: "Processamento incompleto",
-        description: `${ok} ajuste(s) aplicados, ${falhas} falharam. A sessão continua aberta.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setSessoes(prev => prev.map(s =>
-      s.id === sessaoSelecionada.id
-        ? { ...s, status: 'FINALIZADA' as const }
-        : s
-    ));
-
-    toast({
-      title: "Divergências processadas",
-      description: `${ok} ajuste(s) realizados com sucesso.`
-    });
-
-    setShowProcessarDivergencias(false);
-    setSessaoSelecionada(null);
   };
 
-  const grupos = [...new Set(catalogoItens.map(item => item.grupo).filter((g): g is string => !!g))];
+  // --- telas internas -------------------------------------------------
+  if (contagemId && modo === 'revisar') {
+    if (!podeProcessar) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-3">
+          <div className="text-5xl">🔒</div>
+          <h2 className="text-xl font-semibold">Acesso Restrito</h2>
+          <p className="text-muted-foreground max-w-md">
+            Você não tem permissão para revisar e processar contagens.
+          </p>
+          <Button variant="outline" onClick={() => abrirContagem(contagemId, 'contar')}>
+            Voltar para a contagem
+          </Button>
+        </div>
+      );
+    }
+    return <ContagemRevisao contagemId={contagemId} onVoltar={voltarParaLista} />;
+  }
 
+  if (contagemId) {
+    return (
+      <ContagemDigitacao
+        contagemId={contagemId}
+        onVoltar={voltarParaLista}
+        onRevisar={() => abrirContagem(contagemId, 'revisar')}
+        podeRevisar={podeProcessar}
+      />
+    );
+  }
+
+  // --- lista ----------------------------------------------------------
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <div>
           <h1 className="text-3xl font-bold">Contagem Cega</h1>
-          <p className="text-muted-foreground">
-            Inventário de estoque por contagem física
-          </p>
+          <p className="text-muted-foreground">Inventário físico do almoxarifado</p>
         </div>
-        <Button onClick={() => setShowNovaContagem(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Contagem
-        </Button>
+        {podeProcessar && (
+          <Button onClick={() => setShowNova(true)} className="min-h-[44px]">
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Contagem
+          </Button>
+        )}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Sessões de Contagem</CardTitle>
+          <CardTitle className="text-base">Contagens</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Sessão</TableHead>
-                <TableHead>Loja</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Itens</TableHead>
-                <TableHead>Divergências</TableHead>
-                <TableHead>Criado</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sessoes.map((sessao) => (
-                <TableRow key={sessao.id}>
-                  <TableCell className="font-mono">{sessao.id}</TableCell>
-                  <TableCell>{sessao.loja}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{sessao.tipo}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(sessao.status)}>
-                      {getStatusLabel(sessao.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{sessao.itens.length}</TableCell>
-                  <TableCell>
-                    {sessao.divergencias ? (
-                      <Badge variant="destructive" className="gap-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        {sessao.divergencias.length}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">--</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(sessao.criadoEm), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline">
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        <Printer className="h-3 w-3" />
-                      </Button>
-                      {sessao.status === 'ANALISANDO' && sessao.divergencias && (
-                        <Button 
-                          size="sm" 
-                          variant="default"
-                          onClick={() => {
-                            setSessaoSelecionada(sessao);
-                            setShowProcessarDivergencias(true);
-                          }}
-                        >
-                          Processar
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nº</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Progresso</TableHead>
+                  <TableHead>Divergências</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Criada em</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {contagens.map((c) => {
+                  const total = c.itens.length;
+                  const contados = c.itens.filter(i => i.quantidade_contada !== null).length;
+                  const divergencias = c.itens.filter(
+                    i => i.quantidade_contada !== null && Number(i.quantidade_contada) !== Number(i.saldo_sistema)
+                  ).length;
+                  const progresso = total ? Math.round((contados / total) * 100) : 0;
+
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-mono font-medium">{c.numero}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{c.tipo}</Badge>
+                        {c.grupo && <span className="ml-2 text-xs text-muted-foreground">{c.grupo}</span>}
+                      </TableCell>
+                      <TableCell className="w-[180px]">
+                        <div className="flex items-center gap-2">
+                          <Progress value={progresso} className="h-2 w-24" />
+                          <span className="text-xs tabular-nums text-muted-foreground">{contados}/{total}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {divergencias > 0
+                          ? <Badge variant="destructive">{divergencias}</Badge>
+                          : <span className="text-muted-foreground text-sm">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant[c.status] ?? 'secondary'}>{c.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {format(new Date(c.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline" onClick={() => abrirContagem(c.id, 'contar')} title="Contar">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          {podeProcessar && c.status === 'aberta' && (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => abrirContagem(c.id, 'revisar')} title="Revisar e processar">
+                                <ClipboardCheck className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="Cancelar contagem"
+                                disabled={cancelar.isPending}
+                                onClick={() => cancelar.mutate(c.id)}
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+
+                {contagens.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <ClipboardList className="h-8 w-8 mx-auto mb-3 text-muted-foreground/50" />
+                      <p className="text-muted-foreground">Nenhuma contagem ainda.</p>
+                      {podeProcessar && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Abra uma contagem para conferir o estoque físico.
+                        </p>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
-      {/* Modal Nova Contagem */}
-      <Dialog open={showNovaContagem} onOpenChange={setShowNovaContagem}>
+      {/* Nova contagem */}
+      <Dialog open={showNova} onOpenChange={setShowNova}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova Sessão de Contagem</DialogTitle>
+            <DialogTitle>Nova contagem</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Tipo de Item</Label>
-              <Select 
-                value={novaContagemForm.tipo} 
-                onValueChange={(value: any) => setNovaContagemForm(prev => ({ ...prev, tipo: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Label>Tipo de item</Label>
+              <Select value={form.tipo} onValueChange={(v: any) => setForm(p => ({ ...p, tipo: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="TODOS">Todos os tipos</SelectItem>
                   {can('almox:patrimonial') && <SelectItem value="PATRIMONIAL">Patrimonial</SelectItem>}
@@ -288,17 +242,13 @@ export default function ContagemAlmox() {
             <div>
               <Label>Grupo (opcional)</Label>
               <Select
-                value={novaContagemForm.grupo || '__todos__'}
-                onValueChange={(value) => setNovaContagemForm(prev => ({ ...prev, grupo: value === '__todos__' ? '' : value }))}
+                value={form.grupo || '__todos__'}
+                onValueChange={(v) => setForm(p => ({ ...p, grupo: v === '__todos__' ? '' : v }))}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os grupos" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Todos os grupos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__todos__">Todos os grupos</SelectItem>
-                  {grupos.map(grupo => (
-                    <SelectItem key={grupo} value={grupo}>{grupo}</SelectItem>
-                  ))}
+                  {grupos.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -307,97 +257,35 @@ export default function ContagemAlmox() {
               <input
                 type="checkbox"
                 id="incluirZerados"
-                checked={novaContagemForm.incluirZerados}
-                onChange={(e) => setNovaContagemForm(prev => ({ ...prev, incluirZerados: e.target.checked }))}
+                checked={form.incluirZerados}
+                onChange={(e) => setForm(p => ({ ...p, incluirZerados: e.target.checked }))}
               />
-              <Label htmlFor="incluirZerados">Incluir itens com saldo zero</Label>
+              <Label htmlFor="incluirZerados" className="cursor-pointer">
+                Incluir itens com saldo zero
+              </Label>
             </div>
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowNovaContagem(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleCriarSessao}>
-                Criar Sessão
+            <div>
+              <Label>Observações</Label>
+              <Textarea
+                rows={2}
+                value={form.observacoes}
+                onChange={(e) => setForm(p => ({ ...p, observacoes: e.target.value }))}
+                placeholder="Ex.: contagem trimestral do galpão"
+              />
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              O saldo do sistema é congelado agora e não aparece para quem conta.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowNova(false)}>Cancelar</Button>
+              <Button onClick={handleCriar} disabled={abrir.isPending}>
+                {abrir.isPending ? 'Abrindo...' : 'Abrir contagem'}
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Processar Divergências */}
-      <Dialog open={showProcessarDivergencias} onOpenChange={setShowProcessarDivergencias}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Processar Divergências - {sessaoSelecionada?.id}</DialogTitle>
-          </DialogHeader>
-          {sessaoSelecionada?.divergencias && (
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {sessaoSelecionada.divergencias.map((div, index) => (
-                <Card key={div.itemId}>
-                  <CardContent className="pt-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <div className="font-medium">{div.sku} - {div.descricao}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Sistema: {div.saldoSistema} | Contado: {div.quantidadeContada} | 
-                          Diferença: <span className={div.diferenca < 0 ? 'text-red-600' : 'text-green-600'}>
-                            {div.diferenca > 0 ? '+' : ''}{div.diferenca} ({div.percentualDiferenca.toFixed(1)}%)
-                          </span>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <Label>Ação</Label>
-                          <Select 
-                            value={div.acao || ''} 
-                            onValueChange={(value: any) => {
-                              const novasDivergencias = [...sessaoSelecionada.divergencias!];
-                              novasDivergencias[index] = { ...div, acao: value };
-                              setSessaoSelecionada({ ...sessaoSelecionada, divergencias: novasDivergencias });
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecionar ação" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="AJUSTAR">Ajustar Estoque</SelectItem>
-                              <SelectItem value="INVESTIGAR">Investigar</SelectItem>
-                              <SelectItem value="BAIXA">Baixa Patrimonial</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Justificativa</Label>
-                          <Textarea
-                            placeholder="Motivo da divergência..."
-                            value={div.justificativa || ''}
-                            onChange={(e) => {
-                              const novasDivergencias = [...sessaoSelecionada.divergencias!];
-                              novasDivergencias[index] = { ...div, justificativa: e.target.value };
-                              setSessaoSelecionada({ ...sessaoSelecionada, divergencias: novasDivergencias });
-                            }}
-                            rows={2}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              <Separator />
-              
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowProcessarDivergencias(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleProcessarDivergencias}>
-                  Processar Todas
-                </Button>
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>
