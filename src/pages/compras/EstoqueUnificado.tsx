@@ -112,7 +112,9 @@ export default function EstoqueUnificado() {
   const handleConfirmarAjuste = () => {
     if (!selectedItem || !lojaAtual || ajustarSaldo.isPending) return;
 
-    const novoSaldo = parseFloat(String(ajusteForm.novoSaldo).replace(',', '.'));
+    // input type="number" já entrega o valor canônico ("10.5"), sem separador
+    // de milhar — trocar vírgula por ponto aqui corromperia o decimal.
+    const novoSaldo = parseFloat(String(ajusteForm.novoSaldo).trim());
     const saldoAtual = getSaldoItem(selectedItem.id).saldo;
     const diferenca = novoSaldo - saldoAtual;
 
@@ -471,6 +473,8 @@ export default function EstoqueUnificado() {
                 <Input
                   type="number"
                   min="0"
+                  step="any"
+                  inputMode="decimal"
                   value={ajusteForm.novoSaldo}
                   onChange={(e) => setAjusteForm(prev => ({ ...prev, novoSaldo: e.target.value }))}
                 />

@@ -182,7 +182,9 @@ export function imprimirFolhaContagem(data: FolhaContagemData): void {
   if (janela) {
     janela.document.write(html);
     janela.document.close();
-    janela.onload = () => janela.focus();
+    // document.close() já dispara o load; registrar onload depois disso pode
+    // nunca executar, então o foco é pedido direto.
+    janela.focus();
     return;
   }
 
@@ -192,6 +194,9 @@ export function imprimirFolhaContagem(data: FolhaContagemData): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = `contagem-${data.numero}-${new Date().toISOString().slice(0, 10)}.html`;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(link);
+  // o download é assíncrono: revogar na hora entrega um arquivo vazio
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
