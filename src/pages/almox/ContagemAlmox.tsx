@@ -10,6 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Plus, ClipboardList, Pencil, ClipboardCheck, XCircle } from 'lucide-react';
 import { useSupabaseContagens } from '@/modules/almox/hooks/useSupabaseContagens';
 import { useSupabaseCatalogo } from '@/modules/almox/hooks/useSupabaseCatalogo';
@@ -28,7 +32,7 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destr
 };
 
 export default function ContagemAlmox() {
-  const { can } = useRbac();
+  const { can, isLoading: rbacLoading } = useRbac();
   const { lojaAtual } = useMultiunidade();
   const { contagens, isLoading, abrir, cancelar } = useSupabaseContagens(lojaAtual?.id);
   const { itens: catalogoItens } = useSupabaseCatalogo();
@@ -75,6 +79,12 @@ export default function ContagemAlmox() {
   };
 
   // --- telas internas -------------------------------------------------
+  // enquanto os papéis carregam, can() responde false para todos — decidir o
+  // gate aqui mostraria "Acesso Restrito" a um gestor legítimo.
+  if (rbacLoading) {
+    return <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>;
+  }
+
   if (contagemId && modo === 'revisar') {
     if (!podeProcessar) {
       return (
@@ -183,15 +193,29 @@ export default function ContagemAlmox() {
                               <Button size="sm" variant="outline" onClick={() => abrirContagem(c.id, 'revisar')} title="Revisar e processar">
                                 <ClipboardCheck className="h-3.5 w-3.5" />
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                title="Cancelar contagem"
-                                disabled={cancelar.isPending}
-                                onClick={() => cancelar.mutate(c.id)}
-                              >
-                                <XCircle className="h-3.5 w-3.5" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="sm" variant="ghost" title="Cancelar contagem" disabled={cancelar.isPending}>
+                                    <XCircle className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Cancelar a contagem {c.numero}?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      {contados > 0
+                                        ? `Já há ${contados} item(ns) contados. Cancelar descarta essa contagem — não há como reabri-la, seria preciso contar tudo de novo.`
+                                        : 'A contagem será encerrada e não poderá ser reaberta.'}
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => cancelar.mutate(c.id)}>
+                                      Cancelar contagem
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </>
                           )}
                         </div>

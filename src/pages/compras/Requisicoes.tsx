@@ -313,7 +313,7 @@ export default function Requisicoes() {
                           <Input
                             id="quantidade"
                             type="number"
-                            min="1"
+                            min="0"
                             value={newItem.quantidade}
                             inputMode="decimal"
                             step="any"

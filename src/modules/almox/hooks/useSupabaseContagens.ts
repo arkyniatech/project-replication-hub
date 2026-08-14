@@ -85,12 +85,19 @@ export function useSupabaseContagens(lojaId?: string) {
     onError: (e: any) => { console.error(e); toast.error(e.message || 'Erro ao salvar contagem'); },
   });
 
-  /** Decisão da revisão: ajustar (com justificativa) ou ignorar a divergência. */
+  /** Decisão da revisão: ajustar (com justificativa) ou ignorar a divergência.
+   *  Só grava os campos informados — enviar `justificativa: undefined` mantém
+   *  o texto que já está no banco em vez de apagá-lo. */
   const definirAcao = useMutation({
-    mutationFn: async (v: { itemId: string; acao: 'AJUSTAR' | 'IGNORAR' | null; justificativa?: string | null }) => {
+    mutationFn: async (v: { itemId: string; acao?: 'AJUSTAR' | 'IGNORAR' | null; justificativa?: string | null }) => {
+      const patch: Record<string, unknown> = {};
+      if ('acao' in v) patch.acao = v.acao ?? null;
+      if (v.justificativa !== undefined) patch.justificativa = v.justificativa;
+      if (Object.keys(patch).length === 0) return;
+
       const { error } = await supabase
         .from('almox_contagem_itens')
-        .update({ acao: v.acao, justificativa: v.justificativa ?? null })
+        .update(patch)
         .eq('id', v.itemId);
       if (error) throw error;
     },

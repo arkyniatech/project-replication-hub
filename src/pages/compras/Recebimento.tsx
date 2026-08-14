@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useSupabasePedidosCompra } from '@/modules/compras/hooks/useSupabasePedidosCompra';
 import { useSupabaseRecebimentos } from '@/modules/compras/hooks/useSupabaseRecebimentos';
 import { useSupabaseCatalogo } from '@/modules/almox/hooks/useSupabaseCatalogo';

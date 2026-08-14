@@ -9,7 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

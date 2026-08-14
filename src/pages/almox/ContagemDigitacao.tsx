@@ -89,9 +89,10 @@ export default function ContagemDigitacao({ contagemId, onVoltar, onRevisar, pod
     }
   };
 
-  const handleSalvar = () => {
-    if (!contagem) return;
-    const lancamentos = contagem.itens
+  /** O que ainda não foi para o banco. Usado para salvar e para avisar ao sair. */
+  const pendencias = () => {
+    if (!contagem) return [];
+    return contagem.itens
       .filter(item => {
         const d = digitado[item.id];
         if (!d) return false;
@@ -104,12 +105,38 @@ export default function ContagemDigitacao({ contagemId, onVoltar, onRevisar, pod
         const num = bruto === '' ? null : Number(bruto);
         return { id: item.id, quantidade_contada: num, observacao: d.obs.trim() || null };
       });
+  };
 
-    const invalido = lancamentos.find(l => l.quantidade_contada !== null && !Number.isFinite(l.quantidade_contada));
-    if (invalido) { toast.error('Há quantidade inválida — confira os campos preenchidos'); return; }
-    if (!lancamentos.length) { toast.info('Nada novo para salvar'); return; }
+  /** Salva e retorna se deu certo — quem navega precisa esperar por isso. */
+  const salvar = async (silencioso = false): Promise<boolean> => {
+    const lancamentos = pendencias();
 
-    lancarContagem.mutate(lancamentos);
+    const invalido = lancamentos.find(l =>
+      l.quantidade_contada !== null && (!Number.isFinite(l.quantidade_contada) || l.quantidade_contada < 0)
+    );
+    if (invalido) {
+      toast.error('Há quantidade inválida ou negativa — confira os campos preenchidos');
+      return false;
+    }
+    if (!lancamentos.length) {
+      if (!silencioso) toast.info('Nada novo para salvar');
+      return true;
+    }
+
+    try {
+      await lancarContagem.mutateAsync(lancamentos);
+      return true;
+    } catch {
+      return false; // o hook já mostrou o erro
+    }
+  };
+
+  const handleSalvar = () => { void salvar(); };
+
+  // sair sem salvar descartaria tudo que foi digitado desde o último save
+  const sairSalvando = async (destino: () => void) => {
+    if (pendencias().length > 0 && !(await salvar(true))) return;
+    destino();
   };
 
   const handleImprimir = () => {
@@ -146,7 +173,7 @@ export default function ContagemDigitacao({ contagemId, onVoltar, onRevisar, pod
       <div className="sticky top-0 z-10 -mx-2 px-2 pt-2 pb-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <Button variant="ghost" size="icon" onClick={onVoltar} aria-label="Voltar">
+            <Button variant="ghost" size="icon" onClick={() => void sairSalvando(onVoltar)} aria-label="Voltar">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
@@ -169,7 +196,7 @@ export default function ContagemDigitacao({ contagemId, onVoltar, onRevisar, pod
               </Button>
             )}
             {podeRevisar && !encerrada && (
-              <Button size="sm" variant="secondary" onClick={onRevisar} className="min-h-[44px]">
+              <Button size="sm" variant="secondary" onClick={() => void sairSalvando(onRevisar)} className="min-h-[44px]">
                 <ClipboardCheck className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Revisar</span>
               </Button>

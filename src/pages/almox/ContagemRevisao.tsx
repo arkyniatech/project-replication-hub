@@ -52,6 +52,12 @@ export default function ContagemRevisao({ contagemId, onVoltar }: Props) {
   ).length;
 
   const handleProcessar = () => {
+    if (processar.isPending) return;
+    // a contagem não pode ser reaberta: divergência sem decisão seria perdida
+    if (pendentesDeDecisao > 0) {
+      toast.error(`${pendentesDeDecisao} divergência(s) sem decisão. Marque cada uma como Ajustar ou Ignorar.`);
+      return;
+    }
     if (semJustificativa > 0) {
       toast.error(`${semJustificativa} item(ns) marcados para ajustar estão sem justificativa`);
       return;
@@ -115,6 +121,18 @@ export default function ContagemRevisao({ contagemId, onVoltar }: Props) {
         </CardContent></Card>
       </div>
 
+      {pendentesDeDecisao > 0 && !encerrada && (
+        <Card className="border-red-500/40">
+          <CardContent className="py-3 flex items-start gap-2 text-sm">
+            <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+            <span className="text-muted-foreground">
+              <strong className="text-foreground">{pendentesDeDecisao} divergência(s) ainda sem decisão.</strong> Marque
+              cada uma como <em>Ajustar</em> ou <em>Ignorar</em> — a contagem não pode ser reaberta depois de processada.
+            </span>
+          </CardContent>
+        </Card>
+      )}
+
       {naoContados > 0 && !encerrada && (
         <Card className="border-amber-500/40">
           <CardContent className="py-3 flex items-start gap-2 text-sm">
@@ -174,10 +192,12 @@ export default function ContagemRevisao({ contagemId, onVoltar }: Props) {
                     <Label className="text-xs">Ação</Label>
                     <Select
                       value={item.acao ?? '__nenhuma__'}
+                      // não reenvia a justificativa: o blur do campo ao lado
+                      // acabou de gravá-la e o cache ainda tem o valor antigo,
+                      // que sobrescreveria o texto recém-salvo.
                       onValueChange={(v) => definirAcao.mutate({
                         itemId: item.id,
                         acao: v === '__nenhuma__' ? null : (v as 'AJUSTAR' | 'IGNORAR'),
-                        justificativa: item.justificativa,
                       })}
                     >
                       <SelectTrigger className="min-h-[44px]"><SelectValue placeholder="Decidir" /></SelectTrigger>
@@ -199,7 +219,7 @@ export default function ContagemRevisao({ contagemId, onVoltar }: Props) {
                       onBlur={(e) => {
                         const valor = e.target.value.trim();
                         if (valor !== (item.justificativa ?? '')) {
-                          definirAcao.mutate({ itemId: item.id, acao: item.acao as any, justificativa: valor || null });
+                          definirAcao.mutate({ itemId: item.id, justificativa: valor || null });
                         }
                       }}
                     />
