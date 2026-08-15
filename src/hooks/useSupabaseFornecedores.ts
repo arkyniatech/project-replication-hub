@@ -7,9 +7,9 @@ type Fornecedor = {
   id: string;
   codigo: string;
   nome: string;
-  razao_social?: string;
-  cnpj?: string;
-  cpf?: string;
+  razao_social?: string | null;
+  cnpj?: string | null;
+  cpf?: string | null;
   contato?: any;
   endereco?: any;
   observacoes?: string;
