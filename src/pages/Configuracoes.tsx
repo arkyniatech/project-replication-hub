@@ -20,13 +20,9 @@ import { IntegracoesForm } from "@/components/configuracoes/IntegracoesForm";
 import { MarcasVariacoesForm } from "@/components/configuracoes/MarcasVariacoesForm";
 import { toast } from "sonner";
 import { APP_CONFIG } from "@/config/app";
-
-// Mock do usuário atual - em produção viria do contexto de auth
-const currentUser = {
-  id: "1",
-  nome: "Admin Sistema",
-  perfil: "Admin" as const
-};
+import { useRbac } from "@/hooks/useRbac";
+import { useAuth } from "@/contexts/AuthContext";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const placeholderSections = [
   { 
@@ -46,17 +42,60 @@ const placeholderSections = [
 export default function Configuracoes() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("organizacao");
+  const { loading: authLoading } = useAuth();
+  const { can, anyOf, isLoading: rbacLoading } = useRbac();
 
-  // Verificar permissões
-  if (!["Admin", "Financeiro"].includes(currentUser.perfil)) {
-    toast.error("Acesso negado", {
-      description: "Você não tem permissão para acessar as configurações."
-    });
-    navigate("/");
-    return null;
+  // A aba Usuários exige o claim específico de gestão de usuários — não basta
+  // ter acesso à página de Configurações.
+  const podeGerirUsuarios = can('config:usuarios');
+
+  // Claims que dão direito a abrir Configurações. Substitui o mock
+  // hardcoded ("Admin") que nunca consultava o usuário real.
+  const podeConfigurar = anyOf([
+    'config:usuarios',
+    'settings:templates',
+    'settings:sequencias',
+  ]);
+
+  // can()/anyOf() respondem false para todos enquanto os papéis não chegaram,
+  // então decidir o gate cedo demais mostraria "Acesso Restrito" a um admin
+  // legítimo. Precisa esperar DUAS etapas:
+  //   1) authLoading — a query do useRbac tem `enabled: !!user?.id`, e query
+  //      desabilitada não conta como "fetching": rbacLoading fica false durante
+  //      a restauração da sessão, com claims ainda vazias.
+  //   2) rbacLoading — o fetch dos papéis em si.
+  // O gate é fail-closed: na dúvida, espera; nunca libera por omissão.
+  if (authLoading || rbacLoading) {
+    return <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>;
+  }
+
+  if (!podeConfigurar) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center space-y-3">
+        <div className="text-5xl">🔒</div>
+        <h2 className="text-xl font-semibold">Acesso Restrito</h2>
+        <p className="text-muted-foreground max-w-md">
+          Você não tem permissão para acessar as configurações do sistema.
+        </p>
+        <Button variant="outline" onClick={() => navigate("/")}>
+          Voltar para o início
+        </Button>
+      </div>
+    );
   }
 
   const handleTabChange = (value: string) => {
+    // Defesa em profundidade: hoje inalcançável (o gatilho da aba está oculto
+    // e não há deep link para activeTab). A proteção que de fato vale é o
+    // TabsContent não montado abaixo. Mantido para o caso de alguém adicionar
+    // sincronia com a URL no futuro.
+    if (value === 'usuarios' && !podeGerirUsuarios) {
+      toast.error("Acesso negado", {
+        description: "Você não tem permissão para gerenciar usuários."
+      });
+      return;
+    }
+
     // Allow implemented tabs: organizacao, seguranca, lojas, usuarios, numeracao, layout, parametros, financeiro, politicas, avisos, integracoes
     if (!['organizacao', 'seguranca', 'lojas', 'usuarios', 'numeracao', 'layout', 'parametros', 'financeiro', 'politicas', 'avisos', 'integracoes', 'marcas'].includes(value)) {
       toast.info("Funcionalidade em desenvolvimento", {
@@ -121,13 +160,15 @@ export default function Configuracoes() {
               <Building2 className="w-4 h-4" />
               <span className="hidden sm:inline">Lojas</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="usuarios" 
-              className="flex flex-col items-center gap-1 p-3 text-xs"
-            >
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Usuários</span>
-            </TabsTrigger>
+            {podeGerirUsuarios && (
+              <TabsTrigger
+                value="usuarios"
+                className="flex flex-col items-center gap-1 p-3 text-xs"
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">Usuários</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger 
               value="numeracao" 
               className="flex flex-col items-center gap-1 p-3 text-xs"
@@ -209,9 +250,13 @@ export default function Configuracoes() {
             <LojasForm />
           </TabsContent>
 
-          <TabsContent value="usuarios" className="space-y-6">
-            <UsuariosPerfilForm />
-          </TabsContent>
+          {/* Proteção efetiva da aba Usuários: sem o claim o nó nem é montado,
+              então nenhum valor de activeTab consegue renderizar o formulário. */}
+          {podeGerirUsuarios && (
+            <TabsContent value="usuarios" className="space-y-6">
+              <UsuariosPerfilForm />
+            </TabsContent>
+          )}
 
           <TabsContent value="numeracao" className="space-y-6">
             <SequenciasETemplates />
