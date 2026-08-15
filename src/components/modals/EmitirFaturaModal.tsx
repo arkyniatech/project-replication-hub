@@ -236,7 +236,7 @@ export default function EmitirFaturaModal({
         contrato_id: contrato.id,
         fatura_id: faturaData.id,
         numero: numeroTitulo,
-        categoria: 'Locação',
+        categoria: 'LOCACAO',
         subcategoria: 'Adicional de Locação',
         descricao: `Fatura ${numeroFatura} - ${contrato.cliente.nomeRazao}`,
         valor: valorTotal,

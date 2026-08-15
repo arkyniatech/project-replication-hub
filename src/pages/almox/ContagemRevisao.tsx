@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useContagem, useSupabaseContagens } from '@/modules/almox/hooks/useSupabaseContagens';
+import { useSupabaseEstoque } from '@/modules/almox/hooks/useSupabaseEstoque';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { toast } from 'sonner';
 
@@ -26,21 +27,31 @@ export default function ContagemRevisao({ contagemId, onVoltar }: Props) {
   const { contagem, isLoading } = useContagem(contagemId);
   const { lojaAtual } = useMultiunidade();
   const { definirAcao, processar } = useSupabaseContagens(lojaAtual?.id);
+  const { estoque } = useSupabaseEstoque(lojaAtual?.id);
   const [soDivergentes, setSoDivergentes] = useState(true);
 
+  // saldo_sistema do item é o snapshot congelado na abertura da contagem — é
+  // o que o processamento usa para calcular o delta, não o saldo atual.
+  // Mostramos os dois para o operador ver se algo movimentou nesse meio-tempo.
   const linhas = useMemo(() => {
     if (!contagem) return [];
     return contagem.itens
       .map(item => {
         const contado = item.quantidade_contada;
-        const diferenca = contado === null ? null : Number(contado) - Number(item.saldo_sistema);
-        const perc = diferenca === null || Number(item.saldo_sistema) === 0
+        const saldoNaAbertura = Number(item.saldo_sistema);
+        const diferenca = contado === null ? null : Number(contado) - saldoNaAbertura;
+        const perc = diferenca === null || saldoNaAbertura === 0
           ? null
-          : (diferenca / Number(item.saldo_sistema)) * 100;
-        return { item, contado, diferenca, perc };
+          : (diferenca / saldoNaAbertura) * 100;
+        const saldoAtual = estoque.find(e => e.item_id === item.item_id)?.saldo;
+        const movimentadoDesde = saldoAtual === undefined ? null : Number(saldoAtual) - saldoNaAbertura;
+        const saldoFinalPrevisto = diferenca === null
+          ? null
+          : (saldoAtual === undefined ? saldoNaAbertura : Number(saldoAtual)) + diferenca;
+        return { item, contado, diferenca, perc, movimentadoDesde, saldoFinalPrevisto };
       })
       .sort((a, b) => Math.abs(b.diferenca ?? 0) - Math.abs(a.diferenca ?? 0));
-  }, [contagem]);
+  }, [contagem, estoque]);
 
   const naoContados = linhas.filter(l => l.contado === null).length;
   const divergentes = linhas.filter(l => l.diferenca !== null && l.diferenca !== 0);
@@ -155,7 +166,7 @@ export default function ContagemRevisao({ contagemId, onVoltar }: Props) {
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
-          {visiveis.map(({ item, contado, diferenca, perc }) => (
+          {visiveis.map(({ item, contado, diferenca, perc, movimentadoDesde, saldoFinalPrevisto }) => (
             <div key={item.id} className="border rounded-lg p-3 space-y-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -175,7 +186,7 @@ export default function ContagemRevisao({ contagemId, onVoltar }: Props) {
 
                 <div className="text-sm text-right tabular-nums whitespace-nowrap">
                   <div className="text-muted-foreground">
-                    Sistema {Number(item.saldo_sistema)} · Contado {contado === null ? '—' : Number(contado)}
+                    Sistema na abertura {Number(item.saldo_sistema)} · Contado {contado === null ? '—' : Number(contado)}
                   </div>
                   {diferenca !== null && (
                     <div className={diferenca === 0 ? 'text-muted-foreground' : diferenca < 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>
@@ -185,6 +196,16 @@ export default function ContagemRevisao({ contagemId, onVoltar }: Props) {
                   )}
                 </div>
               </div>
+
+              {diferenca !== null && diferenca !== 0 && !item.processado && movimentadoDesde !== null && movimentadoDesde !== 0 && (
+                <div className="flex items-start gap-2 text-xs bg-amber-500/10 border border-amber-500/30 rounded-md p-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                  <span className="text-muted-foreground">
+                    O saldo do sistema movimentou <strong className="text-foreground">{movimentadoDesde > 0 ? '+' : ''}{movimentadoDesde} {item.unidade}</strong> desde
+                    a abertura da contagem. O ajuste aplica o delta contado sobre o saldo atual — saldo final previsto: <strong className="text-foreground">{saldoFinalPrevisto} {item.unidade}</strong>.
+                  </span>
+                </div>
+              )}
 
               {diferenca !== null && diferenca !== 0 && !encerrada && !item.processado && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

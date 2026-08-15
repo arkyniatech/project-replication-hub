@@ -155,7 +155,7 @@ export function FaturamentoCarrinho() {
           pago: 0,
           saldo: totais.total,
           forma: formaPagamento,
-          status: 'PENDENTE',
+          status: 'EM_ABERTO',
           origem: 'FATURA',
           observacoes: observacoes || `Fatura ${faturaNumero}`,
           timeline: [{

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ export default function EstoqueUnificado() {
     justificativa: "",
     tipo: "AJUSTE_POSITIVO" as "AJUSTE_POSITIVO" | "AJUSTE_NEGATIVO"
   });
+  const ajustandoRef = useRef(false);
 
   const { can } = useRbac();
   const { lojaAtual } = useMultiunidade();
@@ -110,7 +111,10 @@ export default function EstoqueUnificado() {
   };
 
   const handleConfirmarAjuste = () => {
-    if (!selectedItem || !lojaAtual || ajustarSaldo.isPending) return;
+    // isPending só reflete no botão a partir do próximo render — um duplo
+    // clique dentro do mesmo ciclo de eventos passa pela guarda do disabled.
+    // ajustandoRef fecha essa janela de forma síncrona.
+    if (!selectedItem || !lojaAtual || ajustarSaldo.isPending || ajustandoRef.current) return;
 
     // input type="number" já entrega o valor canônico ("10.5"), sem separador
     // de milhar — trocar vírgula por ponto aqui corromperia o decimal.
@@ -145,9 +149,13 @@ export default function EstoqueUnificado() {
       return;
     }
 
+    ajustandoRef.current = true;
     ajustarSaldo.mutate(
       { itemId: selectedItem.id, lojaId: lojaAtual.id, diferenca, justificativa: ajusteForm.justificativa },
-      { onSuccess: () => { setShowAjusteModal(false); setSelectedItem(null); } }
+      {
+        onSuccess: () => { setShowAjusteModal(false); setSelectedItem(null); },
+        onSettled: () => { ajustandoRef.current = false; },
+      }
     );
   };
 

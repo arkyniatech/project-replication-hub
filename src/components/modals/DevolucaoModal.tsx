@@ -250,7 +250,7 @@ export default function DevolucaoModal({
             contrato_id: String(contrato.id),
             cliente_id: contrato.clienteId,
             loja_id: contrato.lojaId || '',
-            categoria: 'Locação',
+            categoria: 'LOCACAO',
             subcategoria: tipoTitulo,
             origem: 'CONTRATO',
             emissao: new Date().toISOString(),
@@ -259,7 +259,7 @@ export default function DevolucaoModal({
             pago: diferenca < 0 ? Math.abs(diferenca) : 0,
             saldo: diferenca > 0 ? diferenca : 0,
             forma: 'PIX',
-            status: diferenca > 0 ? 'ABERTO' : 'QUITADO',
+            status: diferenca > 0 ? 'EM_ABERTO' : 'QUITADO',
             observacoes: `${descricaoTitulo}\n\nJustificativa: ${justificativaFinanceira}\n\nDevolução confirmada em ${dataDevolucao} ${horaDevolucao}. ${observacoes}`,
             timeline: [{
               id: Date.now().toString(),

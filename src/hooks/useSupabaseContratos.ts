@@ -574,7 +574,7 @@ export function useSupabaseContratos(lojaId?: string, clienteId?: string) {
               loja_id: contrato.loja_id,
               cliente_id: contrato.cliente_id,
               contrato_id: contratoId,
-              categoria: 'Locação',
+              categoria: 'LOCACAO',
               subcategoria: contrato.forma_pagamento || null,
               emissao: hojeIso,
               vencimento: dataDevolucao || hojeIso,

@@ -14,6 +14,7 @@ import { useSupabaseCatalogo } from '@/modules/almox/hooks/useSupabaseCatalogo';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { useRbac } from '@/hooks/useRbac';
 import { toast } from 'sonner';
+import { validarSeriesRecebimento } from '@/modules/compras/lib/recebimento-validation';
 
 interface WizardStep {
   id: number;
@@ -87,6 +88,27 @@ export default function Recebimento() {
       }
       if (!idsDigitados.some(id => qtdDigitada(id) > 0)) {
         toast.error('Informe pelo menos um item com quantidade recebida');
+        return;
+      }
+
+      const itensParaValidar = (selectedPOData?.itens ?? []).map(item => {
+        const catalogItem = catalogo.find(c => c.id === item.item_catalogo_id);
+        return {
+          itemId: item.id,
+          descricao: item.descricao,
+          isSerial: catalogItem?.controle === 'SERIE',
+          quantidade: qtdDigitada(item.id),
+          series: itensRecebimento[item.id]?.series,
+        };
+      });
+      const seriesInvalidas = validarSeriesRecebimento(itensParaValidar);
+      if (seriesInvalidas.length > 0) {
+        const primeiro = seriesInvalidas[0];
+        toast.error(
+          seriesInvalidas.length === 1
+            ? `Informe ${primeiro.quantidade} número(s) de série para "${primeiro.descricao}" (recebeu ${primeiro.seriesInformadas})`
+            : `${seriesInvalidas.length} itens com número de série pendente ou divergente da quantidade recebida`
+        );
         return;
       }
     }

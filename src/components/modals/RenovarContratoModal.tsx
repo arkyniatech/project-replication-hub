@@ -458,7 +458,7 @@ export default function RenovarContratoModal({
           cliente_id: contrato.clienteId,
           contrato_id: contrato.id,
           numero: numeroTitulo,
-          categoria: 'Locação',
+          categoria: 'LOCACAO',
           subcategoria: 'Renovação',
           observacoes: `Renovação do contrato ${contrato.numero} - ${numPeriodos}x ${periodo} dias`,
           origem: 'CONTRATO',
