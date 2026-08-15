@@ -74,10 +74,22 @@ BEGIN
      AND ci.id IS DISTINCT FROM p_item_id     -- não conflita consigo mesmo
      -- Sobreposição com FRONTEIRA EXCLUSIVA: [inicio, fim). Fim ausente =
      -- ocupação em aberto ('infinity'), o lado seguro.
+     --
+     -- GREATEST(fim, inicio + 1) garante ocupação mínima de UM DIA. Sem isso,
+     -- contrato de um dia (data_inicio = data_fim) vira daterange EMPTY, e
+     -- range vazia não sobrepõe nada — liberaria dupla reserva ilimitada
+     -- naquele dia. Locadora aluga por um dia, então a falha seria para o
+     -- lado inseguro. Também blinda contra data invertida por digitação, que
+     -- levantaria "range lower bound must be less than or equal to upper
+     -- bound" como exceção crua. Para multi-dia é inócuo: fim > inicio, então
+     -- GREATEST devolve fim e a fronteira exclusiva fica preservada.
      AND daterange(c.data_inicio,
-                   COALESCE(c.data_fim, c.data_prevista_fim, 'infinity'::date),
+                   GREATEST(COALESCE(c.data_fim, c.data_prevista_fim, 'infinity'::date),
+                            c.data_inicio + 1),
                    '[)')
-       && daterange(p_inicio, COALESCE(p_fim, 'infinity'::date), '[)')
+       && daterange(p_inicio,
+                    GREATEST(COALESCE(p_fim, 'infinity'::date), p_inicio + 1),
+                    '[)')
    ORDER BY c.data_inicio
    LIMIT 1;
 
@@ -223,3 +235,32 @@ CREATE TRIGGER trg_contratos_anti_dupla_reserva
 CREATE INDEX IF NOT EXISTS idx_contrato_itens_equip_serie_ativo
   ON public.contrato_itens (equipamento_id, status)
   WHERE controle = 'SERIE' AND equipamento_id IS NOT NULL;
+
+-- ---------------------------------------------------------------------
+-- Fecha a superfície de RPC. Por default do Postgres, EXECUTE de função nova
+-- vai para PUBLIC — e SECURITY DEFINER sem REVOKE fica chamável sem login via
+-- /rest/v1/rpc. Aqui o agravante é que a exceção devolve número do contrato e
+-- período: um anônimo sondaria a agenda inteira da locadora variando
+-- equipamento_id e datas.
+--
+-- Diferente das RPCs do repo, estas NÃO recebem GRANT de volta para
+-- authenticated: são funções de trigger e um helper interno, ninguém deve
+-- chamá-las por REST. O trigger continua funcionando normalmente — o Postgres
+-- checa EXECUTE da função de trigger na CRIAÇÃO do trigger, não no disparo, e
+-- o PERFORM interno roda como o dono (SECURITY DEFINER), que tem o privilégio.
+--
+-- SECURITY DEFINER é mantido de propósito: a RLS de contratos filtra por loja
+-- e esta regra é GLOBAL. Sem DEFINER, usuário da loja A não enxergaria o
+-- conflito na loja B e a validação passaria errado.
+-- ---------------------------------------------------------------------
+DO $$
+DECLARE fn text;
+BEGIN
+  FOREACH fn IN ARRAY ARRAY[
+    'public.contratos_valida_reserva_serie(uuid, uuid, date, date)',
+    'public.trg_contrato_itens_anti_dupla_reserva()',
+    'public.trg_contratos_anti_dupla_reserva()'
+  ] LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', fn);
+  END LOOP;
+END $$;
