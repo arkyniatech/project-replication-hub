@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Contrato } from '@/types/disponibilidade';
+import {
+  mapContratosParaAgenda,
+  type ContratoRow,
+} from '@/lib/contratos-agenda-mapper';
 import { addDays, format, startOfDay } from 'date-fns';
 
 interface ContratosState {
@@ -44,24 +48,15 @@ export const useContratosStore = create<ContratosState>()(
 
       if (error) throw error;
 
-      const contratosAgenda: Contrato[] = (contratos || []).map(c => ({
-        id: String(c.id),
-        numero: c.numero,
-        lojaId: c.loja_id,
-        clienteNome: c.clientes?.nome || c.clientes?.razao_social || '',
-        clienteDoc: c.clientes?.cpf || c.clientes?.cnpj || '',
-        itens: (c.contrato_itens || []).map(item => ({
-          equipId: item.controle === 'SERIALIZADO' ? item.equipamento_id : undefined,
-          modeloId: item.modelo_id || '',
-          tipoControle: item.controle as 'SERIALIZADO' | 'SALDO',
-          status: c.status === 'ATIVO' ? 'LOCADO' : 'RESERVADO',
-          periodo: {
-            inicio: c.data_inicio,
-            fim: c.data_fim || c.data_inicio
-          }
-        }))
-      }));
-      
+      // A tradução banco (SERIE/GRUPO) -> tela (SERIALIZADO/SALDO) vive no
+      // mapper, ponto único. Ver src/lib/controle-vocabulario.ts.
+      // Cast simples de propósito: mantém a checagem estrutural, então remover
+      // uma coluna do .select() acima vira erro de compilação em vez de campo
+      // silenciosamente vazio.
+      const contratosAgenda: Contrato[] = mapContratosParaAgenda(
+        (contratos || []) as ContratoRow[]
+      );
+
       set({ contratos: contratosAgenda });
     } catch (error) {
       console.error('Erro ao sincronizar contratos:', error);
