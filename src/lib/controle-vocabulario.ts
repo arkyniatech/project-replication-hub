@@ -10,10 +10,15 @@
  *   contrato_itens.controle TEXT NOT NULL CHECK (controle IN ('SERIE','GRUPO'))
  *   (supabase/migrations/20260101043343_create_contratos.sql)
  *
- * Este arquivo é o ÚNICO ponto de tradução. Quem lê uma linha crua de
- * `contrato_itens` deve comparar usando `isControleSerieDB` (vocabulário do
+ * Este arquivo é o ponto único de tradução na LEITURA. Quem lê uma linha crua
+ * de `contrato_itens` deve comparar usando `isControleSerieDB` (vocabulário do
  * banco) ou converter com `controleDBParaTela` antes de alimentar um view
  * model. Comparar um valor vindo do banco contra 'SERIALIZADO' nunca casa.
+ *
+ * PENDÊNCIA CONHECIDA: a ESCRITA ainda traduz inline em
+ * `src/pages/NovoContratoV2.tsx` (~:860). Aquele bloco deveria chamar
+ * `controleTelaParaDB`, que é total e nunca devolve valor fora do CHECK —
+ * hoje o `else` repassa o valor cru e só falha no INSERT. Migrar em seguida.
  */
 
 /** Vocabulário do banco — valores realmente gravados em contrato_itens.controle. */

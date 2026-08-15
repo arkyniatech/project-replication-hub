@@ -50,8 +50,11 @@ export const useContratosStore = create<ContratosState>()(
 
       // A tradução banco (SERIE/GRUPO) -> tela (SERIALIZADO/SALDO) vive no
       // mapper, ponto único. Ver src/lib/controle-vocabulario.ts.
+      // Cast simples de propósito: mantém a checagem estrutural, então remover
+      // uma coluna do .select() acima vira erro de compilação em vez de campo
+      // silenciosamente vazio.
       const contratosAgenda: Contrato[] = mapContratosParaAgenda(
-        (contratos || []) as unknown as ContratoRow[]
+        (contratos || []) as ContratoRow[]
       );
 
       set({ contratos: contratosAgenda });

@@ -75,6 +75,42 @@ describe('mapContratosParaAgenda', () => {
     expect(contrato.itens[0].tipoControle).toBe('SERIALIZADO');
   });
 
+  it('deixa equipId indefinido quando o item de série não tem equipamento vinculado', () => {
+    const [comNulo] = mapContratosParaAgenda([
+      contratoRow({
+        contrato_itens: [{ equipamento_id: null, controle: 'SERIE' }],
+      }),
+    ]);
+    const [comVazio] = mapContratosParaAgenda([
+      contratoRow({
+        contrato_itens: [{ equipamento_id: '', controle: 'SERIE' }],
+      }),
+    ]);
+
+    expect(comNulo.itens[0].equipId).toBeUndefined();
+    expect(comVazio.itens[0].equipId).toBeUndefined();
+  });
+
+  it('tolera variação de caixa no valor de controle', () => {
+    const [contrato] = mapContratosParaAgenda([
+      contratoRow({
+        contrato_itens: [{ equipamento_id: 'equip-x', controle: 'serie' }],
+      }),
+    ]);
+
+    expect(contrato.itens[0].equipId).toBe('equip-x');
+    expect(contrato.itens[0].tipoControle).toBe('SERIALIZADO');
+  });
+
+  it('não quebra com lista vazia ou contrato sem itens', () => {
+    expect(mapContratosParaAgenda([])).toEqual([]);
+
+    const [semItens] = mapContratosParaAgenda([
+      contratoRow({ contrato_itens: null }),
+    ]);
+    expect(semItens.itens).toEqual([]);
+  });
+
   it('mapeia status do contrato para status do item', () => {
     const [ativo] = mapContratosParaAgenda([
       contratoRow({
