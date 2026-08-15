@@ -35,6 +35,10 @@
 -- forma de pagamento por bug ja corrigido) e ha registros reais
 -- de contrato cujo significado nao esta totalmente mapeado.
 -- Ver relay 11 / docs/relay-10-varredura-schema.md.
+--
+-- Contagem esperada nesta aplicacao (medida no banco em 2026-08-15):
+--   UPDATE de status    -> 1 linha (status = 'ABERTO'; 0 em 'PENDENTE' hoje)
+--   UPDATE de categoria -> 8 linhas (categoria = 'Locação')
 -- ============================================================
 
 -- 1) Normaliza dados existentes antes de travar o dominio
