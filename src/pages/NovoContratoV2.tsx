@@ -1264,6 +1264,16 @@ export default function NovoContratoV2() {
       navigate('/contratos');
     } catch (error: any) {
       console.error('Erro ao finalizar contrato:', error);
+      if (error?.code === '23P01') {
+        // Trigger anti-dupla-reserva: mensagem já pronta em português, sem ruído de code/hint.
+        toast({
+          title: "Equipamento já reservado",
+          description: error.message,
+          variant: "destructive",
+          duration: 8000
+        });
+        return;
+      }
       // Extrair informações detalhadas do erro do Supabase/Postgres
       const code = error?.code ? ` [${error.code}]` : '';
       const detalhes = error?.details || error?.hint || '';
