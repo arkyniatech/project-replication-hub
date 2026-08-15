@@ -57,16 +57,19 @@ export function useSupabaseAvisos() {
   });
 
   // Buscar configuração do header
+  // A tabela pode estar vazia (nenhuma configuração salva ainda): maybeSingle()
+  // devolve null em vez de estourar 406/PGRST116. Os consumidores já tratam o
+  // nulo com valores padrão (exibir_logo/animacao/tempo_rotacao).
   const { data: configHeader, isLoading: isLoadingConfig } = useQuery({
     queryKey: ['config_avisos_header'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('config_avisos_header')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      return data as ConfigAvisosHeader;
+      return (data as ConfigAvisosHeader | null) ?? null;
     },
   });
 
@@ -171,11 +174,14 @@ export function useSupabaseAvisos() {
   // Atualizar configuração do header
   const updateConfigHeader = useMutation({
     mutationFn: async (config: Partial<ConfigAvisosHeader>) => {
-      // Buscar o ID atual
-      const { data: configAtual } = await supabase
+      // Buscar o ID atual. maybeSingle() para que a tabela vazia caia no
+      // ramo de criação abaixo — com single() o erro era lançado antes.
+      const { data: configAtual, error: fetchError } = await supabase
         .from('config_avisos_header')
         .select('id')
-        .single();
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
 
       if (!configAtual) {
         // Criar se não existir
