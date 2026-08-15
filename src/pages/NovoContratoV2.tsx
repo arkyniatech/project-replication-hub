@@ -1031,8 +1031,8 @@ export default function NovoContratoV2() {
           cliente_id: contrato.clienteId,
           contrato_id: contratoSupabase.id,
           // #16: usar os MESMOS valores enumerados que o restante do app filtra
-          // (Contas a Receber, KPIs e chips usam 'Locação' / 'EM_ABERTO').
-          categoria: 'Locação',
+          // (Contas a Receber, KPIs e chips usam 'LOCACAO' / 'EM_ABERTO').
+          categoria: 'LOCACAO',
           subcategoria: contrato.pagamento?.forma || null,
           vencimento: vencimentoIso,
           valor: valorTituloFinal,

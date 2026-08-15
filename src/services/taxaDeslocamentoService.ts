@@ -58,7 +58,7 @@ export class TaxaDeslocamentoService {
         cliente: contrato.cliente,
         aditivoId: aditivoId,
         lojaId: contrato.lojaId,
-        categoria: 'Locação',
+        categoria: 'LOCACAO',
         subcategoria: 'Taxa de Deslocamento',
         emissao: new Date().toISOString(),
         vencimento: contrato.pagamento.vencimentoISO,
