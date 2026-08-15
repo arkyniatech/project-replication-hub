@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     if (!profExist) {
       // a pessoa demo pode estar presa a um perfil de um auth-user antigo
       // (uid trocou em reconstruções do auth); se o dono não existe mais,
-      // remove o perfil órfão para liberar o unique de pessoa_id
+      // reporta 409 — esta função é pública e não apaga nada
       const { data: perfilDono } = await admin
         .from('user_profiles')
         .select('id')
@@ -110,10 +110,22 @@ Deno.serve(async (req) => {
             pessoaId = novaAlt.id;
           }
         } else {
-          await admin.from('user_roles').delete().eq('user_id', perfilDono.id);
-          await admin.from('user_lojas_permitidas').delete().eq('user_id', perfilDono.id);
-          const { error: delErr } = await admin.from('user_profiles').delete().eq('id', perfilDono.id);
-          if (delErr) throw new Error(`limpando perfil órfão: ${delErr.message}`);
+          // Perfil órfão (o auth-user dono não existe mais). Esta função é
+          // pública (verify_jwt=false), então ela NÃO apaga nada: apenas
+          // reporta para que um master resolva manualmente.
+          console.warn(
+            `setup-demo-user: perfil órfão detectado (user_profiles.id=${perfilDono.id}) ` +
+            `prendendo pessoa_id=${pessoaId}; limpeza manual necessária.`,
+          );
+          return Response.json(
+            {
+              success: false,
+              error: 'perfil_orfao',
+              detail: 'Um perfil órfão está ocupando a pessoa do demo. Necessária intervenção manual de um master.',
+              orphan_profile_id: perfilDono.id,
+            },
+            { status: 409, headers: corsHeaders },
+          );
         }
       }
 
