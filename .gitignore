@@ -1,5 +1,7 @@
 node_modules
 .env
+.env.*
+!.env.example
 .DS_Store
 dist/
 .vite/
@@ -8,3 +10,7 @@ dist/
 /*.sql
 supabase/.temp/
 .claude/
+playwright-report/
+test-results/
+playwright/.auth/
+.playwright-mcp/
