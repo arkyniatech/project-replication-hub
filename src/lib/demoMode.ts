@@ -59,7 +59,10 @@ export function enableDemoMode() {
 
   // Patch functions.invoke — block all edge function calls except read-only ones
   originals.invoke = supabase.functions.invoke.bind(supabase.functions);
-  const READONLY_FUNCS = new Set(['setup-demo-user']);
+  // Nenhuma edge function é somente-leitura hoje: toda invoke é bloqueada.
+  // (setup-demo-user escreve em pessoas/user_profiles/user_roles/
+  //  user_lojas_permitidas e no Auth — não pertence a esta lista.)
+  const READONLY_FUNCS = new Set<string>([]);
   (supabase.functions as any).invoke = async (name: string, opts?: any) => {
     if (READONLY_FUNCS.has(name)) return originals.invoke!(name, opts);
     demoToast(`Função "${name}"`);

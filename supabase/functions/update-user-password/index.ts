@@ -41,6 +41,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Permissão negada' }, { status: 403, headers: corsHeaders });
     }
 
+    const isMaster = roles.some((r: any) => r.role === 'master');
+
     const { user_id, password, exige_troca_senha } = await req.json();
 
     if (!user_id || !password || typeof password !== 'string' || password.length < 8) {
@@ -48,6 +50,19 @@ Deno.serve(async (req) => {
         { error: 'user_id e password (mín. 8 caracteres) são obrigatórios' },
         { status: 400, headers: corsHeaders }
       );
+    }
+
+    // admin/rh não podem trocar a senha de usuários master/admin
+    // (mesma semântica de update-user-access).
+    if (!isMaster) {
+      const { data: targetRoles } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user_id);
+      const targetIsPrivileged = (targetRoles || []).some((r: any) => r.role === 'master' || r.role === 'admin');
+      if (targetIsPrivileged) {
+        return Response.json({ error: 'Sem permissão para alterar usuário master/admin' }, { status: 403, headers: corsHeaders });
+      }
     }
 
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
