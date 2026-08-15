@@ -148,15 +148,26 @@ export function FornecedorForm({ open, onClose, editingId }: FornecedorFormProps
       return;
     }
 
+    // Campos opcionais em branco viram null: o fornecedor PF nao tem
+    // razao_social/cnpj e o PJ nao tem cpf. Gravar '' faria a coluna
+    // nullable nunca ser de fato nula.
+    const payload = {
+      ...formData,
+      razao_social: formData.razao_social.trim() || null,
+      cnpj: formData.cnpj.trim() || null,
+      cpf: formData.cpf.trim() || null,
+      observacoes: formData.observacoes.trim() || null,
+    };
+
     try {
       if (isEditMode) {
         await updateFornecedor.mutateAsync({
           id: editingId!,
-          ...formData,
+          ...payload,
         });
       } else {
         await createFornecedor.mutateAsync({
-          ...formData,
+          ...payload,
           ativo: true,
         });
       }

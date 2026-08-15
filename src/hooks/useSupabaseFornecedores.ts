@@ -12,7 +12,7 @@ type Fornecedor = {
   cpf?: string | null;
   contato?: any;
   endereco?: any;
-  observacoes?: string;
+  observacoes?: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;
