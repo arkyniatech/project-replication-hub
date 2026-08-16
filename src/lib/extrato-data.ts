@@ -57,3 +57,26 @@ export function parseDataExtratoBR(input: string | null | undefined): string | n
 
   return `${ano}-${pad(mes)}-${pad(dia)}`;
 }
+
+/**
+ * Converte a coluna Tipo(C/D) de uma linha de extrato.
+ *
+ * Antes disso, ConciliacaoTab fazia `columns[3]?.toUpperCase() === 'D' ? 'D' :
+ * 'C'` — qualquer coisa que nao fosse exatamente "D" virava CREDITO em
+ * silencio, inclusive coluna ausente ou lixo. `tipoCompativel` (Relay 20) so
+ * fail-closa se o valor que chega ja for 'C'/'D'; um CREDITO fabricado aqui
+ * passa por ele igual a um CREDITO de verdade e o auto-match pareia um
+ * credito falso contra um CREDITO interno real.
+ *
+ * Aceita 'C'/'D' com espaco em volta e em qualquer caixa — e entrada de CSV
+ * de banco, igual a data. Nao aceita sinonimo nenhum (CR/DB/1/0 etc.): nao
+ * apareceram no codigo, entao nao tem convencao para adivinhar.
+ * Devolve `null` para qualquer coisa invalida — o chamador decide o que fazer,
+ * mesmo padrao de `parseDataExtratoBR`.
+ */
+export function parseTipoExtrato(input: string | null | undefined): 'C' | 'D' | null {
+  if (!input) return null;
+  const s = String(input).trim().toUpperCase();
+  if (s === 'C' || s === 'D') return s;
+  return null;
+}

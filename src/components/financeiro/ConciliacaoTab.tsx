@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useFinanceiroStore } from '@/stores/financeiroStore';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
-import { parseDataExtratoBR } from '@/lib/extrato-data';
+import { parseDataExtratoBR, parseTipoExtrato } from '@/lib/extrato-data';
 import { regra1DocEValor, regra2ValorEData } from '@/lib/conciliacao-match';
 import { formatDateBR } from '@/lib/date-utils';
 import type { Conciliacao, ExtratoLinha, Lancamento } from '@/types/financeiro';
@@ -129,31 +129,43 @@ export function ConciliacaoTab() {
         // A UI pede a data em DD/MM/YYYY, mas a coluna no banco é DATE: converte
         // aqui, e separa as linhas com data inválida em vez de mandá-las para o
         // servidor (era o `date/time field value out of range`).
+        //
+        // Tipo(C/D) segue o mesmo tratamento (Relay 21): o mapeamento antigo
+        // (`=== 'D' ? 'D' : 'C'`) fazia tipo ausente ou lixo virar CREDITO em
+        // silêncio, o que o fail-closed do auto-match (Relay 20) não alcança —
+        // ele só reage a um tipo que já chegou errado, não recusa a entrada.
         const invalidas: string[] = [];
-        const parsed: ImportedRow[] = dataRows.map((line, idx) => {
+        const parsed: ImportedRow[] = dataRows.flatMap((line, idx) => {
           const columns = line.split(';');
           const dataBruta = (columns[0] || '').trim();
           const dataISO = parseDataExtratoBR(dataBruta);
+          const tipoBruto = (columns[3] || '').trim();
+          const tipo = parseTipoExtrato(tipoBruto);
 
+          // +2: linha 1 é o cabeçalho e o usuário conta a partir de 1.
           if (dataBruta && !dataISO) {
-            // +2: linha 1 é o cabeçalho e o usuário conta a partir de 1.
-            invalidas.push(`linha ${idx + 2}: "${dataBruta}"`);
+            invalidas.push(`linha ${idx + 2}: data inválida "${dataBruta}"`);
+          }
+          if (!tipo) {
+            invalidas.push(`linha ${idx + 2}: tipo inválido "${tipoBruto}" (esperado C ou D)`);
           }
 
+          if (!dataISO || !tipo) return [];
+
           // Mapeamento flexível - assumir ordem comum
-          return {
-            data: dataISO || '',
+          return [{
+            data: dataISO,
             historico: columns[1] || '',
             valor: parseFloat(columns[2]?.replace(',', '.')) || 0,
-            tipo: (columns[3]?.toUpperCase() === 'D' ? 'D' : 'C') as 'C' | 'D',
+            tipo,
             doc: columns[4] || undefined,
             saldo: columns[5] ? parseFloat(columns[5].replace(',', '.')) : undefined
-          };
-        }).filter(row => row.data && row.valor !== 0);
+          }];
+        }).filter(row => row.valor !== 0); // row.data já é garantido pelo guard do flatMap acima
 
         if (invalidas.length > 0) {
           toast.error(
-            `${invalidas.length} linha(s) com data inválida foram ignoradas (esperado DD/MM/AAAA) — ${invalidas.slice(0, 3).join('; ')}${invalidas.length > 3 ? '…' : ''}`
+            `${invalidas.length} linha(s) inválida(s) foram ignoradas — ${invalidas.slice(0, 3).join('; ')}${invalidas.length > 3 ? '…' : ''}`
           );
         }
 
