@@ -410,14 +410,47 @@ export const useFinanceiroStore = create<FinanceiroState>()(
             linha.id === match.extratoId ? { ...linha, pareado: true } : linha
           )
         }));
-        finWrite('fin_matches', 'upsert', {
-          id,
-          conciliacao_id: match.conciliacaoId,
-          extrato_id: match.extratoId,
-          lancamento_id: match.lancamentoId,
-          modo: match.modo,
+        // As duas escritas (par + flag) nao sao atomicas — nao ha transacao
+        // cobrindo as duas. Falha parcial e resultado normal, nao caso exotico,
+        // entao o rollback desfaz o par INTEIRO se qualquer uma falhar. Desfazer
+        // so metade deixa a linha marcada como conciliada sem match: ela nao
+        // aparece para desparear, o auto-match a ignora por `pareado`, e o
+        // fechamento a conta como conferida — a divergencia escondida que este
+        // modulo existe para impedir.
+        //
+        // .update() e nao .upsert() no flag: a linha do extrato ja existe. O
+        // upsert do PostgREST monta primeiro a linha candidata do INSERT, e
+        // conciliacao_id, data, valor e tipo sao NOT NULL sem default
+        // (migration 20260809160000, fin_extrato_linhas) — o payload parcial era
+        // recusado pela constraint antes de a clausula de conflito rodar, entao
+        // o par ia para fin_matches e o flag ficava false no banco. Completar o
+        // payload resolveria a constraint mas traria INSERT como efeito colateral
+        // (ressuscita linha excluida) e sobrescreveria data/valor/tipo do
+        // servidor com o estado local. Aqui so o flag deve mudar.
+        void Promise.all([
+          finWrite('fin_matches', 'upsert', {
+            id,
+            conciliacao_id: match.conciliacaoId,
+            extrato_id: match.extratoId,
+            lancamento_id: match.lancamentoId,
+            modo: match.modo,
+          }),
+          finWrite('fin_extrato_linhas', 'update', { id: match.extratoId, pareado: true }),
+        ]).then((erros) => {
+          if (!erros.some(Boolean)) return;
+          // Rollback pelo id do match, nao por posicao: se o operador ja
+          // desfez este par na mao, o filter nao acha nada e o `pareado` fica
+          // como a acao mais nova deixou, em vez de ser sobrescrito.
+          set((state) => {
+            if (!state.matches.some(m => m.id === id)) return state;
+            return {
+              matches: state.matches.filter(m => m.id !== id),
+              extratoLinhas: state.extratoLinhas.map(linha =>
+                linha.id === match.extratoId ? { ...linha, pareado: false } : linha
+              ),
+            };
+          });
         });
-        finWrite('fin_extrato_linhas', 'upsert', { id: match.extratoId, pareado: true });
       },
 
       removeMatch: (matchId) => {
@@ -429,8 +462,30 @@ export const useFinanceiroStore = create<FinanceiroState>()(
             linha.id === match.extratoId ? { ...linha, pareado: false } : linha
           )
         }));
-        finWrite('fin_matches', 'delete', matchId);
-        finWrite('fin_extrato_linhas', 'upsert', { id: match.extratoId, pareado: false });
+        // Mesma regra do createMatch, na direcao inversa: o erro do delete
+        // tambem conta. Ignora-lo deixava o match vivo no servidor com a linha
+        // despareada — depois do F5 o par reaparece so na coluna de lancamentos,
+        // que e o bug original espelhado. Rollback restaura as DUAS metades.
+        void Promise.all([
+          finWrite('fin_matches', 'delete', matchId),
+          finWrite('fin_extrato_linhas', 'update', { id: match.extratoId, pareado: false }),
+        ]).then((erros) => {
+          if (!erros.some(Boolean)) return;
+          set((state) => {
+            // Guard pela LINHA, nao pelo id do match: se o operador ja repareou
+            // esta linha com outro lancamento, restaurar o match antigo deixaria
+            // dois matches na mesma linha do extrato — o resumo passa a contar
+            // dois lancamentos pareados para uma linha so, e os dois aparecem
+            // travados no auto-match. Na duvida, quem manda e a acao mais nova.
+            if (state.matches.some(m => m.extratoId === match.extratoId)) return state;
+            return {
+              matches: [...state.matches, match],
+              extratoLinhas: state.extratoLinhas.map(linha =>
+                linha.id === match.extratoId ? { ...linha, pareado: true } : linha
+              ),
+            };
+          });
+        });
       },
 
       fecharConciliacao: (conciliacaoId) => {
