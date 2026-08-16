@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Claim } from '@/modules/rh/rbac/claims';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -102,12 +103,23 @@ export interface RbacHookReturn {
   perfilAtivo: string;
   claimsAtivas: Claim[];
   isLoading: boolean;
+  /**
+   * true enquanto NÃO dá para afirmar nada sobre as permissões do usuário.
+   * Cobre duas etapas, e não só o fetch dos papéis:
+   *   1) authLoading — a query abaixo tem `enabled: !!user?.id`, e no react-query
+   *      v5 `isLoading === isPending && isFetching`. Query desabilitada nunca
+   *      entra em fetching, então isLoading fica FALSE durante a restauração da
+   *      sessão, com claims ainda vazias. Por isso usamos isPending.
+   *   2) isPending — o fetch dos papéis em si.
+   * Quem decide gate de acesso deve usar ESTE campo, nunca isLoading.
+   */
+  isResolvendoPermissoes: boolean;
 }
 
 export function useRbac(): RbacHookReturn {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  const { data: userRoles, isLoading } = useQuery({
+  const { data: userRoles, isLoading, isPending } = useQuery({
     queryKey: ['user-roles', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -155,7 +167,11 @@ export function useRbac(): RbacHookReturn {
     allOf,
     perfilAtivo,
     claimsAtivas,
-    isLoading
+    isLoading,
+    // `!!user?.id &&` é necessário: sem usuário a query fica `enabled: false` e
+    // isPending nunca resolve — seria spinner infinito. Sem usuário não há o que
+    // resolver, então cai no gate normal e nega (claims vazias). Fail-closed.
+    isResolvendoPermissoes: authLoading || (!!user?.id && isPending)
   };
 }
 
@@ -163,7 +179,20 @@ export function useRbac(): RbacHookReturn {
 export function guardRoute(requiredClaims: Claim[]) {
   return function withGuard(Component: React.ComponentType<any>) {
     const ProtectedComponent = (props: any) => {
-      const { anyOf } = useRbac();
+      const { anyOf, isResolvendoPermissoes } = useRbac();
+
+      // anyOf() responde false para TODOS os claims enquanto os papéis não
+      // chegaram — decidir o gate aí mostraria "Acesso Restrito" a um usuário
+      // legítimo (flash medido no Relay 16: 2250-2750ms). Mesmo padrão já
+      // provado em Configuracoes.tsx no Relay 07.
+      // Fail-closed: na dúvida espera, nunca libera por omissão.
+      if (isResolvendoPermissoes) {
+        return React.createElement(
+          'div',
+          { className: 'flex justify-center py-16' },
+          React.createElement(LoadingSpinner, { size: 'lg' })
+        );
+      }
 
       if (!anyOf(requiredClaims)) {
         return React.createElement(

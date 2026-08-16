@@ -21,7 +21,6 @@ import { MarcasVariacoesForm } from "@/components/configuracoes/MarcasVariacoesF
 import { toast } from "sonner";
 import { APP_CONFIG } from "@/config/app";
 import { useRbac } from "@/hooks/useRbac";
-import { useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const placeholderSections = [
@@ -42,8 +41,7 @@ const placeholderSections = [
 export default function Configuracoes() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("organizacao");
-  const { loading: authLoading } = useAuth();
-  const { can, anyOf, isLoading: rbacLoading } = useRbac();
+  const { can, anyOf, isResolvendoPermissoes } = useRbac();
 
   // A aba Usuários exige o claim específico de gestão de usuários — não basta
   // ter acesso à página de Configurações.
@@ -59,13 +57,9 @@ export default function Configuracoes() {
 
   // can()/anyOf() respondem false para todos enquanto os papéis não chegaram,
   // então decidir o gate cedo demais mostraria "Acesso Restrito" a um admin
-  // legítimo. Precisa esperar DUAS etapas:
-  //   1) authLoading — a query do useRbac tem `enabled: !!user?.id`, e query
-  //      desabilitada não conta como "fetching": rbacLoading fica false durante
-  //      a restauração da sessão, com claims ainda vazias.
-  //   2) rbacLoading — o fetch dos papéis em si.
+  // legítimo. isResolvendoPermissoes cobre auth + fetch dos papéis; ver useRbac.
   // O gate é fail-closed: na dúvida, espera; nunca libera por omissão.
-  if (authLoading || rbacLoading) {
+  if (isResolvendoPermissoes) {
     return <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>;
   }
 

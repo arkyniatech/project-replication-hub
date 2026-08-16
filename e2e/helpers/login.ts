@@ -30,6 +30,15 @@ export async function loginAsVendedor(page: Page) {
   await loginWithCredentials(page, email, password);
 }
 
+export async function loginAsGestor(page: Page) {
+  const email = process.env.E2E_EMAIL_GESTOR;
+  const password = process.env.E2E_SENHA_GESTOR;
+  if (!email || !password) {
+    throw new Error('E2E_EMAIL_GESTOR / E2E_SENHA_GESTOR não configurados em .env.local');
+  }
+  await loginWithCredentials(page, email, password);
+}
+
 export async function expectLoggedIn(page: Page) {
   await expect(page).not.toHaveURL(/\/auth/i, { timeout: 25_000 });
 }
