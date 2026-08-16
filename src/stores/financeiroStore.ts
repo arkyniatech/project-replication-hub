@@ -115,15 +115,18 @@ const fromMatchRow = (r: any): Match => ({
   criadoEmISO: r.created_at,
 });
 
-function finWrite(tabela: string, op: 'upsert' | 'delete', payload: any) {
+function finWrite(tabela: string, op: 'upsert' | 'update' | 'delete', payload: any) {
   const q = op === 'upsert'
     ? db().from(tabela).upsert(payload)
+    : op === 'update'
+    ? db().from(tabela).update(payload).eq('id', payload.id)
     : db().from(tabela).delete().eq('id', payload);
-  void q.then(({ error }: { error: any }) => {
+  return q.then(({ error }: { error: any }) => {
     if (error) {
       console.error(`financeiro: falha em ${tabela}:`, error);
       toast.error(`Não foi possível salvar no servidor (${tabela}): ${error.message}`);
     }
+    return error;
   });
 }
 
@@ -296,7 +299,10 @@ export const useFinanceiroStore = create<FinanceiroState>()(
           return;
         }
         get().updateTransfer(id, { status: 'CANCELADA' });
-        finWrite('fin_transferencias', 'upsert', { id, status: 'CANCELADA' });
+        void finWrite('fin_transferencias', 'update', { id, status: 'CANCELADA' })
+          .then((error: any) => {
+            if (error) get().updateTransfer(id, { status: t.status });
+          });
       },
 
       estornarTransfer: (id, motivo) => {
