@@ -15,7 +15,6 @@ import type {
   EmissaoAvulsaStats,
   EmissaoAvulsaEvent 
 } from '@/types/emissao-avulsa';
-import { generateNumber } from '@/lib/numeracao';
 import { addDays, format } from 'date-fns';
 
 interface FaturamentoState {
@@ -226,8 +225,12 @@ export const useFaturamentoStore = create<FaturamentoState>()(
           throw new Error('Nenhum item selecionado para faturamento');
         }
         
-        const numero = generateNumber('fatura', dadosFatura.unidadeId);
+        // Store em memória (mock) — nada aqui chega ao Supabase, então NÃO usa a
+        // numeração real: faturas persistidas são numeradas pelo trigger do banco
+        // (RELAY 26). Rótulo local apenas, deliberadamente sem formato de fatura
+        // real para não ser confundido com um número emitido.
         const faturaId = `fatura_${Date.now()}`;
+        const numero = `MOCK-${faturaId}`;
         
         const totais = {
           base: itensSelecionados.reduce((sum, item) => sum + item.subtotal, 0),

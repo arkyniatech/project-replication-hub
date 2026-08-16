@@ -11,7 +11,6 @@ import { Upload, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, Titulo, ItemContrato, EventoTimeline } from "@/types";
-import { generateNumber } from "@/lib/numeracao";
 import { calcularEncerramentoSemProrata, precoTabela } from "@/lib/contratos-v2-utils";
 import { useContratosStore } from "@/stores/contratosStore";
 import { IntegrationAlerts } from "../contratos/IntegrationAlerts";
@@ -222,8 +221,8 @@ export default function DevolucaoModal({
 
       // Gerar título se houver diferença financeira (ajuste manual)
       if (Math.abs(diferenca) > 0.01) {
-        const numeroTitulo = generateNumber('titulo');
-        
+        // numero é gerado pelo trigger BEFORE INSERT (RELAY 26).
+
         // Determinar tipo e descrição baseado no ajuste manual
         let tipoTitulo: string;
         let descricaoTitulo: string;
@@ -243,10 +242,14 @@ export default function DevolucaoModal({
         }
         
         // Criar título no Supabase em vez de localStorage
-        const { error: tituloError } = await supabase
+        // O cast existe porque types.ts ainda declara titulos.numero como
+        // obrigatório no Insert. Depois de a migration do RELAY 26 ser aplicada
+        // (DEFAULT ''), regenerar os types torna numero opcional e este cast pode
+        // sair — junto com os dos outros call sites.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- types.ts desatualizado; sai ao regenerar após a migration
+        const { error: tituloError } = await (supabase as any)
           .from('titulos')
           .insert({
-            numero: generateNumber('titulo'),
             contrato_id: String(contrato.id),
             cliente_id: contrato.clienteId,
             loja_id: contrato.lojaId || '',

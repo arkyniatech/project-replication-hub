@@ -10,7 +10,6 @@ import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, ItemFatura } from "@/types";
 import { FaturaPreviewDrawer } from "@/components/faturamento/FaturamentoTimelineDrawer";
-import { useNumeracao } from "@/hooks/useNumeracao";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +49,6 @@ export default function EmitirFaturaModal({
   const { toast } = useToast();
   const { createFatura } = useSupabaseFaturas();
   const { createTitulo } = useSupabaseTitulos();
-  const { gerarNumero } = useNumeracao();
 
   // Buscar títulos pendentes (não faturados) do contrato
   const { titulos: titulosContrato } = useSupabaseTitulos(contrato?.lojaId, contrato?.clienteId);
@@ -204,16 +202,14 @@ export default function EmitirFaturaModal({
     try {
       const valorTotal = calcularTotal();
       
-      // Gerar números usando o sistema de numeração configurado
-      const numeroFatura = gerarNumero('fatura');
-      const numeroTitulo = gerarNumero('titulo');
+      // Números de fatura e título são gerados pelo trigger BEFORE INSERT
+      // (RELAY 26): omitimos a coluna e lemos o valor devolvido pelo servidor.
 
       // Criar fatura no Supabase
       const faturaData = await createFatura.mutateAsync({
         loja_id: contrato.lojaId,
         cliente_id: contrato.clienteId,
         contrato_id: contrato.id,
-        numero: numeroFatura,
         tipo: tipoFatura === 'fiscal' ? 'FISCAL' : 'DEMONSTRATIVO',
         emissao: new Date().toISOString(),
         vencimento: new Date(vencimento).toISOString(),
@@ -230,12 +226,12 @@ export default function EmitirFaturaModal({
       });
 
       // Criar título vinculado no Supabase
+      const numeroFatura = faturaData.numero;
       await createTitulo.mutateAsync({
         loja_id: contrato.lojaId,
         cliente_id: contrato.clienteId,
         contrato_id: contrato.id,
         fatura_id: faturaData.id,
-        numero: numeroTitulo,
         categoria: 'LOCACAO',
         subcategoria: 'Adicional de Locação',
         descricao: `Fatura ${numeroFatura} - ${contrato.cliente.nomeRazao}`,

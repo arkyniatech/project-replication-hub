@@ -32,7 +32,6 @@ import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { BackendInterAdapter } from "@/services/bolepix/BackendInterAdapter";
 import { useSupabaseCobrancasInter } from "@/hooks/useSupabaseCobrancasInter";
 import { supabase } from "@/integrations/supabase/client";
-import { generateNumber } from "@/lib/numeracao";
 
 interface TituloGerado {
   id: string;
@@ -106,13 +105,13 @@ export function FaturamentoCarrinho() {
     
     try {
       const user = (await supabase.auth.getUser()).data.user;
-      const faturaNumero = generateNumber('fatura', lojaAtual.id);
-      
+
       // 1. Create fatura in Supabase
+      // numero é gerado pelo trigger BEFORE INSERT (RELAY 26): omitimos a coluna
+      // e o servidor devolve FAT-{codigo_loja}-{seq:6} no .select() abaixo.
       const { data: faturaData, error: faturaError } = await (supabase as any)
         .from('faturas')
         .insert({
-          numero: faturaNumero,
           loja_id: lojaAtual.id,
           cliente_id: clienteSelecionado.clienteId,
           contrato_id: itensSelecionados[0]?.contratoId || null,
@@ -139,11 +138,12 @@ export function FaturamentoCarrinho() {
       if (faturaError) throw faturaError;
 
       // 2. Create titulo(s) in Supabase linked to fatura
-      const tituloNumero = generateNumber('titulo', lojaAtual.id);
+      // numero também vem do trigger; o número da fatura recém-criada é lido de
+      // faturaData.numero, já preenchido pelo servidor.
+      const faturaNumero = faturaData.numero;
       const { data: tituloData, error: tituloError } = await (supabase as any)
         .from('titulos')
         .insert({
-          numero: tituloNumero,
           loja_id: lojaAtual.id,
           cliente_id: clienteSelecionado.clienteId,
           contrato_id: itensSelecionados[0]?.contratoId || null,
@@ -183,7 +183,7 @@ export function FaturamentoCarrinho() {
       setTitulosGerados(gerados);
 
       toast.success("Fatura emitida com sucesso!", {
-        description: `Fatura ${faturaNumero} + Título ${tituloNumero} criados no Supabase`,
+        description: `Fatura ${faturaNumero} + Título ${tituloData.numero} criados no Supabase`,
       });
 
       // 3. If PIX/BOLETO, offer BolePix emission
