@@ -22,6 +22,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useFinanceiroStore } from '@/stores/financeiroStore';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
+import { parseDataExtratoBR } from '@/lib/extrato-data';
+import { formatDateBR } from '@/lib/date-utils';
 import type { Conciliacao, ExtratoLinha, Lancamento } from '@/types/financeiro';
 
 interface ImportedRow {
@@ -103,12 +105,23 @@ export function ConciliacaoTab() {
         const headers = lines[0].split(';');
         const dataRows = lines.slice(1);
 
-        const parsed: ImportedRow[] = dataRows.map(line => {
+        // A UI pede a data em DD/MM/YYYY, mas a coluna no banco é DATE: converte
+        // aqui, e separa as linhas com data inválida em vez de mandá-las para o
+        // servidor (era o `date/time field value out of range`).
+        const invalidas: string[] = [];
+        const parsed: ImportedRow[] = dataRows.map((line, idx) => {
           const columns = line.split(';');
-          
+          const dataBruta = (columns[0] || '').trim();
+          const dataISO = parseDataExtratoBR(dataBruta);
+
+          if (dataBruta && !dataISO) {
+            // +2: linha 1 é o cabeçalho e o usuário conta a partir de 1.
+            invalidas.push(`linha ${idx + 2}: "${dataBruta}"`);
+          }
+
           // Mapeamento flexível - assumir ordem comum
           return {
-            data: columns[0] || '',
+            data: dataISO || '',
             historico: columns[1] || '',
             valor: parseFloat(columns[2]?.replace(',', '.')) || 0,
             tipo: (columns[3]?.toUpperCase() === 'D' ? 'D' : 'C') as 'C' | 'D',
@@ -116,6 +129,19 @@ export function ConciliacaoTab() {
             saldo: columns[5] ? parseFloat(columns[5].replace(',', '.')) : undefined
           };
         }).filter(row => row.data && row.valor !== 0);
+
+        if (invalidas.length > 0) {
+          toast.error(
+            `${invalidas.length} linha(s) com data inválida foram ignoradas (esperado DD/MM/AAAA) — ${invalidas.slice(0, 3).join('; ')}${invalidas.length > 3 ? '…' : ''}`
+          );
+        }
+
+        if (parsed.length === 0) {
+          toast.error('Nenhuma linha válida encontrada no arquivo.');
+          setShowImportPreview(false);
+          setImportedData([]);
+          return;
+        }
 
         setImportedData(parsed);
         setShowImportPreview(true);
@@ -126,10 +152,15 @@ export function ConciliacaoTab() {
     reader.readAsText(file);
   };
 
-  const confirmarImport = () => {
+  const confirmarImport = async () => {
     if (!currentConciliacao) return;
 
-    addExtratoLinhas(currentConciliacao, importedData.map(row => ({
+    const total = importedData.length;
+
+    // Espera o banco confirmar antes de dizer "sucesso". Antes o toast de
+    // sucesso era disparado junto com a escrita e sempre ganhava a corrida: a
+    // tela afirmava que importou enquanto o Postgres recusava a linha.
+    const error = await addExtratoLinhas(currentConciliacao, importedData.map(row => ({
       data: row.data,
       historico: row.historico,
       valor: row.valor,
@@ -138,14 +169,12 @@ export function ConciliacaoTab() {
       saldo: row.saldo
     })));
 
-    // Auto-matching básico
-    setTimeout(() => {
-      executarAutoMatch();
-    }, 100);
+    // finWrite já mostrou o motivo; aqui só não mentimos dizendo que deu certo.
+    if (error) return;
 
     setShowImportPreview(false);
     setImportedData([]);
-    toast.success(`${importedData.length} linhas importadas com sucesso!`);
+    toast.success(`${total} linhas importadas com sucesso!`);
   };
 
   const executarAutoMatch = () => {
@@ -498,7 +527,7 @@ export function ConciliacaoTab() {
                       <tbody>
                         {importedData.slice(0, 10).map((row, idx) => (
                           <tr key={idx} className="border-b">
-                            <td className="p-1">{row.data}</td>
+                            <td className="p-1">{formatDateBR(row.data)}</td>
                             <td className="p-1 max-w-32 truncate">{row.historico}</td>
                             <td className="p-1 text-right font-mono">
                               R$ {row.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -547,7 +576,7 @@ export function ConciliacaoTab() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium">{linha.data}</span>
+                          <span className="text-sm font-medium">{formatDateBR(linha.data)}</span>
                           <Badge variant={linha.tipo === 'C' ? 'default' : 'secondary'}>
                             {linha.tipo}
                           </Badge>
@@ -589,7 +618,7 @@ export function ConciliacaoTab() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium">{lancamento.data}</span>
+                            <span className="text-sm font-medium">{formatDateBR(lancamento.data)}</span>
                             <Badge variant={lancamento.tipo === 'CREDITO' ? 'default' : 'secondary'}>
                               {lancamento.tipo}
                             </Badge>

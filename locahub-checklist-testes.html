@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocaHub — Checklist de Testes E2E</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #181b22; --card2: #1f232c; --border: #2a2f3a;
+    --text: #e6e9ef; --muted: #9aa3b2; --accent: #4f8cff; --ok: #34c77b;
+    --fail: #ff5c5c; --warn: #f5b747; --chip: #262b36;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6fa; --card: #ffffff; --card2: #f0f2f7; --border: #dde2ec;
+      --text: #1c2330; --muted: #5d6675; --accent: #2f6fe4; --ok: #1da362;
+      --fail: #d94040; --warn: #c98a12; --chip: #e8ecf4;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px 80px; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .topbar { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 10px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  .progress-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .bar { flex: 1; min-width: 200px; height: 10px; background: var(--chip); border-radius: 6px; overflow: hidden; display: flex; }
+  .bar .ok-seg { background: var(--ok); height: 100%; transition: width .25s; }
+  .bar .fail-seg { background: var(--fail); height: 100%; transition: width .25s; }
+  .stats { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  button { cursor: pointer; border: 1px solid var(--border); background: var(--card2); color: var(--text); border-radius: 8px; padding: 6px 12px; font-size: 13px; }
+  button:hover { border-color: var(--accent); }
+  .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+  .sec-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor: pointer; user-select: none; }
+  .sec-head:hover { background: var(--card2); }
+  .sec-title { font-weight: 600; font-size: 15px; flex: 1; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  .badge.p1 { color: #fff; background: var(--accent); }
+  .badge.novo { color: #0f1115; background: var(--warn); font-weight: 600; }
+  .sec-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .sec-count.done { color: var(--ok); font-weight: 600; }
+  .caret { transition: transform .2s; color: var(--muted); }
+  .section.open .caret { transform: rotate(90deg); }
+  .items { display: none; border-top: 1px solid var(--border); }
+  .section.open .items { display: block; }
+  .item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .item:last-child { border-bottom: none; }
+  .item.ok { opacity: .55; }
+  .item.ok .txt { text-decoration: line-through; }
+  .item.fail { background: color-mix(in srgb, var(--fail) 8%, transparent); }
+  .btns { display: flex; gap: 6px; flex-shrink: 0; margin-top: 1px; }
+  .tbtn { width: 30px; height: 30px; border-radius: 8px; padding: 0; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .tbtn.ok-active { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .tbtn.fail-active { background: var(--fail); border-color: var(--fail); color: #fff; }
+  .txt { flex: 1; }
+  .txt .hint { display: block; font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+  .note { display: none; width: 100%; margin-top: 6px; background: var(--card2); border: 1px solid var(--fail); border-radius: 8px; color: var(--text); padding: 6px 10px; font-size: 13px; font-family: inherit; }
+  .item.fail .note { display: block; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ok); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .toast.show { opacity: 1; }
+  .legend { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧪 LocaHub — Checklist de Testes Ponta a Ponta</h1>
+  <p class="sub">Estado salvo automaticamente no navegador. Ordem sugerida: comece pelas seções <b>NOVO</b> (código mais recente = maior risco), depois P1, depois o resto. Ambiente: <b>https://locahub.vercel.app</b></p>
+
+  <div class="topbar">
+    <div class="progress-row">
+      <div class="bar"><div class="ok-seg" id="okSeg"></div><div class="fail-seg" id="failSeg"></div></div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="actions">
+      <button onclick="expandAll(true)">Expandir tudo</button>
+      <button onclick="expandAll(false)">Recolher tudo</button>
+      <button onclick="copyReport()">📋 Copiar relatório de falhas</button>
+      <button onclick="resetAll()" style="color:var(--fail)">Zerar checklist</button>
+    </div>
+    <div class="legend">✓ = passou &nbsp;·&nbsp; ✗ = falhou (abre campo de anotação — descreva o erro pra depois me mandar o relatório)</div>
+  </div>
+
+  <div id="sections"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA = [
+  { id: 'acesso', title: '1. Acesso & Permissões', badges: ['P1'], items: [
+    { t: 'Login com usuário real (e-mail/senha) entra no dashboard', h: '' },
+    { t: 'Botão "Entrar como Demonstração" loga como teste@teste.com', h: '' },
+    { t: 'DEMO é somente leitura: tentar criar/editar/excluir qualquer coisa', h: 'Esperado: erro "Modo demonstração: somente leitura" e nada é gravado' },
+    { t: 'Usuário sem permissão vê "Acesso Restrito"/403, nunca tela branca', h: 'Durante o carregamento deve aparecer spinner, não o bloqueio' },
+    { t: 'F5 em página interna mantém a sessão (não volta pro /auth)', h: '' },
+    { t: 'Logout limpa a sessão e volta pro login', h: '' },
+  ]},
+  { id: 'adminusers', title: '2. Admin — Usuários', badges: ['P1'], items: [
+    { t: 'Criar usuário novo (roles + lojas permitidas)', h: 'Via edge function — usuário deve conseguir logar depois' },
+    { t: 'Editar acesso de usuário existente (mudar roles/lojas)', h: '' },
+    { t: 'Trocar senha de um usuário', h: '' },
+    { t: 'Desativar usuário → ele perde acesso ao logar', h: '' },
+  ]},
+  { id: 'compras', title: '3. Compras (Requisição → Cotação → PO → Recebimento)', badges: ['P1','NOVO'], items: [
+    { t: 'Painel unificado de Compras carrega sem erro', h: '/compras/painel' },
+    { t: 'Catálogo de itens: criar item por QUANTIDADE e um por SÉRIE', h: '/compras/catalogo' },
+    { t: 'Criar requisição com quantidade fracionada (ex.: 2,5)', h: 'Bug corrigido: 0,5 precisa ser digitável e o submit não pode travar' },
+    { t: 'Requisição rejeita quantidade 0 ou negativa', h: '' },
+    { t: 'Criar cotação a partir da requisição, lançar propostas de fornecedores', h: '' },
+    { t: 'Aprovar cotação → gera Pedido de Compra (PO)', h: '' },
+    { t: 'Recebimento: wizard completo com PO emitido (NF + quantidades + conferência)', h: '/compras/recebimento — era a tela quebrada; conferir que abre normal' },
+    { t: 'Recebimento PARCIAL: receber menos que o pedido → PO fica "parcial" e aceita receber o resto depois', h: 'Inclusive com fração: pedir 2,5 e receber 2 + 0,5' },
+    { t: 'Receber item de SÉRIE exige os números de série', h: '' },
+    { t: 'Após recebimento, estoque unificado mostra a entrada', h: '/compras/estoque' },
+    { t: 'Movimentos do almox registram a entrada com origem correta', h: '/compras/movimentos' },
+    { t: 'Ajuste manual de saldo: aplicar 1x (duplo clique não duplica) e aceita decimal', h: '' },
+  ]},
+  { id: 'inventario', title: '4. Inventário / Contagem Cega', badges: ['P1','NOVO'], items: [
+    { t: 'Abrir contagem para a loja (todos os itens ou por grupo)', h: '/compras/inventario' },
+    { t: 'Tentar abrir SEGUNDA contagem na mesma loja → bloqueado', h: 'Esperado: erro de contagem já aberta' },
+    { t: 'Digitação: lançar quantidades e sair pela seta/Revisar → dados salvos', h: 'Voltar e conferir que nada digitado se perdeu' },
+    { t: 'Digitação rejeita quantidade negativa', h: '' },
+    { t: 'Itens controlados por SÉRIE não aparecem na contagem', h: '' },
+    { t: 'Revisão: divergência exige decisão (ajustar/manter) + justificativa', h: 'Justificativa digitada não pode sumir ao trocar a ação' },
+    { t: 'Processar com divergência sem decisão → bloqueado com aviso claro', h: '' },
+    { t: 'Processar contagem completa → estoque ajustado conforme as decisões', h: 'Conferir os saldos em /compras/estoque depois' },
+    { t: 'Cancelar contagem pede confirmação', h: '' },
+    { t: 'Imprimir folha de contagem gera o PDF/arquivo corretamente', h: 'Testar também com popup bloqueado — não pode vir arquivo vazio' },
+  ]},
+  { id: 'fintransf', title: '5. Financeiro — Transferências & Conciliação', badges: ['P1','NOVO'], items: [
+    { t: 'Tela carrega contas reais (sem os R$ 50.000 de mock)', h: '/financeiro/transferencias' },
+    { t: 'Criar conta nova → aparece também em outros pontos que usam contas financeiras', h: '' },
+    { t: 'Criar transferência entre contas (fica PENDENTE)', h: '' },
+    { t: 'Efetivar transferência → saldo sai da origem e entra no destino', h: 'Conferir os dois saldos e os 2 lançamentos gerados' },
+    { t: 'Estornar transferência efetivada → cria a inversa; estornar 2x é bloqueado', h: '' },
+    { t: 'Cancelar transferência pendente funciona; efetivada não pode cancelar', h: '' },
+    { t: 'Conciliação: parear linha do extrato com lançamento (match) e desfazer', h: 'Flag de "pareado" deve acompanhar' },
+    { t: 'F5 na página → dados continuam (persistência real no banco)', h: '' },
+  ]},
+  { id: 'contratos', title: '6. Contratos (ciclo completo)', badges: ['P1'], items: [
+    { t: 'Novo contrato: wizard completo com entrega no endereço', h: 'Cliente, equipamentos, logística, pagamento, revisão' },
+    { t: 'Novo contrato: modalidade "Cliente retira na loja"', h: 'Bug antigo: campos de endereço não podem travar a confirmação' },
+    { t: 'Equipamento LOCADO não aparece disponível na seleção', h: '' },
+    { t: 'PDF do contrato: datas corretas (sem -1 dia), frete, valor total, termos e promissória', h: 'Cabeçalho usa os dados fiscais da loja (Configurações → Lojas)' },
+    { t: 'Contrato novo gera título em Contas a Receber', h: '' },
+    { t: 'Renovar contrato → novo período, valor atualizado, título da renovação', h: 'Histórico deve registrar o usuário REAL (não "Admin")' },
+    { t: 'Após renovação, data de início ORIGINAL preservada no detalhe', h: 'Correção nova (#52): renovação não apaga o nascimento do contrato' },
+    { t: 'Encerrar contrato → gera título do saldo descoberto e libera equipamentos', h: '' },
+  ]},
+  { id: 'receber', title: '7. Contas a Receber / Faturamento / Inadimplência', badges: ['P1'], items: [
+    { t: 'Lista de títulos carrega com filtros por loja/período', h: '' },
+    { t: 'Baixa de pagamento total em título', h: '' },
+    { t: 'Baixa PARCIAL → saldo restante correto', h: '' },
+    { t: 'Boleto/PIX (Inter): gerar cobrança de um título', h: 'Depende das credenciais Inter configuradas' },
+    { t: 'Faturamento e Inadimplência mostram números coerentes com os títulos', h: '' },
+  ]},
+  { id: 'pagar', title: '8. Contas a Pagar + DRE', badges: ['P1'], items: [
+    { t: 'Criar título a pagar com parcelas', h: '' },
+    { t: 'Pagar múltiplas parcelas com comprovante (upload)', h: 'Arquivo com acento/espaço no nome deve subir normal' },
+    { t: 'Detalhe do título: seção "Pagamentos" abre o comprovante (link temporário)', h: '' },
+    { t: 'Editar parcela, fechar sem salvar e reabrir → não mostra edição abandonada', h: '' },
+    { t: 'Fornecedores: criar/editar', h: '' },
+    { t: 'DRE carrega e os totais batem', h: '' },
+  ]},
+  { id: 'equip', title: '9. Equipamentos & Transferências entre lojas', badges: ['P1'], items: [
+    { t: 'Cadastrar equipamento novo (serializado) e editar depois', h: '' },
+    { t: 'Catálogo de grupos/modelos e tabela de preços', h: '' },
+    { t: 'Busca de equipamentos por nome do modelo e código (BE-069)', h: '' },
+    { t: 'Agenda de disponibilidade reflete os contratos', h: '' },
+    { t: 'Criar transferência entre lojas → número gerado, itens reservados', h: 'Fluxo novo transacional (RPC)' },
+    { t: 'Recusar transferência → saldo VOLTA pra origem (com motivo registrado)', h: '' },
+    { t: 'Cancelar transferência → saldo volta pra origem', h: '' },
+    { t: 'Receber transferência → saldo entra no destino', h: '' },
+    { t: 'Transferência já finalizada não muda mais de status', h: '' },
+    { t: 'Despacho em PDF e histórico de transferências com filtros', h: '' },
+    { t: 'Conferência de estoque (sessões de contagem de equipamentos)', h: '' },
+  ]},
+  { id: 'manutencao', title: '10. Manutenção (OS)', badges: ['P2'], items: [
+    { t: 'Dashboard de manutenção e áreas carregam', h: '' },
+    { t: 'Criar OS, mover pelo fluxo até liberar', h: '' },
+    { t: 'Laudo com formatação renderiza no detalhe da OS', h: '' },
+    { t: 'Pedido de peças: botão "Gerar Cotação (Compras)" cria a cotação', h: 'Integração NOVA manutenção → compras; conferir em /compras/cotacoes' },
+    { t: 'Solicitações e produtividade carregam', h: '' },
+  ]},
+  { id: 'frota', title: '11. Veículos / Frota', badges: ['P2'], items: [
+    { t: 'Cadastros de veículos aparecem (dados antigos preservados)', h: '' },
+    { t: 'Criar/editar veículo, posto, óleo, oficina, serviço', h: '' },
+    { t: 'Lançamentos (abastecimento, manutenção) gravam e persistem após F5', h: '' },
+    { t: 'Relatórios: eficiência, custos (custo/km), disponibilidade, manutenções', h: '' },
+    { t: 'Configurações de veículos (faixas de consumo, troca de óleo)', h: '' },
+  ]},
+  { id: 'logistica', title: '12. Logística', badges: ['P2'], items: [
+    { t: 'Itinerário e quadro (board) carregam e movem tarefas', h: '' },
+    { t: 'Atribuir motorista/veículo a uma tarefa SEM perder o contexto', h: 'Bug antigo: botão "+ Novo" jogava pra outra tela' },
+    { t: 'Portal do motorista (/m/motorista) funciona no celular', h: '' },
+    { t: 'Produtividade e configurações', h: '' },
+  ]},
+  { id: 'rh', title: '13. RH — ciclo completo', badges: ['P1','NOVO'], items: [
+    { t: 'Pessoas: listar, criar, editar, detalhe', h: '' },
+    { t: 'Criar vaga → registrar candidatos → mover no funil', h: '' },
+    { t: 'Criar admissão a partir de candidato, preencher CPF', h: 'CPF é obrigatório pra concluir' },
+    { t: 'CONCLUIR admissão → pessoa criada automaticamente em Pessoas + vínculo', h: 'Correção nova: não precisa mais cadastrar manualmente' },
+    { t: 'Readmissão: concluir admissão com CPF de ex-colaborador → REATIVA a pessoa', h: '' },
+    { t: 'Benefícios: criar benefício e vincular pessoa (2º vínculo ativo do mesmo benefício é bloqueado)', h: '' },
+    { t: 'SSMA: ASO/exames e treinamentos com vencimentos', h: '' },
+    { t: 'Ponto, banco de horas, férias, ausências, holerites carregam', h: '' },
+    { t: 'Offboarding: criar desligamento com tipo de aviso', h: '' },
+    { t: 'Offboarding: botão "Simular rescisão" mostra o custo estimado na linha', h: 'Só para: sem justa causa, pedido de demissão, acordo 484-A' },
+    { t: 'CONCLUIR desligamento → vínculo encerrado e pessoa inativada', h: '' },
+    { t: 'Provisões: gerar snapshot do mês → tabela por pessoa (13º, férias, 1/3, encargos)', h: 'Gerar 2x no mesmo mês não duplica (atualiza)' },
+    { t: 'Portal do colaborador: holerites, horas, férias, solicitações', h: '' },
+    { t: 'Relatórios RH (executivo, jornada, compliance, financeiro) carregam', h: '' },
+  ]},
+  { id: 'relatorios', title: '14. Dashboard, Relatórios & Configurações', badges: ['P3'], items: [
+    { t: 'Dashboard principal carrega KPIs sem erro', h: '' },
+    { t: 'Relatórios gerais carregam com filtro de período', h: '' },
+    { t: 'Relatório de Descontos: contrato RENOVADO não aparece como "Cheio"', h: 'Correção nova (#52): usa o valor da venda original' },
+    { t: 'Configurações → Lojas: editar dados fiscais (refletem no PDF do contrato)', h: '' },
+    { t: 'Grupos de lojas: acessos sincronizam', h: '' },
+  ]},
+  { id: 'integracoes', title: '15. Integrações externas', badges: ['P2'], items: [
+    { t: 'Banco Inter: salvar credenciais (só master/admin consegue)', h: '' },
+    { t: 'Inter: emitir boleto/PIX e baixar PDF', h: '' },
+    { t: 'Webhook Inter: pagamento real dá baixa no título (valor limitado ao saldo)', h: 'Requer URL registrada no portal Inter — combinar com os secrets' },
+    { t: 'ZapSign: enviar contrato para assinatura', h: '⚠️ SÓ FUNCIONA após setar ZAPSIGN_API_TOKEN de produção (secret pendente)' },
+    { t: 'ZapSign: webhook marca contrato como assinado', h: '' },
+    { t: 'WhatsApp: envio de mensagem/verificação', h: '' },
+  ]},
+  { id: 'gerais', title: '16. Qualidade geral', badges: ['P3'], items: [
+    { t: 'Navegar pelo site inteiro sem tela branca ou erro no console', h: 'F12 aberto durante os testes ajuda a flagrar' },
+    { t: 'Datas exibidas corretas em tudo (sem o bug do -1 dia)', h: 'Atenção especial se testar após as 21h' },
+    { t: 'Responsivo: telas principais utilizáveis no celular', h: 'Contratos, contas, portal motorista e portal RH' },
+    { t: 'Modais em tela pequena (<1080p) mostram os botões de ação', h: 'Renovação, baixa de pagamento etc.' },
+    { t: 'Trocar de loja no seletor filtra os dados em todos os módulos', h: '' },
+  ]},
+];
+
+const KEY = 'locahub-checklist-v1';
+let state = JSON.parse(localStorage.getItem(KEY) || '{}');
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function render() {
+  const root = document.getElementById('sections');
+  root.innerHTML = '';
+  DATA.forEach(sec => {
+    const el = document.createElement('div');
+    el.className = 'section' + (state['open_' + sec.id] === false ? '' : ' open');
+    const badges = sec.badges.map(b =>
+      `<span class="badge ${b === 'P1' ? 'p1' : b === 'NOVO' ? 'novo' : ''}">${b}</span>`).join(' ');
+    el.innerHTML = `<div class="sec-head" data-sec="${sec.id}">
+        <span class="caret">▶</span>
+        <span class="sec-title">${sec.title}</span> ${badges}
+        <span class="sec-count" id="cnt_${sec.id}"></span>
+      </div><div class="items"></div>`;
+    const list = el.querySelector('.items');
+    sec.items.forEach((it, i) => {
+      const id = sec.id + '_' + i;
+      const st = state[id] || {};
+      const row = document.createElement('div');
+      row.className = 'item' + (st.s === 'ok' ? ' ok' : st.s === 'fail' ? ' fail' : '');
+      row.innerHTML = `
+        <div class="btns">
+          <button class="tbtn ${st.s === 'ok' ? 'ok-active' : ''}" data-id="${id}" data-act="ok" title="Passou">✓</button>
+          <button class="tbtn ${st.s === 'fail' ? 'fail-active' : ''}" data-id="${id}" data-act="fail" title="Falhou">✗</button>
+        </div>
+        <div class="txt">${it.t}${it.h ? `<span class="hint">${it.h}</span>` : ''}
+          <textarea class="note" data-id="${id}" rows="2" placeholder="O que deu errado? (fica salvo no relatório)">${st.n || ''}</textarea>
+        </div>`;
+      list.appendChild(row);
+    });
+    root.appendChild(el);
+  });
+  root.querySelectorAll('.sec-head').forEach(h => h.addEventListener('click', () => {
+    const sec = h.dataset.sec;
+    const open = h.parentElement.classList.toggle('open');
+    state['open_' + sec] = open; save();
+  }));
+  root.querySelectorAll('.tbtn').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const { id, act } = b.dataset;
+    const cur = (state[id] || {}).s;
+    state[id] = { ...(state[id] || {}), s: cur === act ? null : act };
+    save(); render();
+  }));
+  root.querySelectorAll('.note').forEach(n => n.addEventListener('input', () => {
+    state[n.dataset.id] = { ...(state[n.dataset.id] || {}), n: n.value }; save(); refreshStats();
+  }));
+  refreshStats();
+}
+
+function refreshStats() {
+  let total = 0, ok = 0, fail = 0;
+  DATA.forEach(sec => {
+    let sOk = 0, sFail = 0;
+    sec.items.forEach((_, i) => {
+      total++;
+      const s = (state[sec.id + '_' + i] || {}).s;
+      if (s === 'ok') { ok++; sOk++; }
+      if (s === 'fail') { fail++; sFail++; }
+    });
+    const cnt = document.getElementById('cnt_' + sec.id);
+    if (cnt) {
+      const done = sOk === sec.items.length;
+      cnt.textContent = sFail ? `${sOk}/${sec.items.length} · ${sFail} ✗` : `${sOk}/${sec.items.length}`;
+      cnt.className = 'sec-count' + (done ? ' done' : '');
+    }
+  });
+  document.getElementById('okSeg').style.width = (ok / total * 100) + '%';
+  document.getElementById('failSeg').style.width = (fail / total * 100) + '%';
+  document.getElementById('stats').textContent =
+    `${ok} ok · ${fail} falhas · ${total - ok - fail} pendentes · ${Math.round(ok / total * 100)}%`;
+}
+
+function expandAll(open) {
+  DATA.forEach(s => state['open_' + s.id] = open);
+  save(); render();
+}
+
+function copyReport() {
+  let out = ['RELATÓRIO DE TESTES — LocaHub — ' + new Date().toLocaleString('pt-BR'), ''];
+  let fails = 0, pend = 0, ok = 0;
+  DATA.forEach(sec => {
+    const lines = [];
+    sec.items.forEach((it, i) => {
+      const st = state[sec.id + '_' + i] || {};
+      if (st.s === 'fail') { fails++; lines.push(`  ✗ FALHOU: ${it.t}${st.n ? `\n      → ${st.n.replace(/\n/g, '\n      ')}` : ''}`); }
+      else if (!st.s) { pend++; }
+      else ok++;
+    });
+    if (lines.length) { out.push(sec.title, ...lines, ''); }
+  });
+  out.push(`Resumo: ${ok} ok · ${fails} falhas · ${pend} não testados`);
+  navigator.clipboard.writeText(out.join('\n')).then(() => showToast('Relatório copiado! Cola pra mim no chat 😉'));
+}
+
+function resetAll() {
+  if (confirm('Zerar todos os checks e anotações?')) { state = {}; save(); render(); }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+render();
+</script>
+</body>
+</html>
