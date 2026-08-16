@@ -242,7 +242,12 @@ export default function DevolucaoModal({
         }
         
         // Criar título no Supabase em vez de localStorage
-        const { error: tituloError } = await supabase
+        // O cast existe porque types.ts ainda declara titulos.numero como
+        // obrigatório no Insert. Depois de a migration do RELAY 26 ser aplicada
+        // (DEFAULT ''), regenerar os types torna numero opcional e este cast pode
+        // sair — junto com os dos outros call sites.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- types.ts desatualizado; sai ao regenerar após a migration
+        const { error: tituloError } = await (supabase as any)
           .from('titulos')
           .insert({
             contrato_id: String(contrato.id),

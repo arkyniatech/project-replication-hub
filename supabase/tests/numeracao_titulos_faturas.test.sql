@@ -16,15 +16,15 @@
 -- =============================================================================
 
 BEGIN;
-SELECT plan(14);
+SELECT plan(16);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: duas lojas com códigos distintos
 -- -----------------------------------------------------------------------------
 INSERT INTO public.lojas (id, codigo, nome)
 VALUES
-  ('aaaaaaaa-0000-4000-8000-000000000001', 'T01', 'Loja Teste Um'),
-  ('aaaaaaaa-0000-4000-8000-000000000002', 'T02', 'Loja Teste Dois');
+  ('aaaaaaaa-0000-4000-8000-000000000001', '901', 'Loja Teste Um'),
+  ('aaaaaaaa-0000-4000-8000-000000000002', '902', 'Loja Teste Dois');
 
 INSERT INTO public.clientes (id, nome)
 VALUES ('bbbbbbbb-0000-4000-8000-000000000001', 'Cliente Teste');
@@ -53,13 +53,13 @@ SELECT throws_ok(
 -- =============================================================================
 SELECT is(
   public.proximo_numero_documento('aaaaaaaa-0000-4000-8000-000000000001', 'titulo'),
-  'TIT-T01-000001',
+  'TIT-901-000001',
   'primeiro título da loja segue TIT-{codigo}-{seq:6}'
 );
 
 SELECT is(
   public.proximo_numero_documento('aaaaaaaa-0000-4000-8000-000000000001', 'fatura'),
-  'FAT-T01-000001',
+  'FAT-901-000001',
   'fatura usa prefixo FAT e contador próprio (independente de titulo)'
 );
 
@@ -74,13 +74,13 @@ SELECT is(
 -- =============================================================================
 SELECT is(
   public.proximo_numero_documento('aaaaaaaa-0000-4000-8000-000000000002', 'titulo'),
-  'TIT-T02-000001',
+  'TIT-902-000001',
   'loja nova começa em 1, não herda a sequência da outra loja'
 );
 
 SELECT is(
   public.proximo_numero_documento('aaaaaaaa-0000-4000-8000-000000000001', 'titulo'),
-  'TIT-T01-000004',
+  'TIT-901-000004',
   'loja 1 continua a própria sequência sem ser afetada pela loja 2'
 );
 
@@ -101,14 +101,14 @@ SELECT is(
 -- 5. CONTADOR INEXISTENTE É CRIADO NA PRIMEIRA EMISSÃO
 -- =============================================================================
 INSERT INTO public.lojas (id, codigo, nome)
-VALUES ('aaaaaaaa-0000-4000-8000-000000000003', 'T03', 'Loja Sem Contador');
+VALUES ('aaaaaaaa-0000-4000-8000-000000000003', '903', 'Loja Sem Contador');
 
 DELETE FROM public.numeracao_contadores
 WHERE loja_id = 'aaaaaaaa-0000-4000-8000-000000000003';
 
 SELECT is(
   public.proximo_numero_documento('aaaaaaaa-0000-4000-8000-000000000003', 'titulo'),
-  'TIT-T03-000001',
+  'TIT-903-000001',
   'contador inexistente é criado na primeira emissão (ON CONFLICT cobre os 2 casos)'
 );
 
@@ -123,7 +123,7 @@ SELECT matches(
   (SELECT numero FROM public.titulos
    WHERE loja_id = 'aaaaaaaa-0000-4000-8000-000000000001'
    ORDER BY created_at DESC LIMIT 1),
-  '^TIT-T01-\d{6}$',
+  '^TIT-901-\d{6}$',
   'insert omitindo numero recebe número do trigger (DEFAULT '''' + BEFORE INSERT)'
 );
 
@@ -147,7 +147,7 @@ SELECT matches(
   (SELECT numero FROM public.faturas
    WHERE loja_id = 'aaaaaaaa-0000-4000-8000-000000000001'
    ORDER BY created_at DESC LIMIT 1),
-  '^FAT-T01-\d{6}$',
+  '^FAT-901-\d{6}$',
   'faturas também recebem número do trigger'
 );
 
@@ -161,8 +161,31 @@ VALUES ('aaaaaaaa-0000-4000-8000-000000000003',
 
 SELECT is(
   public.proximo_numero_documento('aaaaaaaa-0000-4000-8000-000000000003', 'titulo'),
-  'TIT-T03-000002',
+  'TIT-903-000002',
   'legado TIT-2026-99999 NÃO trava a sequência (contador dedicado, não MAX())'
+);
+
+-- =============================================================================
+-- 8. GUARDAS
+-- =============================================================================
+-- codigo fora do formato de 3 dígitos estouraria o seuNumero do Inter.
+INSERT INTO public.lojas (id, codigo, nome)
+VALUES ('aaaaaaaa-0000-4000-8000-000000000004', 'Filial Centro', 'Loja Codigo Ruim');
+
+SELECT throws_ok(
+  $$SELECT public.proximo_numero_documento(
+      'aaaaaaaa-0000-4000-8000-000000000004', 'titulo')$$,
+  '22023',
+  NULL,
+  'codigo fora de ^[0-9]{3}$ falha alto em vez de gerar número inválido no boleto'
+);
+
+SELECT throws_ok(
+  $$SELECT public.proximo_numero_documento(
+      'aaaaaaaa-0000-4000-8000-000000000001', 'contrato')$$,
+  '22023',
+  NULL,
+  'tipo inválido é rejeitado (só titulo e fatura são numerados aqui)'
 );
 
 SELECT * FROM finish();

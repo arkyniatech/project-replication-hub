@@ -72,7 +72,7 @@ function generateCounterKey(tipo: string, config: SerieConfig, unidade: string =
  * O tipo continua declarado em SeriesConfig porque telas não migradas ainda o
  * referenciam para exibição/configuração — só a GERAÇÃO está desligada.
  */
-const TIPOS_NUMERADOS_NO_SERVIDOR: ReadonlySet<string> = new Set(['titulo', 'fatura']);
+export const TIPOS_NUMERADOS_NO_SERVIDOR: ReadonlySet<string> = new Set(['titulo', 'fatura']);
 
 function generateNumber(tipo: keyof SeriesConfig['tipos'], unidade: string = "MAIN"): string {
   if (TIPOS_NUMERADOS_NO_SERVIDOR.has(tipo)) {

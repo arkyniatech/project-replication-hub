@@ -90,6 +90,17 @@ BEGIN
       USING ERRCODE = '23503';
   END IF;
 
+  -- O formato de 14 chars depende de codigo ter exatamente 3 dígitos, mas nada
+  -- no schema garante isso: lojas.codigo é TEXT livre, e o seed original usava
+  -- 'loja-1'. Uma loja nova cadastrada como 'Filial Centro' geraria
+  -- TIT-Filial Centro-000001, que estoura o seuNumero do boleto do Inter.
+  -- Falhar aqui é melhor que emitir boleto com número inválido.
+  IF v_codigo !~ '^[0-9]{3}$' THEN
+    RAISE EXCEPTION
+      'numeracao: lojas.codigo "%" não tem 3 dígitos — número excederia o seuNumero do Inter', v_codigo
+      USING ERRCODE = '22023';
+  END IF;
+
   INSERT INTO public.numeracao_contadores (loja_id, tipo, ultimo_numero)
   VALUES (p_loja_id, p_tipo, 1)
   ON CONFLICT (loja_id, tipo) DO UPDATE
@@ -138,6 +149,11 @@ COMMENT ON FUNCTION public.trg_gerar_numero_documento() IS
 ALTER TABLE public.titulos ALTER COLUMN numero SET DEFAULT '';
 ALTER TABLE public.faturas ALTER COLUMN numero SET DEFAULT '';
 
+-- ORDEM DE DISPARO É LOAD-BEARING: o Postgres dispara triggers do mesmo evento
+-- em ordem ALFABÉTICA por nome. 'trg_demo_readonly' < 'trg_num_*', então o
+-- bloqueio de demo roda ANTES e aborta sem queimar número do contador.
+-- Renomear estes triggers para algo que ordene antes de 'trg_demo_readonly'
+-- (ex.: 'trg_gerar_numero') faria usuário demo consumir numeração real.
 DROP TRIGGER IF EXISTS trg_num_titulo ON public.titulos;
 CREATE TRIGGER trg_num_titulo
   BEFORE INSERT ON public.titulos
@@ -179,4 +195,23 @@ CREATE POLICY "Contadores de numeração legíveis por autenticados"
   USING (true);
 
 REVOKE INSERT, UPDATE, DELETE ON public.numeracao_contadores FROM anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.proximo_numero_documento(uuid, text) TO authenticated;
+
+-- NÃO concedemos EXECUTE em proximo_numero_documento para authenticated.
+-- O trigger roda como SECURITY DEFINER e não precisa que o chamador tenha o
+-- privilégio. Conceder abriria caminho para um usuário queimar numeração de uma
+-- loja a que não tem acesso, furando a sequência contígua do contador.
+REVOKE ALL ON FUNCTION public.proximo_numero_documento(uuid, text) FROM PUBLIC, anon, authenticated;
+
+-- -----------------------------------------------------------------------------
+-- 7. Demo somente-leitura
+--
+-- Obrigatório para tabelas novas — ver cabeçalho de
+-- 20260809140000_demo_readonly_triggers.sql: o DO daquela migration já rodou e
+-- não alcança tabelas criadas depois. Sem isto, um usuário demo emitindo título
+-- atravessaria o SECURITY DEFINER e mexeria no contador real (triggers disparam
+-- dentro de SECURITY DEFINER; RLS não).
+-- -----------------------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_demo_readonly ON public.numeracao_contadores;
+CREATE TRIGGER trg_demo_readonly
+  BEFORE INSERT OR UPDATE OR DELETE ON public.numeracao_contadores
+  FOR EACH ROW EXECUTE FUNCTION public.trg_bloquear_demo();
