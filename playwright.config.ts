@@ -27,6 +27,10 @@ export default defineConfig({
     navigationTimeout: 20_000,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Radix anima entrada/saída de Dialog, DropdownMenu, Select, Popover e Sheet.
+    // reducedMotion corta essas transições no nível do browser, eliminando a
+    // janela em que um overlay saindo ainda intercepta ponteiro.
+    reducedMotion: 'reduce',
   },
 
   projects: [
