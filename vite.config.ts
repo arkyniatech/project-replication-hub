@@ -27,6 +27,7 @@ export default defineConfig(({ mode }) => ({
     setupFiles: './src/__tests__/setupTests.ts',
     css: true,
     reporters: ['verbose'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'],
     // Coverage desabilitado por padrão (requer @vitest/coverage-v8).
     // Habilite via flag: `npx vitest run --coverage` após instalar a dep.
   },
