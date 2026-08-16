@@ -315,7 +315,7 @@ export function ConciliacaoTab() {
     toast.success('Ajuste criado!');
   };
 
-  const concluirConciliacao = () => {
+  const concluirConciliacao = async () => {
     if (!conciliacao) return;
 
     const totalCreditos = extratoLinhas
@@ -340,7 +340,12 @@ export function ConciliacaoTab() {
       return;
     }
 
-    fecharConciliacao(currentConciliacao!);
+    // So avisa sucesso depois que o servidor aceitou. A store reverte o status
+    // no erro, e o finWrite ja mostra o toast do erro — avisar sucesso aqui
+    // incondicionalmente daria ao operador a certeza de ter fechado o mes que
+    // o banco recusou.
+    const erro = await fecharConciliacao(currentConciliacao!);
+    if (erro) return;
     toast.success('Conciliação fechada com sucesso!');
   };
 
