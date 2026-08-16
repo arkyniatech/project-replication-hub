@@ -62,14 +62,33 @@ function generateCounterKey(tipo: string, config: SerieConfig, unidade: string =
   return key;
 }
 
+/**
+ * Tipos cuja numeração migrou para o servidor (RELAY 26).
+ *
+ * titulo e fatura são numerados por trigger BEFORE INSERT no Postgres, a partir
+ * de um contador dedicado por loja. Gerar esses números aqui voltaria a produzir
+ * colisões: o contador local vive em localStorage, ou seja, é por navegador.
+ *
+ * O tipo continua declarado em SeriesConfig porque telas não migradas ainda o
+ * referenciam para exibição/configuração — só a GERAÇÃO está desligada.
+ */
+const TIPOS_NUMERADOS_NO_SERVIDOR: ReadonlySet<string> = new Set(['titulo', 'fatura']);
+
 function generateNumber(tipo: keyof SeriesConfig['tipos'], unidade: string = "MAIN"): string {
+  if (TIPOS_NUMERADOS_NO_SERVIDOR.has(tipo)) {
+    throw new Error(
+      `Numeração de "${tipo}" é gerada pelo banco (trigger BEFORE INSERT). ` +
+      `Omita a coluna "numero" no insert e leia o valor devolvido pelo servidor.`
+    );
+  }
+
   const config = getSeriesConfig();
   const tipoConfig = config.tipos[tipo];
-  
+
   if (!tipoConfig) {
     throw new Error(`Tipo de documento não configurado: ${tipo}`);
   }
-  
+
   const counterKey = generateCounterKey(tipo, tipoConfig, unidade);
   const currentCounter = config.counters[counterKey] || tipoConfig.proximo || 1;
   

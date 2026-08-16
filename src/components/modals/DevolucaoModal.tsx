@@ -11,7 +11,6 @@ import { Upload, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, Titulo, ItemContrato, EventoTimeline } from "@/types";
-import { generateNumber } from "@/lib/numeracao";
 import { calcularEncerramentoSemProrata, precoTabela } from "@/lib/contratos-v2-utils";
 import { useContratosStore } from "@/stores/contratosStore";
 import { IntegrationAlerts } from "../contratos/IntegrationAlerts";
@@ -222,8 +221,8 @@ export default function DevolucaoModal({
 
       // Gerar título se houver diferença financeira (ajuste manual)
       if (Math.abs(diferenca) > 0.01) {
-        const numeroTitulo = generateNumber('titulo');
-        
+        // numero é gerado pelo trigger BEFORE INSERT (RELAY 26).
+
         // Determinar tipo e descrição baseado no ajuste manual
         let tipoTitulo: string;
         let descricaoTitulo: string;
@@ -246,7 +245,6 @@ export default function DevolucaoModal({
         const { error: tituloError } = await supabase
           .from('titulos')
           .insert({
-            numero: generateNumber('titulo'),
             contrato_id: String(contrato.id),
             cliente_id: contrato.clienteId,
             loja_id: contrato.lojaId || '',

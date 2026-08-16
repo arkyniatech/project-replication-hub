@@ -10,7 +10,6 @@ import { Contrato, Titulo } from "@/types";
 import { aplicarPolitica, ResultadoPolitica } from "@/services/politicasEngine";
 import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
 import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
-import { useNumeracao } from "@/hooks/useNumeracao";
 import RegistrarRecebimentoModal from "@/components/contas-receber/RegistrarRecebimentoModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUserName } from "@/hooks/useCurrentUserName";
@@ -58,7 +57,6 @@ export default function RenovarContratoModal({
   const { toast } = useToast();
   const { updateContrato } = useSupabaseContratos();
   const { createTitulo, titulos } = useSupabaseTitulos(contrato?.lojaId, contrato?.clienteId);
-  const { gerarNumero } = useNumeracao();
   const { addHistoricoEvent } = useSupabaseEquipamentos();
   const usuarioNome = useCurrentUserName();
   const { user } = useAuth();
@@ -445,19 +443,17 @@ export default function RenovarContratoModal({
       console.log('[RenovarContrato] ✅ Validação pós-atualização OK');
 
       // Gerar título para renovação no Supabase
-      const numeroTitulo = await gerarNumero('titulo');
+      // numero é preenchido pelo trigger BEFORE INSERT (RELAY 26).
       console.log('[RenovarContrato] Criando título de renovação:', {
-        numeroTitulo,
         valor: valorRenovacaoCalculado,
         subcategoria: 'Renovação'
       });
-      
+
       try {
         await createTitulo.mutateAsync({
           loja_id: contrato.lojaId,
           cliente_id: contrato.clienteId,
           contrato_id: contrato.id,
-          numero: numeroTitulo,
           categoria: 'LOCACAO',
           subcategoria: 'Renovação',
           observacoes: `Renovação do contrato ${contrato.numero} - ${numPeriodos}x ${periodo} dias`,
