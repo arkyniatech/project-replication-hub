@@ -143,9 +143,8 @@ interface FinanceiroState {
   hydrate: (force?: boolean) => Promise<void>;
 
   addConta: (conta: Omit<Conta, 'id' | 'createdAt'>) => void;
-  updateConta: (id: string, updates: Partial<Conta>) => void;
+  updateConta: (id: string, updates: Partial<Conta>) => Promise<any>;
   getContasByLoja: (lojaId: string) => Conta[];
-  updateSaldoConta: (contaId: string, valor: number, operacao: 'add' | 'subtract') => void;
 
   createTransfer: (transfer: Omit<Transfer, 'id' | 'createdAtISO'>) => string;
   updateTransfer: (id: string, updates: Partial<Transfer>) => void;
@@ -161,7 +160,7 @@ interface FinanceiroState {
   addExtratoLinhas: (conciliacaoId: string, linhas: Omit<ExtratoLinha, 'id' | 'conciliacaoId'>[]) => Promise<any>;
   createMatch: (match: Omit<Match, 'id' | 'criadoEmISO'>) => void;
   removeMatch: (matchId: string) => void;
-  fecharConciliacao: (conciliacaoId: string) => void;
+  fecharConciliacao: (conciliacaoId: string) => Promise<any>;
   getConciliacaoById: (id: string) => Conciliacao | undefined;
   getExtratoByConc: (conciliacaoId: string) => ExtratoLinha[];
   getMatchesByConc: (conciliacaoId: string) => Match[];
@@ -226,11 +225,35 @@ export const useFinanceiroStore = create<FinanceiroState>()(
         finWrite('contas_financeiras', 'upsert', { ...toContaRow(nova), tipo: 'BANCO' });
       },
 
+      // A conta JA existe: .update() com o id, nunca upsert parcial. O upsert do
+      // PostgREST e INSERT ... ON CONFLICT, e contas_financeiras tem loja_id,
+      // codigo e nome NOT NULL — editar so um campo montaria um INSERT invalido
+      // e o UPDATE nunca rodaria.
       updateConta: (id, updates) => {
+        const anterior = get().contas.find((c) => c.id === id);
         set((state) => ({
           contas: state.contas.map((c) => (c.id === id ? { ...c, ...updates } : c))
         }));
-        finWrite('contas_financeiras', 'upsert', { id, ...toContaRow(updates) });
+        return finWrite('contas_financeiras', 'update', { id, ...toContaRow(updates) }).then((erro) => {
+          if (!erro || !anterior) return erro;
+          // Rollback so das chaves que ESTA acao mexeu: restaurar a conta
+          // inteira desfaria, junto, uma edicao concorrente de outro campo.
+          // Chave que NAO existia antes (bloqueios e opcional) tem que ser
+          // removida — grava-la como undefined deixa a conta em cache violando
+          // o proprio tipo, e vira NaN em qualquer aritmetica.
+          set((state) => ({
+            contas: state.contas.map((c) => {
+              if (c.id !== id) return c;
+              const restaurada: any = { ...c };
+              for (const k of Object.keys(updates)) {
+                if (k in (anterior as any)) restaurada[k] = (anterior as any)[k];
+                else delete restaurada[k];
+              }
+              return restaurada;
+            })
+          }));
+          return erro;
+        });
       },
 
       getContasByLoja: (lojaId) => {
@@ -238,17 +261,11 @@ export const useFinanceiroStore = create<FinanceiroState>()(
         return get().contas.filter(c => c.lojaId === lojaId && c.ativo);
       },
 
-      updateSaldoConta: (contaId, valor, operacao) => {
-        set((state) => ({
-          contas: state.contas.map((c) =>
-            c.id === contaId
-              ? { ...c, saldoAtual: operacao === 'add' ? c.saldoAtual + valor : c.saldoAtual - valor }
-              : c
-          )
-        }));
-        const conta = get().contas.find((c) => c.id === contaId);
-        if (conta) finWrite('contas_financeiras', 'upsert', { id: contaId, saldo_atual: conta.saldoAtual });
-      },
+      // updateSaldoConta foi REMOVIDO (Relay 23): era codigo morto, zero call
+      // sites. Saldo e escrito so no servidor, pelas RPCs atomicas
+      // fin_efetivar_transferencia/fin_estornar_transferencia. Um segundo
+      // caminho de escrita de saldo no cliente seria divergencia esperando
+      // acontecer — e ainda era upsert parcial.
 
       // Actions - Transferências
       createTransfer: (transfer) => {
@@ -488,13 +505,27 @@ export const useFinanceiroStore = create<FinanceiroState>()(
         });
       },
 
+      // Fechar periodo e a acao mais cara de errar em silencio: o operador ve
+      // FECHADA na tela e nao volta para conferir. A conciliacao JA existe, e
+      // fin_conciliacoes tem loja_id, conta_id, periodo_ini e periodo_fim
+      // NOT NULL — um upsert {id, status} monta um INSERT invalido e o banco
+      // recusa antes do ON CONFLICT. .update() com o id, e o erro reverte.
       fecharConciliacao: (conciliacaoId) => {
+        const anterior = get().conciliacoes.find(c => c.id === conciliacaoId);
         set((state) => ({
           conciliacoes: state.conciliacoes.map(c =>
             c.id === conciliacaoId ? { ...c, status: 'FECHADA' } : c
           )
         }));
-        finWrite('fin_conciliacoes', 'upsert', { id: conciliacaoId, status: 'FECHADA' });
+        return finWrite('fin_conciliacoes', 'update', { id: conciliacaoId, status: 'FECHADA' }).then((erro) => {
+          if (!erro || !anterior) return erro;
+          set((state) => ({
+            conciliacoes: state.conciliacoes.map(c =>
+              c.id === conciliacaoId ? { ...c, status: anterior.status } : c
+            )
+          }));
+          return erro;
+        });
       },
 
       getConciliacaoById: (id) => get().conciliacoes.find(c => c.id === id),
