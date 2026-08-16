@@ -15,6 +15,11 @@
 -- cuida só da segunda dimensão (a loja), via o mesmo predicado de
 -- pertencimento usado por compras_pode_loja (user_lojas_permitidas).
 -- Não altera nenhuma linha existente de fin_transferencias — só a função.
+--
+-- A checagem de coerência (2) não cria transferência inefetivável pela tela:
+-- NovaTransferenciaModal monta os dois selects a partir de
+-- getContasByLoja(lojaAtual.id) e grava a transferência com esse mesmo
+-- lojaId, então origem, destino e loja saem sempre da mesma fonte.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.fin_efetivar_transferencia(p_id uuid)
@@ -72,6 +77,11 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.fin_efetivar_transferencia(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fin_efetivar_transferencia(uuid) TO authenticated;
+-- REVOKE ... FROM PUBLIC também tira o acesso implícito do service_role.
+-- Nenhuma Edge Function chama esta RPC hoje (varredura em supabase/functions:
+-- só is_master em inter-proxy e zapsign-enviar), mas o grant explícito evita
+-- quebra silenciosa se alguma passar a chamar com a service key.
+GRANT EXECUTE ON FUNCTION public.fin_efetivar_transferencia(uuid) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.fin_estornar_transferencia(p_id uuid, p_motivo text)
 RETURNS uuid
@@ -123,3 +133,4 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.fin_estornar_transferencia(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.fin_estornar_transferencia(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fin_estornar_transferencia(uuid, text) TO service_role;
