@@ -9,9 +9,10 @@ import { SaldosTab } from '@/components/financeiro/SaldosTab';
 import { TransferenciasTab } from '@/components/financeiro/TransferenciasTab';
 import { ConciliacaoTab } from '@/components/financeiro/ConciliacaoTab';
 import { guardRoute } from '@/hooks/useRbac';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 function FinanceiroTransferenciasPage() {
-  const { can } = useRbac();
+  const { can, isResolvendoPermissoes } = useRbac();
 
   // carrega contas/transferências/conciliações do Supabase (fonte da verdade)
   const hydrate = useFinanceiroStore((s) => s.hydrate);
@@ -22,6 +23,17 @@ function FinanceiroTransferenciasPage() {
   const hasTransferAccess = can('fin:transferir');
   const hasConciliacaoAccess = can('fin:conciliar');
   const hasSaldosAccess = can('fin:ver-saldos');
+
+  // Segundo gate, interno ao guardRoute(): sem esta espera o flash apenas troca
+  // de texto ("Acesso Restrito" -> "Acesso Negado"), porque can() também responde
+  // false enquanto os papéis carregam.
+  if (isResolvendoPermissoes) {
+    return (
+      <div className="flex justify-center py-16">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   if (!hasTransferAccess && !hasConciliacaoAccess && !hasSaldosAccess) {
     return (
