@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDataExtratoBR } from '../extrato-data';
+import { parseDataExtratoBR, parseTipoExtrato } from '../extrato-data';
 
 /**
  * Relay 18 / 2.1: o extrato bancario chega em DD/MM/YYYY (o formato que a
@@ -73,5 +73,51 @@ describe('parseDataExtratoBR', () => {
     expect(parseDataExtratoBR('abc')).toBeNull();
     expect(parseDataExtratoBR('15-08-2026')).toBeNull();
     expect(parseDataExtratoBR('15/08/2026 SAQUE')).toBeNull();
+  });
+});
+
+/**
+ * Relay 21: `columns[3]?.toUpperCase() === 'D' ? 'D' : 'C'` fazia tipo ausente
+ * ou lixo virar CREDITO em silencio. O fail-closed do auto-match (Relay 20)
+ * so ajuda se o que chega ate ele ja for 'C'/'D' de verdade — por isso o
+ * parser tem que recusar tipo invalido na entrada, igual a data invalida.
+ */
+describe('parseTipoExtrato', () => {
+  it('aceita D', () => {
+    expect(parseTipoExtrato('D')).toBe('D');
+  });
+
+  it('aceita C', () => {
+    expect(parseTipoExtrato('C')).toBe('C');
+  });
+
+  it('rejeita tipo vazio', () => {
+    expect(parseTipoExtrato('')).toBeNull();
+    expect(parseTipoExtrato('   ')).toBeNull();
+    expect(parseTipoExtrato(null)).toBeNull();
+    expect(parseTipoExtrato(undefined)).toBeNull();
+  });
+
+  it('rejeita tipo desconhecido', () => {
+    expect(parseTipoExtrato('X')).toBeNull();
+  });
+
+  it('rejeita sinonimos nao vistos no codigo', () => {
+    expect(parseTipoExtrato('CR')).toBeNull();
+    expect(parseTipoExtrato('DB')).toBeNull();
+    expect(parseTipoExtrato('CREDITO')).toBeNull();
+    expect(parseTipoExtrato('DEBITO')).toBeNull();
+    expect(parseTipoExtrato('1')).toBeNull();
+    expect(parseTipoExtrato('0')).toBeNull();
+  });
+
+  it('normaliza minuscula', () => {
+    expect(parseTipoExtrato('d')).toBe('D');
+    expect(parseTipoExtrato('c')).toBe('C');
+  });
+
+  it('tolera espaco em volta', () => {
+    expect(parseTipoExtrato(' D ')).toBe('D');
+    expect(parseTipoExtrato(' c ')).toBe('C');
   });
 });
