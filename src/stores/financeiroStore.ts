@@ -158,7 +158,7 @@ interface FinanceiroState {
   getLancamentosByConta: (contaId: string, periodo?: { ini: string; fim: string }) => Lancamento[];
 
   createConciliacao: (conciliacao: Omit<Conciliacao, 'id' | 'criadoEmISO'>) => string;
-  addExtratoLinhas: (conciliacaoId: string, linhas: Omit<ExtratoLinha, 'id' | 'conciliacaoId'>[]) => void;
+  addExtratoLinhas: (conciliacaoId: string, linhas: Omit<ExtratoLinha, 'id' | 'conciliacaoId'>[]) => Promise<any>;
   createMatch: (match: Omit<Match, 'id' | 'criadoEmISO'>) => void;
   removeMatch: (matchId: string) => void;
   fecharConciliacao: (conciliacaoId: string) => void;
@@ -374,7 +374,10 @@ export const useFinanceiroStore = create<FinanceiroState>()(
           pareado: false,
         }));
         set((state) => ({ extratoLinhas: [...state.extratoLinhas, ...novas] }));
-        finWrite('fin_extrato_linhas', 'upsert', novas.map((l) => ({
+        // Devolve a promise: quem importa precisa saber se o banco aceitou antes
+        // de dizer "importado com sucesso". Em caso de erro desfaz o otimismo,
+        // senao a tela mostra linhas que nao existem no servidor.
+        return finWrite('fin_extrato_linhas', 'upsert', novas.map((l) => ({
           id: l.id,
           conciliacao_id: conciliacaoId,
           data: l.data,
@@ -384,7 +387,19 @@ export const useFinanceiroStore = create<FinanceiroState>()(
           doc: l.doc ?? null,
           saldo: l.saldo ?? null,
           pareado: false,
-        })));
+        }))).then((error: any) => {
+          // Rollback all-or-nothing: o upsert em lote do PostgREST roda como uma
+          // instrução só, numa transação implícita — uma linha recusada aborta o
+          // batch inteiro. Se algum dia isto virar escrita por chunk ou por
+          // linha, este `filter` passa a apagar linhas que o banco aceitou.
+          if (error) {
+            const ids = new Set(novas.map((l) => l.id));
+            set((state) => ({
+              extratoLinhas: state.extratoLinhas.filter((l) => !ids.has(l.id)),
+            }));
+          }
+          return error;
+        });
       },
 
       createMatch: (match) => {

@@ -22,6 +22,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useFinanceiroStore } from '@/stores/financeiroStore';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
+import { parseDataExtratoBR } from '@/lib/extrato-data';
+import { formatDateBR } from '@/lib/date-utils';
 import type { Conciliacao, ExtratoLinha, Lancamento } from '@/types/financeiro';
 
 interface ImportedRow {
@@ -58,18 +60,38 @@ export function ConciliacaoTab() {
   const [currentConciliacao, setCurrentConciliacao] = useState<string | null>(null);
   const [importedData, setImportedData] = useState<ImportedRow[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
+  // Pareamento manual: seleciona uma linha do extrato à esquerda, depois clica
+  // no lançamento correspondente à direita. Mesmo padrão de seleção por estado
+  // que TransferenciasTab já usa para abrir o detalhe.
+  const [extratoSelecionado, setExtratoSelecionado] = useState<string | null>(null);
 
-  const lojaId = lojaAtual?.id || '1';
-  const contas = getContasByLoja(lojaId);
+  // Sem fallback: loja_id é UUID em fin_conciliacoes. O antigo `|| '1'` fazia o
+  // Postgres recusar por sintaxe e, como createConciliacao é otimista, a tela
+  // entrava no workspace de uma conciliação que não existe no servidor.
+  const lojaId = lojaAtual?.id;
+  const contas = lojaId ? getContasByLoja(lojaId) : [];
 
   const conciliacao = currentConciliacao ? getConciliacaoById(currentConciliacao) : null;
   const extratoLinhas = currentConciliacao ? getExtratoByConc(currentConciliacao) : [];
   const matches = currentConciliacao ? getMatchesByConc(currentConciliacao) : [];
 
-  const lancamentos = selectedConta && conciliacao ? 
+  const lancamentos = selectedConta && conciliacao ?
     getLancamentosByConta(selectedConta, conciliacao.periodo) : [];
 
+  // Não confia no id cru: só vale se a linha ainda pertence a ESTA conciliação e
+  // continua não pareada. Cobre o id que sobrevive a resetarSessao (pareava
+  // entre conciliações diferentes) e a linha pareada pelo auto-match enquanto
+  // estava selecionada (pareava a mesma linha duas vezes).
+  const linhaSelecionada = extratoSelecionado
+    ? extratoLinhas.find(l => l.id === extratoSelecionado && !l.pareado) ?? null
+    : null;
+
   const iniciarConciliacao = () => {
+    if (!lojaId) {
+      toast.error('Nenhuma loja selecionada. Selecione uma loja antes de iniciar a conciliação.');
+      return;
+    }
+
     if (!selectedConta || !saldoInicialExtrato || !saldoFinalExtrato) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
@@ -103,12 +125,23 @@ export function ConciliacaoTab() {
         const headers = lines[0].split(';');
         const dataRows = lines.slice(1);
 
-        const parsed: ImportedRow[] = dataRows.map(line => {
+        // A UI pede a data em DD/MM/YYYY, mas a coluna no banco é DATE: converte
+        // aqui, e separa as linhas com data inválida em vez de mandá-las para o
+        // servidor (era o `date/time field value out of range`).
+        const invalidas: string[] = [];
+        const parsed: ImportedRow[] = dataRows.map((line, idx) => {
           const columns = line.split(';');
-          
+          const dataBruta = (columns[0] || '').trim();
+          const dataISO = parseDataExtratoBR(dataBruta);
+
+          if (dataBruta && !dataISO) {
+            // +2: linha 1 é o cabeçalho e o usuário conta a partir de 1.
+            invalidas.push(`linha ${idx + 2}: "${dataBruta}"`);
+          }
+
           // Mapeamento flexível - assumir ordem comum
           return {
-            data: columns[0] || '',
+            data: dataISO || '',
             historico: columns[1] || '',
             valor: parseFloat(columns[2]?.replace(',', '.')) || 0,
             tipo: (columns[3]?.toUpperCase() === 'D' ? 'D' : 'C') as 'C' | 'D',
@@ -116,6 +149,19 @@ export function ConciliacaoTab() {
             saldo: columns[5] ? parseFloat(columns[5].replace(',', '.')) : undefined
           };
         }).filter(row => row.data && row.valor !== 0);
+
+        if (invalidas.length > 0) {
+          toast.error(
+            `${invalidas.length} linha(s) com data inválida foram ignoradas (esperado DD/MM/AAAA) — ${invalidas.slice(0, 3).join('; ')}${invalidas.length > 3 ? '…' : ''}`
+          );
+        }
+
+        if (parsed.length === 0) {
+          toast.error('Nenhuma linha válida encontrada no arquivo.');
+          setShowImportPreview(false);
+          setImportedData([]);
+          return;
+        }
 
         setImportedData(parsed);
         setShowImportPreview(true);
@@ -126,26 +172,39 @@ export function ConciliacaoTab() {
     reader.readAsText(file);
   };
 
-  const confirmarImport = () => {
+  const confirmarImport = async () => {
     if (!currentConciliacao) return;
 
-    addExtratoLinhas(currentConciliacao, importedData.map(row => ({
-      data: row.data,
-      historico: row.historico,
-      valor: row.valor,
-      tipo: row.tipo,
-      doc: row.doc,
-      saldo: row.saldo
-    })));
+    const total = importedData.length;
 
-    // Auto-matching básico
-    setTimeout(() => {
-      executarAutoMatch();
-    }, 100);
+    // Espera o banco confirmar antes de dizer "sucesso". Antes o toast de
+    // sucesso era disparado junto com a escrita e sempre ganhava a corrida: a
+    // tela afirmava que importou enquanto o Postgres recusava a linha.
+    let error: unknown;
+    try {
+      error = await addExtratoLinhas(currentConciliacao, importedData.map(row => ({
+        data: row.data,
+        historico: row.historico,
+        valor: row.valor,
+        tipo: row.tipo,
+        doc: row.doc,
+        saldo: row.saldo
+      })));
+    } catch (e) {
+      // finWrite resolve com o erro do PostgREST, mas uma queda de rede rejeita.
+      // Sem este catch o usuário ficaria sem toast nenhum — pior que o bug
+      // original, que ao menos mentia visivelmente.
+      console.error('conciliacao: falha ao importar extrato:', e);
+      toast.error('Não foi possível importar o extrato. Verifique a conexão e tente novamente.');
+      return;
+    }
+
+    // finWrite já mostrou o motivo; aqui só não mentimos dizendo que deu certo.
+    if (error) return;
 
     setShowImportPreview(false);
     setImportedData([]);
-    toast.success(`${importedData.length} linhas importadas com sucesso!`);
+    toast.success(`${total} linhas importadas com sucesso!`);
   };
 
   const executarAutoMatch = () => {
@@ -215,6 +274,7 @@ export function ConciliacaoTab() {
       modo: 'MANUAL'
     });
 
+    setExtratoSelecionado(null);
     toast.success('Pareamento manual criado!');
   };
 
@@ -261,6 +321,7 @@ export function ConciliacaoTab() {
     setCurrentConciliacao(null);
     setSaldoInicialExtrato('');
     setSaldoFinalExtrato('');
+    setExtratoSelecionado(null);
   };
 
   // Cálculos do resumo
@@ -498,7 +559,7 @@ export function ConciliacaoTab() {
                       <tbody>
                         {importedData.slice(0, 10).map((row, idx) => (
                           <tr key={idx} className="border-b">
-                            <td className="p-1">{row.data}</td>
+                            <td className="p-1">{formatDateBR(row.data)}</td>
                             <td className="p-1 max-w-32 truncate">{row.historico}</td>
                             <td className="p-1 text-right font-mono">
                               R$ {row.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -540,14 +601,34 @@ export function ConciliacaoTab() {
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {extratoLinhas.map((linha) => (
-                  <div 
+                  <div
                     key={linha.id}
-                    className={`p-3 border rounded-lg ${linha.pareado ? 'bg-green-50 border-green-200' : 'bg-background'}`}
+                    role={!linha.pareado ? 'button' : undefined}
+                    tabIndex={!linha.pareado ? 0 : undefined}
+                    aria-pressed={!linha.pareado ? linhaSelecionada?.id === linha.id : undefined}
+                    onClick={() => {
+                      if (linha.pareado) return;
+                      setExtratoSelecionado(prev => (prev === linha.id ? null : linha.id));
+                    }}
+                    onKeyDown={(e) => {
+                      if (linha.pareado) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setExtratoSelecionado(prev => (prev === linha.id ? null : linha.id));
+                      }
+                    }}
+                    className={`p-3 border rounded-lg ${
+                      linha.pareado
+                        ? 'bg-green-50 border-green-200'
+                        : linhaSelecionada?.id === linha.id
+                        ? 'bg-primary/10 border-primary ring-2 ring-primary cursor-pointer'
+                        : 'bg-background cursor-pointer hover:border-primary/50'
+                    }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-medium">{linha.data}</span>
+                          <span className="text-sm font-medium">{formatDateBR(linha.data)}</span>
                           <Badge variant={linha.tipo === 'C' ? 'default' : 'secondary'}>
                             {linha.tipo}
                           </Badge>
@@ -574,6 +655,11 @@ export function ConciliacaoTab() {
           <Card>
             <CardHeader>
               <CardTitle>Lançamentos Internos ({lancamentos.length})</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {linhaSelecionada
+                  ? 'Clique no lançamento correspondente para parear.'
+                  : 'Selecione uma linha do extrato para parear manualmente.'}
+              </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -581,15 +667,34 @@ export function ConciliacaoTab() {
                   const match = matches.find(m => m.lancamentoId === lancamento.id);
                   const pareado = !!match;
                   
+                  const parevel = !pareado && !!linhaSelecionada;
+
                   return (
-                    <div 
+                    <div
                       key={lancamento.id}
-                      className={`p-3 border rounded-lg ${pareado ? 'bg-blue-50 border-blue-200' : 'bg-background'}`}
+                      role={parevel ? 'button' : undefined}
+                      tabIndex={parevel ? 0 : undefined}
+                      onClick={() => {
+                        if (parevel) parearManual(linhaSelecionada!.id, lancamento.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (parevel && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault();
+                          parearManual(linhaSelecionada!.id, lancamento.id);
+                        }
+                      }}
+                      className={`p-3 border rounded-lg ${
+                        pareado
+                          ? 'bg-blue-50 border-blue-200'
+                          : parevel
+                          ? 'bg-background cursor-pointer hover:border-primary hover:bg-primary/5'
+                          : 'bg-background'
+                      }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium">{lancamento.data}</span>
+                            <span className="text-sm font-medium">{formatDateBR(lancamento.data)}</span>
                             <Badge variant={lancamento.tipo === 'CREDITO' ? 'default' : 'secondary'}>
                               {lancamento.tipo}
                             </Badge>
@@ -610,7 +715,11 @@ export function ConciliacaoTab() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => desparear(match.id)}
+                              onClick={(e) => {
+                                // O card pai é clicável no fluxo de pareamento.
+                                e.stopPropagation();
+                                desparear(match.id);
+                              }}
                               className="mt-1"
                             >
                               <Unlink className="w-3 h-3" />
