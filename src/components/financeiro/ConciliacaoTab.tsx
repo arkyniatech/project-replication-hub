@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { useFinanceiroStore } from '@/stores/financeiroStore';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { parseDataExtratoBR } from '@/lib/extrato-data';
+import { regra1DocEValor, regra2ValorEData } from '@/lib/conciliacao-match';
 import { formatDateBR } from '@/lib/date-utils';
 import type { Conciliacao, ExtratoLinha, Lancamento } from '@/types/financeiro';
 
@@ -212,15 +213,15 @@ export function ConciliacaoTab() {
 
     let matchCount = 0;
 
-    // Regra 1: Mesmo valor e doc quando existir
+    // Regra 1: Mesma direcao, mesmo valor e doc quando existir.
+    // A checagem de tipo vive em conciliacao-match.ts junto com a convencao
+    // D<->DEBITO / C<->CREDITO — ver o cabecalho daquele arquivo.
     extratoLinhas.forEach(extrato => {
       if (extrato.pareado) return;
 
-      const lancamentoMatch = lancamentos.find(lanc => 
+      const lancamentoMatch = lancamentos.find(lanc =>
         !matches.some(m => m.lancamentoId === lanc.id) &&
-        Math.abs(lanc.valor - Math.abs(extrato.valor)) < 0.01 &&
-        extrato.doc && 
-        (lanc.refId?.includes(extrato.doc) || lanc.descricao?.includes(extrato.doc))
+        regra1DocEValor(extrato, lanc)
       );
 
       if (lancamentoMatch) {
@@ -234,18 +235,15 @@ export function ConciliacaoTab() {
       }
     });
 
-    // Regra 2: Mesmo valor em ±3 dias
+    // Regra 2: Mesma direcao, mesmo valor em ±3 dias.
+    // Era aqui que uma saida do extrato (D) era pareada contra uma entrada do
+    // razao (CREDITO) so porque valor e data batiam.
     extratoLinhas.forEach(extrato => {
       if (extrato.pareado) return;
 
-      const dataExtrato = new Date(extrato.data);
       const lancamentoMatch = lancamentos.find(lanc => {
         if (matches.some(m => m.lancamentoId === lanc.id)) return false;
-        
-        const dataLanc = new Date(lanc.data);
-        const diffDays = Math.abs(dataExtrato.getTime() - dataLanc.getTime()) / (1000 * 60 * 60 * 24);
-        
-        return Math.abs(lanc.valor - Math.abs(extrato.valor)) < 0.01 && diffDays <= 3;
+        return regra2ValorEData(extrato, lanc);
       });
 
       if (lancamentoMatch) {
