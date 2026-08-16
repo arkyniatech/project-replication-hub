@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { useFinanceiroStore } from '@/stores/financeiroStore';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { parseDataExtratoBR, parseTipoExtrato } from '@/lib/extrato-data';
-import { regra1DocEValor, regra2ValorEData } from '@/lib/conciliacao-match';
+import { regra1DocEValor, regra2ValorEData, tipoCompativel } from '@/lib/conciliacao-match';
 import { formatDateBR } from '@/lib/date-utils';
 import type { Conciliacao, ExtratoLinha, Lancamento } from '@/types/financeiro';
 
@@ -276,6 +276,23 @@ export function ConciliacaoTab() {
 
   const parearManual = (extratoId: string, lancamentoId: string) => {
     if (!currentConciliacao) return;
+
+    // Mesma regra do auto-match, mesma fonte (conciliacao-match.ts). Sem isto
+    // dava para parear uma saida (D) contra uma entrada (CREDITO) na mao — o
+    // par falso que o Relay 20 fechou no automatico, pela porta ao lado.
+    // Bloqueia em vez de avisar: nao ha caso legitimo de conciliar saida contra
+    // entrada, e um par errado esconde a divergencia real em vez de mostra-la.
+    const extrato = extratoLinhas.find(l => l.id === extratoId);
+    const lancamento = lancamentos.find(l => l.id === lancamentoId);
+    if (!extrato || !lancamento) return;
+
+    if (!tipoCompativel(extrato.tipo, lancamento.tipo)) {
+      toast.error(
+        `Direção incompatível: linha do extrato é ${extrato.tipo === 'D' ? 'saída (D)' : 'entrada (C)'} ` +
+        `e o lançamento é ${lancamento.tipo}. Só é possível parear entrada com entrada e saída com saída.`
+      );
+      return;
+    }
 
     createMatch({
       conciliacaoId: currentConciliacao,
