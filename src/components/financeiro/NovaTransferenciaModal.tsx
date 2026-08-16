@@ -75,8 +75,10 @@ export function NovaTransferenciaModal({
   } = useFinanceiroStore();
   
   const [isLoading, setIsLoading] = useState(false);
-  const lojaId = lojaAtual?.id || '1';
-  const contas = getContasByLoja(lojaId);
+  // Sem fallback: loja_id é UUID no banco. O antigo `|| '1'` gravava '1', que
+  // nem chega a violar a FK — o Postgres recusa antes, por sintaxe de UUID.
+  const lojaId = lojaAtual?.id;
+  const contas = lojaId ? getContasByLoja(lojaId) : [];
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -101,6 +103,11 @@ export function NovaTransferenciaModal({
     : true;
 
   const onSubmit = async (data: FormData) => {
+    if (!lojaId) {
+      toast.error('Nenhuma loja selecionada. Selecione uma loja antes de criar a transferência.');
+      return;
+    }
+
     if (!saldoSuficiente && !config.allowOverdraft) {
       toast.error('Saldo insuficiente na conta de origem');
       return;

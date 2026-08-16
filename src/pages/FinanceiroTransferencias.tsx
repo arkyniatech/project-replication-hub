@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFinanceiroStore } from '@/stores/financeiroStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ArrowRightLeft, Wallet, Settings } from 'lucide-react';
 import { useRbac } from '@/hooks/useRbac';
 import { SaldosTab } from '@/components/financeiro/SaldosTab';
@@ -66,12 +65,6 @@ function FinanceiroTransferenciasPage() {
               <p className="text-sm text-muted-foreground mt-1">
                 Gestão de contas, transferências e conciliação bancária
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Settings className="w-3 h-3" />
-                Mock/Demo
-              </Badge>
             </div>
           </div>
         </div>
