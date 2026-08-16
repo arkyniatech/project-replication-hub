@@ -388,6 +388,10 @@ export const useFinanceiroStore = create<FinanceiroState>()(
           saldo: l.saldo ?? null,
           pareado: false,
         }))).then((error: any) => {
+          // Rollback all-or-nothing: o upsert em lote do PostgREST roda como uma
+          // instrução só, numa transação implícita — uma linha recusada aborta o
+          // batch inteiro. Se algum dia isto virar escrita por chunk ou por
+          // linha, este `filter` passa a apagar linhas que o banco aceitou.
           if (error) {
             const ids = new Set(novas.map((l) => l.id));
             set((state) => ({
