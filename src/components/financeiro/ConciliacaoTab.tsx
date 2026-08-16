@@ -60,6 +60,10 @@ export function ConciliacaoTab() {
   const [currentConciliacao, setCurrentConciliacao] = useState<string | null>(null);
   const [importedData, setImportedData] = useState<ImportedRow[]>([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
+  // Pareamento manual: seleciona uma linha do extrato à esquerda, depois clica
+  // no lançamento correspondente à direita. Mesmo padrão de seleção por estado
+  // que TransferenciasTab já usa para abrir o detalhe.
+  const [extratoSelecionado, setExtratoSelecionado] = useState<string | null>(null);
 
   const lojaId = lojaAtual?.id || '1';
   const contas = getContasByLoja(lojaId);
@@ -244,6 +248,7 @@ export function ConciliacaoTab() {
       modo: 'MANUAL'
     });
 
+    setExtratoSelecionado(null);
     toast.success('Pareamento manual criado!');
   };
 
@@ -569,9 +574,29 @@ export function ConciliacaoTab() {
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {extratoLinhas.map((linha) => (
-                  <div 
+                  <div
                     key={linha.id}
-                    className={`p-3 border rounded-lg ${linha.pareado ? 'bg-green-50 border-green-200' : 'bg-background'}`}
+                    role={!linha.pareado ? 'button' : undefined}
+                    tabIndex={!linha.pareado ? 0 : undefined}
+                    aria-pressed={!linha.pareado ? extratoSelecionado === linha.id : undefined}
+                    onClick={() => {
+                      if (linha.pareado) return;
+                      setExtratoSelecionado(prev => (prev === linha.id ? null : linha.id));
+                    }}
+                    onKeyDown={(e) => {
+                      if (linha.pareado) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setExtratoSelecionado(prev => (prev === linha.id ? null : linha.id));
+                      }
+                    }}
+                    className={`p-3 border rounded-lg ${
+                      linha.pareado
+                        ? 'bg-green-50 border-green-200'
+                        : extratoSelecionado === linha.id
+                        ? 'bg-primary/10 border-primary ring-2 ring-primary cursor-pointer'
+                        : 'bg-background cursor-pointer hover:border-primary/50'
+                    }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -603,6 +628,11 @@ export function ConciliacaoTab() {
           <Card>
             <CardHeader>
               <CardTitle>Lançamentos Internos ({lancamentos.length})</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {extratoSelecionado
+                  ? 'Clique no lançamento correspondente para parear.'
+                  : 'Selecione uma linha do extrato para parear manualmente.'}
+              </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -610,10 +640,29 @@ export function ConciliacaoTab() {
                   const match = matches.find(m => m.lancamentoId === lancamento.id);
                   const pareado = !!match;
                   
+                  const parevel = !pareado && !!extratoSelecionado;
+
                   return (
-                    <div 
+                    <div
                       key={lancamento.id}
-                      className={`p-3 border rounded-lg ${pareado ? 'bg-blue-50 border-blue-200' : 'bg-background'}`}
+                      role={parevel ? 'button' : undefined}
+                      tabIndex={parevel ? 0 : undefined}
+                      onClick={() => {
+                        if (parevel) parearManual(extratoSelecionado!, lancamento.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (parevel && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault();
+                          parearManual(extratoSelecionado!, lancamento.id);
+                        }
+                      }}
+                      className={`p-3 border rounded-lg ${
+                        pareado
+                          ? 'bg-blue-50 border-blue-200'
+                          : parevel
+                          ? 'bg-background cursor-pointer hover:border-primary hover:bg-primary/5'
+                          : 'bg-background'
+                      }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
