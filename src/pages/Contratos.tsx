@@ -13,6 +13,7 @@ import { IfPerm, PermButton } from "@/components/rbac";
 import { usePermissionChecks } from "@/hooks/useRbacPermissions";
 import RenovarContratoModal from "@/components/modals/RenovarContratoModal";
 import { differenceInDays, parseISO, isToday, isTomorrow, startOfDay, isWithinInterval, format } from 'date-fns';
+import { mapContratosParaListagem } from "@/lib/contratos-listagem-mapper";
 
 export default function Contratos() {
   const navigate = useNavigate();
@@ -27,29 +28,7 @@ export default function Contratos() {
   // Mapear contratos do Supabase para formato local
   const contratos = useMemo(() => {
     if (!contratosSupabase) return [];
-    return contratosSupabase.map(c => ({
-      id: c.id,
-      numero: c.numero,
-      clienteId: c.cliente_id,
-      lojaId: c.loja_id,
-      status: c.status,
-      dataInicio: c.data_inicio,
-      dataFim: c.data_fim || c.data_prevista_fim,
-      valorTotal: Number(c.valor_total),
-      itens: c.contrato_itens?.map(item => ({
-        id: item.id,
-        equipamentoId: item.equipamento_id,
-        quantidade: item.quantidade,
-        valorTotal: Number(item.preco_total),
-      })) || [],
-      cliente: {
-        id: c.clientes?.id || c.cliente_id,
-        nome: c.clientes?.nome || c.clientes?.razao_social || 'Cliente',
-        nomeRazao: c.clientes?.nome || c.clientes?.razao_social || 'Cliente',
-        documento: c.clientes?.cpf || c.clientes?.cnpj || '',
-      },
-      createdAt: c.created_at,
-    }));
+    return mapContratosParaListagem(contratosSupabase as any);
   }, [contratosSupabase]);
 
   // Build map: contrato_id -> aditivos[]
