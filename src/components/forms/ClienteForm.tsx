@@ -33,7 +33,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { Cliente, Contato, Anexo } from "@/types";
-import { legacyClienteToSupabase } from "@/lib/cliente-adapter";
+import { legacyClienteToSupabase, resolverClientePersistido } from "@/lib/cliente-adapter";
 import { useSupabaseClientes } from "@/hooks/useSupabaseClientes";
 import WhatsAppVerificationModal from "./WhatsAppVerificationModal";
 import { 
@@ -406,9 +406,13 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
       );
     } else {
       createCliente.mutate(supabaseData, {
-        onSuccess: () => {
+        onSuccess: (clienteSalvo) => {
           setIsDirty(false);
-          onSave?.(novoCliente);
+          // O id de `novoCliente` é provisório (Date.now()); quem gera o
+          // definitivo é o banco. Devolver o objeto local vazaria esse
+          // timestamp para o wizard de contrato, que o gravaria em
+          // contratos.cliente_id (uuid) → 22P02.
+          onSave?.(resolverClientePersistido(novoCliente, clienteSalvo));
         },
         onError: (error: any) => {
           const isRLS = error?.message?.includes('row-level security');
