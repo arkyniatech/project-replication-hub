@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { clienteStorage, tituloStorage } from "@/lib/storage";
 import { timelineStore } from "@/stores/timelineStore";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface RegistrarContatoModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ export default function RegistrarContatoModal({ open, onOpenChange, clienteId, t
   const [observacao, setObservacao] = useState('');
   const { toast } = useToast();
   const { addEntry } = timelineStore();
+  const usuarioAtual = useCurrentUser();
 
   // Buscar dados do cliente
   const cliente = clienteId ? clienteStorage.getAll().find(c => c.id === clienteId) : null;
@@ -36,9 +38,18 @@ export default function RegistrarContatoModal({ open, onOpenChange, clienteId, t
       return;
     }
 
+    if (!usuarioAtual.pronto) {
+      toast({
+        title: "Aguarde",
+        description: "Carregando dados do usuário logado. Tente novamente em instantes.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Adicionar entrada na timeline
     const mensagem = `${assunto}${observacao ? ` - ${observacao}` : ''}`;
-    
+
     addEntry({
       clienteId,
       contratoNumero: titulo?.contrato?.numero,
@@ -46,7 +57,7 @@ export default function RegistrarContatoModal({ open, onOpenChange, clienteId, t
       canal: 'TELEFONE',
       tipo: 'ANOTACAO',
       mensagem,
-      user: { id: 'user-1', nome: 'Admin' }, // Mock user
+      user: usuarioAtual.user,
       dataISO: new Date().toISOString()
     });
 
