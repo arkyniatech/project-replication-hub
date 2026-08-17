@@ -3,6 +3,37 @@ import type { Cliente } from '@/types';
 
 type SupabaseCliente = Database['public']['Tables']['clientes']['Row'];
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Valida se o valor tem forma de uuid — o que as colunas `*_id` do Postgres
+ * exigem. Ids locais gerados com `Date.now()` reprovam aqui.
+ */
+export function isUuid(valor: string | null | undefined): boolean {
+  return typeof valor === 'string' && UUID_RE.test(valor);
+}
+
+/**
+ * Reconcilia o cliente montado no formulário com a linha que o banco gravou.
+ *
+ * O id local é provisório (o banco gera o definitivo via `gen_random_uuid()`).
+ * Devolver o objeto local sem essa reconciliação vaza um id não-uuid para quem
+ * chamou — e o próximo insert que usar esse id como FK falha com 22P02.
+ *
+ * O merge (local primeiro, banco por cima) é proposital: campos que existem
+ * só em memória — `politicaComercial` e `aplicarPoliticaAuto` não têm coluna
+ * em `clientes` — precisam sobreviver, senão o wizard perde o desconto da
+ * política ao calcular o total (NovoContratoV2 ~l.357). O que vem do banco
+ * vence nos campos que ele é dono (id, timestamps).
+ */
+export function resolverClientePersistido(
+  clienteLocal: Cliente,
+  linhaSalva: SupabaseCliente | null | undefined
+): Cliente {
+  if (!linhaSalva) return clienteLocal;
+  return { ...clienteLocal, ...supabaseClienteToLegacy(linhaSalva) };
+}
+
 /**
  * Converte um cliente do Supabase para o formato legacy esperado pelo ClienteForm
  */
