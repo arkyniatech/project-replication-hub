@@ -9,6 +9,7 @@ import { clienteStorage, tituloStorage } from "@/lib/storage";
 import { timelineStore, MENSAGEM_TEMPLATES, formatMensagem } from "@/stores/timelineStore";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/date-utils";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface EnviarAvisoModalProps {
   open: boolean;
@@ -24,6 +25,7 @@ export default function EnviarAvisoModal({ open, onOpenChange, clienteId, titulo
   const [enviando, setEnviando] = useState(false);
   const { toast } = useToast();
   const { addEntry } = timelineStore();
+  const usuarioAtual = useCurrentUser();
 
   // Buscar dados do cliente e título
   const cliente = clienteId ? clienteStorage.getAll().find(c => c.id === clienteId) : null;
@@ -62,6 +64,15 @@ export default function EnviarAvisoModal({ open, onOpenChange, clienteId, titulo
       toast({
         title: "Erro",
         description: "Cliente e mensagem são obrigatórios.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!usuarioAtual.pronto) {
+      toast({
+        title: "Aguarde",
+        description: "Carregando dados do usuário logado. Tente novamente em instantes.",
         variant: "destructive"
       });
       return;
@@ -137,7 +148,7 @@ export default function EnviarAvisoModal({ open, onOpenChange, clienteId, titulo
       canal,
       tipo: 'COBRANCA',
       mensagem: mensagem.trim(),
-      user: { id: 'user-1', nome: 'Admin' }, // Mock user
+      user: usuarioAtual.user,
       dataISO: new Date().toISOString()
     });
 
