@@ -121,7 +121,10 @@ export function FaturasFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os tipos</SelectItem>
-              <SelectItem value="FISCAL">Fiscal</SelectItem>
+              {/* 'FISCAL' saiu: o CHECK de faturas.tipo só aceita FISCAL_MOCK
+                  ou DEMONSTRATIVO, e nenhuma fatura fiscal existe nesta base
+                  (ver relay 44/45). O valor filtrava sempre para zero linhas. */}
+              <SelectItem value="FISCAL_MOCK">Fiscal</SelectItem>
               <SelectItem value="DEMONSTRATIVO">Demonstrativo</SelectItem>
             </SelectContent>
           </Select>

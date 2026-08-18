@@ -115,7 +115,14 @@ export function FaturamentoCarrinho() {
           loja_id: lojaAtual.id,
           cliente_id: clienteSelecionado.clienteId,
           contrato_id: itensSelecionados[0]?.contratoId || null,
-          tipo: 'LOCACAO',
+          // Correção MÍNIMA para destravar a emissão pelo carrinho — não é
+          // escolha de que tipo de fatura o negócio quer emitir por aqui.
+          // 'LOCACAO' pertence ao vocabulário de titulos.categoria, não de
+          // faturas.tipo; o CHECK desta coluna só aceita FISCAL_MOCK ou
+          // DEMONSTRATIVO, e o carrinho não tem seletor de tipo. DEMONSTRATIVO
+          // é o único valor que o sistema hoje sabe produzir de verdade — a
+          // opção fiscal, quando existir, é decisão do dono do produto.
+          tipo: 'DEMONSTRATIVO',
           forma_preferida: formaPagamento,
           vencimento: new Date(vencimento).toISOString(),
           emissao: new Date().toISOString(),

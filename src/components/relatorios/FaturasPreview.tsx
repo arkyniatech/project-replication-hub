@@ -127,8 +127,9 @@ export function FaturasPreview({
                 </TableCell>
                 <TableCell>{fatura.contratos?.numero || '-'}</TableCell>
                 <TableCell>
-                  <Badge variant={fatura.tipo === 'FISCAL' ? 'default' : 'secondary'}>
-                    {fatura.tipo === 'FISCAL' ? 'Fiscal' : 'Demo'}
+                  {/* CHECK de faturas.tipo é FISCAL_MOCK/DEMONSTRATIVO, não FISCAL. */}
+                  <Badge variant={fatura.tipo === 'FISCAL_MOCK' ? 'default' : 'secondary'}>
+                    {fatura.tipo === 'FISCAL_MOCK' ? 'Fiscal' : 'Demo'}
                   </Badge>
                 </TableCell>
                 <TableCell>{fatura.forma_preferida}</TableCell>
