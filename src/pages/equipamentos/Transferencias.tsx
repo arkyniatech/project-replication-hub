@@ -13,15 +13,16 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Eye, 
-  Check, 
-  X, 
-  FileText, 
-  RotateCcw, 
+import {
+  Eye,
+  Check,
+  X,
+  FileText,
+  RotateCcw,
   Plus,
   Filter,
-  Search
+  Search,
+  Truck
 } from "lucide-react";
 import { NovaTransferenciaModal } from "@/components/transferencias/NovaTransferenciaModal";
 import { DetalheTransferenciaModal } from "@/components/transferencias/DetalheTransferenciaModal";
@@ -122,6 +123,19 @@ export default function Transferencias() {
       setShowNovaModal(true);
     }
   });
+
+  const handleDespachar = async (id: string) => {
+    if (!can('equipamentos:edit')) {
+      toast.error("Sem permissão para despachar transferências");
+      return;
+    }
+
+    try {
+      await atualizarStatus.mutateAsync({ id, status: 'EM_TRANSITO' });
+    } catch (error) {
+      // Erro já tratado no hook
+    }
+  };
 
   const handleAceitar = async (id: string) => {
     if (!can('equipamentos:edit')) {
@@ -224,6 +238,19 @@ export default function Transferencias() {
               <X className="h-4 w-4" />
             </Button>
           </>
+        )}
+
+        {isEnviada && transferencia.status === 'CRIADA' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDespachar(transferencia.id)}
+            disabled={!canEdit || atualizarStatus.isPending || isLoading}
+            title="Despachar"
+            className="text-blue-600 hover:text-blue-700"
+          >
+            <Truck className="h-4 w-4" />
+          </Button>
         )}
 
         {isEnviada && transferencia.status === 'RECUSADA' && (
