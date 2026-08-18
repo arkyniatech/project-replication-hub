@@ -6960,6 +6960,7 @@ export type Database = {
           codigo_interno: string | null
           created_at: string
           descricao: string | null
+          equipamento_id: string | null
           grupo_id: string | null
           id: string
           modelo_id: string | null
@@ -6972,6 +6973,7 @@ export type Database = {
           codigo_interno?: string | null
           created_at?: string
           descricao?: string | null
+          equipamento_id?: string | null
           grupo_id?: string | null
           id?: string
           modelo_id?: string | null
@@ -6984,6 +6986,7 @@ export type Database = {
           codigo_interno?: string | null
           created_at?: string
           descricao?: string | null
+          equipamento_id?: string | null
           grupo_id?: string | null
           id?: string
           modelo_id?: string | null
@@ -6993,6 +6996,13 @@ export type Database = {
           transferencia_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transferencia_itens_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transferencia_itens_grupo_id_fkey"
             columns: ["grupo_id"]

@@ -253,7 +253,14 @@ export default function Transferencias() {
           </Button>
         )}
 
-        {isEnviada && transferencia.status === 'RECUSADA' && (
+        {/*
+          RELAY 39: o botão aparecia só em RECUSADA — que é estado TERMINAL na
+          RPC, então cancelar dali sempre levantava "Transferência já está
+          RECUSADA — transição para CANCELADA inválida". Era código morto que
+          só errava, e os dois estados em que cancelar faz sentido (e que a RPC
+          aceita) não tinham botão nenhum.
+        */}
+        {isEnviada && (transferencia.status === 'CRIADA' || transferencia.status === 'EM_TRANSITO') && (
           <Button
             variant="ghost"
             size="sm"
