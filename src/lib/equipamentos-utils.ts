@@ -61,6 +61,47 @@ export function formatCodigoExibicao(
   return prefixo ? `${prefixo}-${sn}` : sn;
 }
 
+// #9.5: a busca de equipamento existia em duas versões — a lista casava 5
+// campos e o modal de transferência casava 2, e nenhuma das duas era o código
+// EXIBIDO. Como "BE-059" é derivado (formatCodigoExibicao) e não existe em
+// coluna nenhuma, o modal nunca achava legado. Predicado único, uma fonte só.
+export interface EquipamentoBuscavel {
+  codigo_interno?: string | null;
+  numero_serie?: string | null;
+  grupo_nome?: string | null;
+  modelo_nome?: string | null;
+  grupos_equipamentos?: { nome?: string } | null;
+  modelos_equipamentos?: { nome_comercial?: string } | null;
+}
+
+// Campos que a busca cobre — mesma ordem do placeholder mostrado ao usuário.
+export function equipamentoMatchesBusca(
+  equipamento: EquipamentoBuscavel | null | undefined,
+  termo: string
+): boolean {
+  const term = (termo || '').trim().toLowerCase();
+  if (!term) return true; // busca vazia não filtra
+  if (!equipamento) return false;
+
+  const grupoNome = equipamento.grupo_nome || equipamento.grupos_equipamentos?.nome || '';
+  const modeloNome = equipamento.modelo_nome || equipamento.modelos_equipamentos?.nome_comercial || '';
+
+  const campos = [
+    equipamento.codigo_interno || '',
+    formatCodigoExibicao({ ...equipamento, grupo_nome: grupoNome }),
+    equipamento.numero_serie || '',
+    modeloNome,
+    grupoNome,
+  ];
+
+  return campos.some(campo => campo.toLowerCase().includes(term));
+}
+
+// Texto do campo de busca — mantido junto do predicado para que a promessa
+// feita ao usuário e o que a busca realmente faz não voltem a divergir.
+export const PLACEHOLDER_BUSCA_EQUIPAMENTO =
+  'Digite código, número de série, modelo ou grupo...';
+
 // Diferença entre tabelas de preços para histórico
 export function diffTabelaPrecos(
   prev: Record<string, Record<string, number>>,

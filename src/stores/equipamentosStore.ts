@@ -390,9 +390,9 @@ export const useEquipamentosStore = create<EquipamentosState>()(
         }));
       },
       
-      // Código de equipamento agora é gerado pelo backend via RPC gerar_codigo_equipamento
-      // Formato: LA + código numérico da loja (3 dígitos) + sequencial (3 dígitos)
-      // Exemplo: LA001042 = Loja 001, equipamento 042
+      // Código de equipamento é gerado no INSERT pelo trigger trg_num_equipamento
+      // (numeracao_contadores). Formato: EQ-{lojas.codigo}-{seq:4}, ex. EQ-001-0042.
+      // NÃO existe RPC gerar_codigo_equipamento — a função foi removida do banco.
       
       verificarDuplicidadeCodigo: (codigo) => {
         const { equipamentos } = get();

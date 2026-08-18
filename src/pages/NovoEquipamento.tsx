@@ -146,7 +146,6 @@ export default function NovoEquipamento() {
   const {
     createEquipamento,
     updateEquipamento,
-    gerarCodigo,
     equipamentos: equipamentosExistentes,
     useEquipamento
   } = useSupabaseEquipamentos(
@@ -169,24 +168,10 @@ export default function NovoEquipamento() {
     }
   });
 
-  // Gerar código automaticamente quando grupo e loja são selecionados
-  useEffect(() => {
-    const gerarCodigoAutomatico = async () => {
-      if (formData.grupoId && formData.lojaId && !formData.codigo && !isEditMode) {
-        try {
-          const codigoGerado = await gerarCodigo.mutateAsync({
-            lojaId: formData.lojaId,
-            grupoId: formData.grupoId
-          });
-          setFormData(prev => ({ ...prev, codigo: codigoGerado }));
-        } catch (error) {
-          console.error('Erro ao gerar código:', error);
-        }
-      }
-    };
-
-    gerarCodigoAutomatico();
-  }, [formData.grupoId, formData.lojaId, isEditMode]);
+  // #9.12: o código não é mais pré-gerado no cliente. O trigger
+  // trg_num_equipamento preenche codigo_interno no INSERT, a partir de
+  // numeracao_contadores. Mostrar um código antes de gravar significaria
+  // reservar numeração que um cancelamento desperdiçaria.
 
   useEffect(() => {
     // Selecionar primeira loja por padrão se houver
@@ -444,15 +429,10 @@ export default function NovoEquipamento() {
           }
         }
 
-        // Gerar código automático com grupo
-        let codigoInterno = formData.codigo;
-        if (!codigoInterno && formData.grupoId) {
-          const codigoGerado = await gerarCodigo.mutateAsync({
-            lojaId: formData.lojaId,
-            grupoId: formData.grupoId
-          });
-          codigoInterno = codigoGerado;
-        }
+        // #9.12: codigo_interno vai vazio quando o usuário não informou um.
+        // A coluna tem DEFAULT '' e o trigger trg_num_equipamento substitui
+        // antes de gravar. Código digitado à mão é respeitado pelo trigger.
+        const codigoInterno = formData.codigo || '';
 
         // Mapear dados para o schema do Supabase
         const equipamentoData = {

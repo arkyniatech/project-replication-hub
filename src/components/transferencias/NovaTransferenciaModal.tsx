@@ -14,6 +14,7 @@ import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
 import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
+import { equipamentoMatchesBusca, PLACEHOLDER_BUSCA_EQUIPAMENTO } from "@/lib/equipamentos-utils";
 import { toast } from "sonner";
 
 type TransferItem = {
@@ -60,14 +61,21 @@ export function NovaTransferenciaModal({ open, onOpenChange }: NovaTransferencia
   const lojasDisponiveis = lojas.filter(l => l.id !== lojaAtiva && l.ativo);
   
   // Filtrar equipamentos SERIALIZADO disponíveis
-  const equipamentosDisponiveis = equipamentos.filter(eq =>
-    eq.loja_atual_id === lojaAtiva &&
-    eq.status_global === 'DISPONIVEL' &&
-    eq.tipo === 'SERIALIZADO' && // Apenas serializados
-    (searchText === '' || 
-     eq.codigo_interno?.toLowerCase().includes(searchText.toLowerCase()) ||
-     eq.numero_serie?.toLowerCase().includes(searchText.toLowerCase()))
-  );
+  // #9.5: a busca casava só codigo_interno e numero_serie crus, então legado
+  // não era achado nem pelo código exato — "BE-059" é derivado do grupo + série
+  // e não existe em coluna nenhuma. Agora usa o mesmo predicado da lista.
+  const equipamentosDisponiveis = equipamentos.filter(eq => {
+    if (eq.loja_atual_id !== lojaAtiva) return false;
+    if (eq.status_global !== 'DISPONIVEL') return false;
+    if (eq.tipo !== 'SERIALIZADO') return false; // Apenas serializados
+
+    const grupo = grupos.find(g => g.id === eq.grupo_id);
+    const modelo = modelos.find(m => m.id === eq.modelo_id);
+    return equipamentoMatchesBusca(
+      { ...eq, grupo_nome: grupo?.nome, modelo_nome: modelo?.nome_comercial },
+      searchText
+    );
+  });
 
   // Filtrar modelos com saldo disponível (tipo SALDO)
   const modelosDisponiveis = modelos.filter(modelo => {
@@ -332,7 +340,7 @@ export function NovaTransferenciaModal({ open, onOpenChange }: NovaTransferencia
                 <Input
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  placeholder="Digite código interno, modelo ou grupo..."
+                  placeholder={PLACEHOLDER_BUSCA_EQUIPAMENTO}
                   className="pl-10"
                 />
               </div>

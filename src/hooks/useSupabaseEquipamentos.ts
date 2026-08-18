@@ -10,21 +10,13 @@ type EquipamentoUpdate = Database['public']['Tables']['equipamentos']['Update'];
 export function useSupabaseEquipamentos(lojaId?: string, grupoId?: string, modeloId?: string) {
   const queryClient = useQueryClient();
 
-  // Hook para gerar código automático
-  const gerarCodigo = useMutation({
-    mutationFn: async ({ lojaId, grupoId }: { lojaId: string; grupoId: string }) => {
-      // MOCK: Generate code client-side because database function is missing
-      // Format: LA + timestamp slice + random logic to ensure uniqueness
-      const timestamp = Date.now().toString().slice(-6);
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      const mockCode = `LA${timestamp}${random}`;
-      return Promise.resolve(mockCode);
-    },
-    onError: (error: any) => {
-      console.error('Erro ao gerar código:', error);
-      toast.error(error.message || 'Erro ao gerar código');
-    },
-  });
+  // #9.12: o código de patrimônio era gerado aqui no cliente com
+  // Date.now().slice(-6) + Math.random()*1000, sem checagem contra o banco.
+  // codigo_interno é UNIQUE, então uma colisão não gravava duplicata — falhava
+  // com 23505 cru na cara do usuário. Agora o insert OMITE codigo_interno e o
+  // trigger trg_num_equipamento preenche via numeracao_contadores, atômico.
+  // Formato EQ-{lojas.codigo}-{seq:4}. Não há mais mutation gerarCodigo: o
+  // código só existe depois que a linha é gravada.
 
   // Query para listar equipamentos
   const { data: equipamentos = [], isLoading, error } = useQuery({
@@ -250,7 +242,6 @@ export function useSupabaseEquipamentos(lojaId?: string, grupoId?: string, model
     createEquipamento,
     updateEquipamento,
     deleteEquipamento,
-    gerarCodigo,
     addHistoricoEvent,
   };
 }
