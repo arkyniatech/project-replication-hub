@@ -110,6 +110,9 @@ export function useSupabaseTransferencias(lojaId?: string) {
         p_destino_loja_id: transferencia.destino_loja_id,
         p_itens: itens.map((i) => ({
           tipo: i.tipo,
+          // RELAY 39: sem isto a RPC não consegue endereçar a linha de
+          // equipamentos e o serializado nunca sai da loja de origem.
+          equipamento_id: i.equipamento_id ?? null,
           modelo_id: i.modelo_id ?? null,
           grupo_id: i.grupo_id ?? null,
           codigo_interno: i.codigo_interno ?? null,

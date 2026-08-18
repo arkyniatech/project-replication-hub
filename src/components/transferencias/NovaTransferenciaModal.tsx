@@ -19,6 +19,13 @@ import { toast } from "sonner";
 type TransferItem = {
   id: string;
   tipo: 'SERIAL' | 'SALDO';
+  /**
+   * id da linha em `equipamentos`. Só existe para SERIAL — é o que permite à
+   * RPC mover o ativo (loja_atual_id) no recebimento. Antes do RELAY 39 o
+   * modal tinha esse id em mãos e o descartava aqui, então a transferência
+   * concluía sem o equipamento sair da loja de origem.
+   */
+  equipamentoId?: string;
   codigoInterno?: string;
   modeloId: string;
   grupoId: string;
@@ -110,6 +117,7 @@ export function NovaTransferenciaModal({ open, onOpenChange }: NovaTransferencia
     const novoItem: TransferItem = {
       id: crypto.randomUUID(),
       tipo: 'SERIAL',
+      equipamentoId: equipamento.id,
       codigoInterno: equipamento.codigo_interno,
       modeloId: modelo.id,
       grupoId: grupo.id,
@@ -249,6 +257,7 @@ export function NovaTransferenciaModal({ open, onOpenChange }: NovaTransferencia
         },
         itens: itensSelecionados.map(item => ({
           tipo: item.tipo,
+          equipamento_id: item.equipamentoId || null,
           codigo_interno: item.codigoInterno || null,
           modelo_id: item.modeloId,
           grupo_id: item.grupoId,
