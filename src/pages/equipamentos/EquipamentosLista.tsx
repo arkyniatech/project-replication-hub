@@ -25,7 +25,7 @@ import { StatusEquipamento } from "@/types/equipamentos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { HistoricoTransferenciasModal } from "@/components/transferencias/HistoricoTransferenciasModal";
 import { EquipamentoKPIsBadges } from "@/components/equipamentos/EquipamentoKPIsBadges";
-import { formatCodigoExibicao } from "@/lib/equipamentos-utils";
+import { formatCodigoExibicao, equipamentoMatchesBusca, PLACEHOLDER_BUSCA_EQUIPAMENTO } from "@/lib/equipamentos-utils";
 
 const STATUS_COLORS: Record<StatusEquipamento, string> = {
   DISPONIVEL: "bg-green-100 text-green-800",
@@ -138,15 +138,11 @@ export default function EquipamentosLista() {
       filtered = filtered.filter((equipamento) => {
         const grupo = grupos.find(g => g.id === equipamento.grupo_id);
         const modelo = modelos.find(m => m.id === equipamento.modelo_id);
-        const codigoExibicao = formatCodigoExibicao({ ...equipamento, grupo_nome: grupo?.nome });
-        const term = searchTerm.toLowerCase();
 
-        return (
-          equipamento.codigo_interno?.toLowerCase().includes(term) ||
-          codigoExibicao.toLowerCase().includes(term) ||
-          (equipamento.numero_serie || '').toLowerCase().includes(term) ||
-          (modelo?.nome_comercial || '').toLowerCase().includes(term) ||
-          (grupo?.nome || '').toLowerCase().includes(term)
+        // #9.5: predicado compartilhado com o modal de transferência.
+        return equipamentoMatchesBusca(
+          { ...equipamento, grupo_nome: grupo?.nome, modelo_nome: modelo?.nome_comercial },
+          searchTerm
         );
       });
     }
@@ -259,7 +255,7 @@ export default function EquipamentosLista() {
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por código, modelo ou grupo..."
+                placeholder={PLACEHOLDER_BUSCA_EQUIPAMENTO}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"

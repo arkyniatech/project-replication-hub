@@ -36,6 +36,7 @@ import { useSupabaseModelos } from "@/hooks/useSupabaseModelos";
 import { useSupabaseGrupos } from "@/hooks/useSupabaseGrupos";
 import { useSupabaseLojas } from "@/modules/rh/hooks/useSupabaseLojas";
 import { formatMoney, parseMoneyBR } from "@/lib/equipamentos-utils";
+import { validarEquipamentoForm } from "@/lib/equipamento-form-validacao";
 import { statusEquipamentoUiToDb, statusEquipamentoDbToUi, type StatusFormUI } from "@/lib/equipamento-status-utils";
 import { abrirOSManutencao } from "@/lib/abrir-os-manutencao";
 import { DadosTecnicosSection } from "@/components/equipamentos/DadosTecnicosSection";
@@ -146,7 +147,6 @@ export default function NovoEquipamento() {
   const {
     createEquipamento,
     updateEquipamento,
-    gerarCodigo,
     equipamentos: equipamentosExistentes,
     useEquipamento
   } = useSupabaseEquipamentos(
@@ -169,24 +169,10 @@ export default function NovoEquipamento() {
     }
   });
 
-  // Gerar código automaticamente quando grupo e loja são selecionados
-  useEffect(() => {
-    const gerarCodigoAutomatico = async () => {
-      if (formData.grupoId && formData.lojaId && !formData.codigo && !isEditMode) {
-        try {
-          const codigoGerado = await gerarCodigo.mutateAsync({
-            lojaId: formData.lojaId,
-            grupoId: formData.grupoId
-          });
-          setFormData(prev => ({ ...prev, codigo: codigoGerado }));
-        } catch (error) {
-          console.error('Erro ao gerar código:', error);
-        }
-      }
-    };
-
-    gerarCodigoAutomatico();
-  }, [formData.grupoId, formData.lojaId, isEditMode]);
+  // #9.12: o código não é mais pré-gerado no cliente. O trigger
+  // trg_num_equipamento preenche codigo_interno no INSERT, a partir de
+  // numeracao_contadores. Mostrar um código antes de gravar significaria
+  // reservar numeração que um cancelamento desperdiçaria.
 
   useEffect(() => {
     // Selecionar primeira loja por padrão se houver
@@ -313,41 +299,10 @@ export default function NovoEquipamento() {
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Código obrigatório apenas para controle por SERIALIZADO
-    if (formData.tipoControle === 'SERIALIZADO' && !formData.codigo.trim()) {
-      newErrors.codigo = "Código é obrigatório para controle por série";
-    }
-
-    if (!formData.grupoId) {
-      newErrors.grupoId = "Grupo é obrigatório";
-    }
-
-    if (!formData.modeloId) {
-      newErrors.modeloId = "Modelo é obrigatório";
-    }
-
-    if (!formData.nome.trim()) {
-      newErrors.nome = "Nome/Descrição é obrigatório";
-    }
-
-    if (!formData.valorIndenizacao.trim() || parseMoneyBR(formData.valorIndenizacao) <= 0) {
-      newErrors.valorIndenizacao = "Valor de indenização é obrigatório";
-    }
-
-    if (!formData.lojaId) {
-      newErrors.lojaId = "Loja/Localização é obrigatória";
-    }
-
-    // Validar quantidade para controle por saldo/grupo
-    if (formData.tipoControle === 'SALDO') {
-      const quantidade = parseInt(formData.quantidade);
-      if (!quantidade || quantidade <= 0) {
-        newErrors.quantidade = "Quantidade é obrigatória para controle por saldo";
-      }
-    }
-
+    // #9.12: regras extraídas para equipamento-form-validacao.ts. `codigo` não é
+    // mais validado — é gerado pelo trigger no INSERT e não tem input editável,
+    // então exigi-lo travava o cadastro de SERIALIZADO sem caminho de correção.
+    const newErrors = validarEquipamentoForm(formData);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -444,15 +399,10 @@ export default function NovoEquipamento() {
           }
         }
 
-        // Gerar código automático com grupo
-        let codigoInterno = formData.codigo;
-        if (!codigoInterno && formData.grupoId) {
-          const codigoGerado = await gerarCodigo.mutateAsync({
-            lojaId: formData.lojaId,
-            grupoId: formData.grupoId
-          });
-          codigoInterno = codigoGerado;
-        }
+        // #9.12: codigo_interno vai vazio quando o usuário não informou um.
+        // A coluna tem DEFAULT '' e o trigger trg_num_equipamento substitui
+        // antes de gravar. Código digitado à mão é respeitado pelo trigger.
+        const codigoInterno = formData.codigo || '';
 
         // Mapear dados para o schema do Supabase
         const equipamentoData = {
@@ -667,7 +617,7 @@ export default function NovoEquipamento() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Formato: LA + Loja(3) + Grupo(2) + Sequencial(3)
+                    Formato: EQ-{'{loja}'}-{'{sequencial}'}, ex. EQ-001-0042
                   </p>
                 </div>
 

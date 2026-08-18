@@ -13,6 +13,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+// #9.5: o placeholder virou constante compartilhada. Consumir a constante em vez
+// de repetir o texto evita que este teste quebre de novo se ele mudar.
+import { PLACEHOLDER_BUSCA_EQUIPAMENTO } from '@/lib/equipamentos-utils';
 
 const criarTransferenciaMutateAsync = vi.fn().mockResolvedValue({ id: 't-1', numero: 1 });
 
@@ -79,7 +82,7 @@ beforeEach(() => {
 async function montarTransferenciaSerial() {
   render(<NovaTransferenciaModal open={true} onOpenChange={() => {}} />);
 
-  fireEvent.change(screen.getByPlaceholderText(/digite c[óo]digo interno/i), {
+  fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER_BUSCA_EQUIPAMENTO), {
     target: { value: 'RO-QA-SEC9' },
   });
 
