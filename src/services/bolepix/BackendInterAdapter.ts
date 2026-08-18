@@ -6,6 +6,24 @@ import {
   ListChargesFilters
 } from '@/types/bolepix';
 import { supabase } from '@/integrations/supabase/client';
+import { FunctionsHttpError } from '@supabase/supabase-js';
+
+/**
+ * Lê o campo `error` do corpo de uma resposta não-2xx da Edge Function.
+ * Devolve null quando não há corpo utilizável — HTML de gateway, corpo vazio,
+ * JSON sem o campo — para que o chamador caia no genérico em vez de estourar.
+ */
+async function lerErroDoCorpo(error: unknown): Promise<string | null> {
+  if (!(error instanceof FunctionsHttpError)) return null;
+  try {
+    const corpo = await error.context.json();
+    const mensagem = corpo?.error;
+    return typeof mensagem === 'string' && mensagem.trim() ? mensagem : null;
+  } catch {
+    // Corpo não-JSON (ex.: HTML 502 do gateway) ou já consumido.
+    return null;
+  }
+}
 
 export class BackendInterAdapter implements BolePixGateway {
   private lojaId: string;
@@ -27,7 +45,20 @@ export class BackendInterAdapter implements BolePixGateway {
       },
     });
 
-    if (error) throw new Error(`Erro na Edge Function: ${error.message}`);
+    if (error) {
+      // supabase.functions.invoke DESCARTA o corpo da resposta quando o status
+      // não é 2xx: error.message vira sempre "Edge Function returned a non-2xx
+      // status code". O motivo real — "Credenciais Inter não configuradas para
+      // esta loja" (404), "Sem acesso a esta loja" (403), "Apenas master/admin
+      // pode alterar credenciais bancárias" (403) — fica no corpo, acessível
+      // via error.context, que é a Response do fetch.
+      // Sem isto, NENHUMA mensagem útil do inter-proxy chega ao operador, e a
+      // tela mostra um genérico que não diz o que fazer.
+      const especifico = await lerErroDoCorpo(error);
+      // A mensagem específica vai crua para a tela: ela já é escrita para o
+      // operador. O prefixo genérico só sobra quando não há corpo legível.
+      throw new Error(especifico ?? `Erro na Edge Function: ${error.message}`);
+    }
     if (data?.error) throw new Error(data.error);
     return data;
   }

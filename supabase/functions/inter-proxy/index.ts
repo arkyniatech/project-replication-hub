@@ -29,16 +29,26 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    // getUser(jwt), não getClaims(jwt): o import acima está pinado em
+    // supabase-js@2.49.1, que traz @supabase/auth-js 2.68.0 — a ÚLTIMA versão
+    // sem getClaims (introduzido em auth-js 2.69.0). A chamada estourava com
+    // "supabase.auth.getClaims is not a function", devolvia 500 e derrubava
+    // TODA ação do Inter antes de qualquer verificação: emitir, consultar,
+    // cancelar, PDF, PIX e até salvar credencial. Como o throw acontecia aqui,
+    // o 404 "Credenciais Inter não configuradas para esta loja" lá embaixo era
+    // inalcançável, e o operador via só "non-2xx status code".
+    // getUser valida o JWT contra o servidor Auth e devolve os dois únicos
+    // campos que este handler usa (id e email), então a troca é 1:1.
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
       return new Response(JSON.stringify({ error: "Token inválido" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub;
-    if (isDemoEmail(claimsData.claims.email as string | undefined)) {
+    const userId = userData.user.id;
+    if (isDemoEmail(userData.user.email)) {
       return demoForbiddenResponse(corsHeaders);
     }
 
