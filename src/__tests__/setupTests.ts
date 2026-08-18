@@ -8,6 +8,18 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {};
 }
 
+// Mesmo caso do scrollIntoView: jsdom não implementa ResizeObserver, e o Radix
+// usa (via react-use-size) em Dialog/Switch. Sem o stub qualquer teste que
+// renderize um <Dialog> morre com "ResizeObserver is not defined" antes de
+// chegar a exercitar o componente. Buraco do jsdom, não comportamento mockado.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // Mock para console.error, se necessário, para evitar poluir a saída do teste
 const originalConsoleError = console.error;
 console.error = (...args) => {

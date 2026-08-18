@@ -8,24 +8,26 @@ import {
   BoletoExportRow,
   BolePixGateway
 } from '@/types/bolepix';
-import { MockInterAdapter } from '@/services/bolepix/MockInterAdapter';
 import { BackendInterAdapter } from '@/services/bolepix/BackendInterAdapter';
 
 interface BolePixState {
   // Config
   config: InterConfig;
-  useBackend: boolean;
-  
+
   // Webhook events
   webhookEvents: WebhookEvent[];
-  
-  // Gateway instance
-  gateway: BolePixGateway;
-  
+
+  // Gateway instance — sempre o backend real (inter-proxy). Não há mock.
+  gateway: BackendInterAdapter;
+
   // Actions
   setConfig: (config: Partial<InterConfig>) => void;
-  toggleBackend: (useBackend: boolean) => void;
-  
+  /**
+   * Aponta o gateway para a loja ativa. Precisa ser chamado antes de emitir:
+   * o inter-proxy exige loja_id e busca a credencial Inter por loja.
+   */
+  setGatewayLoja: (lojaId: string) => void;
+
   // Webhook management
   addWebhookEvent: (event: WebhookEvent) => void;
   markEventAsProcessed: (eventId: string) => void;
@@ -59,20 +61,21 @@ export const useBolePixStore = create<BolePixState>()(
     (set, get) => ({
       // Initial state
       config: createInitialConfig(),
-      useBackend: false,
       webhookEvents: [],
-      gateway: new MockInterAdapter(),
-      
+      gateway: new BackendInterAdapter(''),
+
       // Config actions
       setConfig: (newConfig) => set((state) => ({
         config: { ...state.config, ...newConfig }
       })),
-      
-      toggleBackend: (useBackend) => set(() => ({
-        useBackend,
-        gateway: useBackend ? new BackendInterAdapter('') : new MockInterAdapter()
-      })),
-      
+
+      setGatewayLoja: (lojaId) => {
+        // Muta a instância existente em vez de recriar: o adapter não guarda
+        // estado além do lojaId, e recriar dispararia re-render em todo
+        // consumidor de `gateway` a cada troca de unidade.
+        get().gateway.setLojaId(lojaId);
+      },
+
       // Webhook actions
       addWebhookEvent: (event) => set((state) => ({
         webhookEvents: [event, ...state.webhookEvents].slice(0, 100) // Keep last 100
@@ -218,9 +221,14 @@ export const useBolePixStore = create<BolePixState>()(
     }),
     {
       name: 'bolepix-storage',
+      // `useBackend` saiu do estado E do partialize. Quem já usou o sistema tem
+      // useBackend:false gravado em localStorage; como a chave não existe mais
+      // no estado, o merge do zustand simplesmente a ignora e ela morre no
+      // próximo save. Nenhuma migração de valor é necessária — e, mais
+      // importante, não há como um valor persistido reativar o mock, que não
+      // existe mais no bundle.
       partialize: (state) => ({
         config: state.config,
-        useBackend: state.useBackend,
         webhookEvents: state.webhookEvents
       })
     }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useBolePixStore } from '@/stores/bolePixStore';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { EmitChargePayload } from '@/types/bolepix';
 import { Loader2, CreditCard, QrCode } from 'lucide-react';
 
@@ -65,7 +66,17 @@ export function EmitirBolePixModal({
 }: EmitirBolePixModalProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { gateway, generateIdempotencyKey } = useBolePixStore();
+  const { gateway, generateIdempotencyKey, setGatewayLoja } = useBolePixStore();
+  const { lojaAtual } = useMultiunidade();
+
+  // O inter-proxy exige loja_id e resolve a credencial Inter por loja. Sem isso
+  // o proxy responde 400 "action e loja_id são obrigatórios", que apontaria
+  // para o lugar errado em vez de dizer que falta credencial.
+  useEffect(() => {
+    if (lojaAtual?.id) {
+      setGatewayLoja(lojaAtual.id);
+    }
+  }, [lojaAtual?.id, setGatewayLoja]);
 
   const form = useForm<EmitirFormData>({
     resolver: zodResolver(emitirSchema),
@@ -82,8 +93,17 @@ export function EmitirBolePixModal({
   });
 
   const onSubmit = async (data: EmitirFormData) => {
+    if (!lojaAtual?.id) {
+      toast({
+        title: "Selecione uma unidade",
+        description: "A cobrança é emitida pela conta Inter da unidade ativa.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
-    
+
     try {
       const payload: EmitChargePayload = {
         valor: data.valor,
@@ -136,11 +156,14 @@ export function EmitirBolePixModal({
       });
       
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao emitir BolePix:', error);
+      // Propaga a mensagem real do inter-proxy. O genérico "Tente novamente"
+      // escondia justamente o caso que importa: "Credenciais Inter não
+      // configuradas para esta loja" — repetir a tentativa não resolveria nada.
       toast({
         title: "Erro ao emitir",
-        description: "Não foi possível processar a solicitação. Tente novamente.",
+        description: error?.message || "Não foi possível processar a solicitação.",
         variant: "destructive",
       });
     } finally {
