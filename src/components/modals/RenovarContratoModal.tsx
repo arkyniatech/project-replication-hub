@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUserName } from "@/hooks/useCurrentUserName";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
+import { useMultiunidade } from "@/hooks/useMultiunidade";
 
 // Helper para formatar datas sem conversão de timezone
 const formatarDataSemTimezone = (dataISO: string): string => {
@@ -60,6 +61,11 @@ export default function RenovarContratoModal({
   const { addHistoricoEvent } = useSupabaseEquipamentos();
   const usuarioNome = useCurrentUserName();
   const { user } = useAuth();
+  const { lojaAtual } = useMultiunidade();
+
+  // Ordem: loja do contrato → loja ativa da sessão → nada. Nunca um literal:
+  // loja_id é UUID no banco e o antigo `|| '1'` só produzia consulta inválida.
+  const lojaIdEfetiva = contrato?.lojaId || lojaAtual?.id;
 
   // Calcular nova data de início (mesma data de término - diárias de 24h)
   React.useEffect(() => {
@@ -246,8 +252,10 @@ export default function RenovarContratoModal({
 
     console.log(`💰 Valor total calculado (antes da política): R$ ${valorTotal.toFixed(2)}`);
 
-    // Aplicar política se configurada
-    if (contrato.cliente?.politicaComercial && contrato.cliente.aplicarPoliticaAuto !== false && itensComPreco.length > 0) {
+    // Aplicar política se configurada. Exige loja conhecida: a política
+    // precifica por loja, e antes o `|| '1'` fazia esse ramo rodar com um id
+    // inventado em vez de cair no valor de tabela.
+    if (lojaIdEfetiva && contrato.cliente?.politicaComercial && contrato.cliente.aplicarPoliticaAuto !== false && itensComPreco.length > 0) {
       try {
         console.log('🎯 Aplicando política comercial:', contrato.cliente.politicaComercial);
         const resultado = aplicarPolitica({
@@ -256,7 +264,10 @@ export default function RenovarContratoModal({
             politica: contrato.cliente.politicaComercial,
             aplicarAuto: contrato.cliente.aplicarPoliticaAuto,
           },
-          lojaId: contrato.lojaId || '1',
+          // Sem fallback: loja_id é UUID no banco, e o antigo `|| '1'` mandava
+          // um id inválido para a política comercial — que precifica POR loja.
+          // Ordem: loja do contrato → loja ativa da sessão.
+          lojaId: lojaIdEfetiva,
           periodoDias: parseInt(periodo) as 1 | 7 | 14 | 21 | 28,
           itens: itensComPreco,
           dataEventoISO: novaDataInicio || new Date().toISOString().split('T')[0],
@@ -272,7 +283,7 @@ export default function RenovarContratoModal({
 
     console.log(`💰 Valor final (sem política): R$ ${valorTotal}`);
     return { valor: valorTotal, politica: null };
-  }, [contrato, periodo, numPeriodos, novaDataInicio, itensSelecionados]);
+  }, [contrato, periodo, numPeriodos, novaDataInicio, itensSelecionados, lojaIdEfetiva]);
 
   // Atualizar estado da política quando o valor mudar
   React.useEffect(() => {

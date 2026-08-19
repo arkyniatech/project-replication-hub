@@ -16,6 +16,7 @@ import { useContratosStore } from "@/stores/contratosStore";
 import { IntegrationAlerts } from "../contratos/IntegrationAlerts";
 import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
 import { formatDateBR } from "@/lib/date-utils";
+import { useMultiunidade } from "@/hooks/useMultiunidade";
 
 interface ItemDevolucao {
   id: string;
@@ -56,6 +57,13 @@ export default function DevolucaoModal({
   const { toast } = useToast();
   const { syncFromStorage } = useContratosStore();
   const { devolverContrato } = useSupabaseContratos();
+  const { lojaAtual } = useMultiunidade();
+
+  // Sem fallback: loja_id é UUID no banco. O antigo `|| '1'` não corrompia
+  // nada (o Postgres recusa a string antes de gravar, 22P02), mas mandava um
+  // id inválido para o barramento de integração sem ninguém perceber.
+  // Ordem: loja do contrato → loja ativa da sessão → nada.
+  const lojaIdEfetiva = contrato?.lojaId || lojaAtual?.id;
 
   // Inicializar data/hora atual
   useEffect(() => {
@@ -300,14 +308,20 @@ export default function DevolucaoModal({
         return itemContrato?.equipamentoId || item.id;
       });
 
-      import('@/utils/contract-integrations').then(({ emitItemReturn }) => {
-        emitItemReturn(
-          String(contrato.id),
-          contrato.numero,
-          contrato.lojaId || '1',
-          equipamentoIds
-        );
-      });
+      // Sem loja não dá para dizer a quem o evento pertence: emitir com id
+      // inventado é pior que não emitir.
+      if (lojaIdEfetiva) {
+        import('@/utils/contract-integrations').then(({ emitItemReturn }) => {
+          emitItemReturn(
+            String(contrato.id),
+            contrato.numero,
+            lojaIdEfetiva,
+            equipamentoIds
+          );
+        });
+      } else {
+        console.warn('Devolução sem loja definida: evento de integração não emitido', contrato.id);
+      }
 
       // Atualizar agenda de disponibilidade
       if (contrato.lojaId) {
@@ -353,15 +367,20 @@ export default function DevolucaoModal({
           {contrato && (
             <>
               {/* Alertas de Integração */}
-              <IntegrationAlerts
-                contratoId={String(contrato.id)}
-                contratoNumero={contrato.numero}
-                lojaId={contrato.lojaId || '1'}
-                equipamentoIds={itensSelecionados.map(id => {
-                  const item = contrato.itens.find(i => i.id === id);
-                  return item?.equipamentoId || id;
-                })}
-              />
+              {/* Os alertas consultam disponibilidade POR loja. Sem loja
+                  conhecida a consulta não tem significado — some o bloco em vez
+                  de perguntar por um id inventado. */}
+              {lojaIdEfetiva && (
+                <IntegrationAlerts
+                  contratoId={String(contrato.id)}
+                  contratoNumero={contrato.numero}
+                  lojaId={lojaIdEfetiva}
+                  equipamentoIds={itensSelecionados.map(id => {
+                    const item = contrato.itens.find(i => i.id === id);
+                    return item?.equipamentoId || id;
+                  })}
+                />
+              )}
 
               <Card>
                 <CardContent className="p-4">
