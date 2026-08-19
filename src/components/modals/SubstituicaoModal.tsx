@@ -240,15 +240,20 @@ export default function SubstituicaoModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      {/* #16.4: mesma causa do NovoAditivoModal — max-h/overflow no
+          DialogContent (que é display:grid) competiam com o DialogFooter
+          sticky, fazendo o footer flutuar sobre o campo Observações em
+          telas de 768px de altura. Scroll movido para o wrapper do corpo;
+          header e footer ficam fixos fora dele. */}
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
             Substituir Item do Contrato
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto p-6">
           {/* Item Original */}
           <div>
             <Label className="text-sm font-medium">Item a ser substituído</Label>
@@ -376,7 +381,7 @@ export default function SubstituicaoModal({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="static mx-0 mb-0 px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancelar
           </Button>
