@@ -37,6 +37,15 @@
 --
 -- AS 7 VERIFICAÇÕES EXISTENTES: nada é apagado nem invalidado. A tabela nova
 -- começa vazia e whatsapp_verifications só ganha uma coluna nullable.
+--
+-- COMPORTAMENTO DELIBERADO — bloqueio que se renova: a tentativa é gravada
+-- ANTES da checagem da janela, então quem já está bloqueado e insiste
+-- continua contando tentativas acima do teto, e o bloqueio passa a valer por
+-- 15 min a partir da ÚLTIMA tentativa, não da primeira. Para um atacante é o
+-- comportamento correto (cada retry reinicia o próprio castigo). Para um
+-- usuário legítimo que fica reenviando o código errado, isso prolonga a
+-- própria espera. Não mude sem decisão explícita — quem mexer aqui precisa
+-- saber que é intencional, não um bug.
 
 -- ---------------------------------------------------------------------
 -- 1. Janela deslizante de tentativas, por telefone.
@@ -104,7 +113,7 @@ COMMENT ON COLUMN public.whatsapp_verifications.consumed_at IS
 -- SECURITY DEFINER porque a tabela está revogada de authenticated: a função
 -- roda como o dono. Chamada exclusivamente pela Edge Function (service_role);
 -- por isso NÃO recebe GRANT de volta para authenticated — mesmo critério da
--- 20260815120000, que fechou a superfície de RPC do repo.
+-- 20260815200000, que fechou a superfície de RPC do repo.
 --
 -- Retorno é um único JSONB com um campo `status` que a função traduz para o
 -- HTTP. Assim a assinatura chamada pelo front NÃO muda: quem fala com o
