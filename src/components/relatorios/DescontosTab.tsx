@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Tag, TagsIcon } from "lucide-react";
+import { Download, Tag, TagsIcon, RefreshCw } from "lucide-react";
 import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,28 @@ const brl = (n: number) => `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigi
 export function DescontosTab({ periodo }: DescontosTabProps) {
   const { toast } = useToast();
   const { lojaAtual } = useMultiunidade();
-  const { contratos = [], isLoading } = useSupabaseContratos(lojaAtual?.id);
+  const { contratos = [], aditivos = [], isLoading } = useSupabaseContratos(lojaAtual?.id);
+
+  // #14.3: "Cheio" era só o `else` de "não teve desconto" — a tela nunca
+  // perguntava se houve renovação, então todo contrato renovado sem desconto
+  // era rotulado como venda cheia. A informação já chegava aqui por dois
+  // caminhos independentes; o que faltava era consultá-la.
+  const contratosRenovados = useMemo(() => {
+    const ids = new Set<string>();
+    // Caminho 1: o aditivo vinculado ao contrato (já buscado pelo hook).
+    (aditivos || []).forEach((a: any) => {
+      if (a?.contrato_id) ids.add(String(a.contrato_id));
+    });
+    // Caminho 2: data_inicio_original preservada por trigger na renovação
+    // (#52) — a data_inicio passa a valer o período vigente e a original
+    // guarda o nascimento do contrato. Diferença entre as duas = renovado.
+    (contratos || []).forEach((c: any) => {
+      if (c?.data_inicio_original && c.data_inicio_original !== c.data_inicio) {
+        ids.add(String(c.id));
+      }
+    });
+    return ids;
+  }, [contratos, aditivos]);
 
   // Uma venda (contrato) teve desconto quando o valor final ficou abaixo do
   // valor de tabela dos itens + frete. O desconto da política comercial é
@@ -41,6 +62,7 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
         const desconto = Math.max(0, valorTabela - valorFinal);
         const temDesconto = desconto > 0.01;
         const descontoPct = valorTabela > 0 ? (desconto / valorTabela) * 100 : 0;
+        const ehRenovacao = contratosRenovados.has(String(c.id));
         return {
           id: c.id,
           numero: c.numero,
@@ -51,16 +73,21 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
           descontoPct,
           valorFinal,
           temDesconto,
+          ehRenovacao,
         };
       })
       .sort((a, b) => (a.data < b.data ? 1 : -1));
-  }, [contratos, periodo]);
+  }, [contratos, periodo, contratosRenovados]);
 
-  const comDesconto = linhas.filter(l => l.temDesconto);
-  const semDesconto = linhas.filter(l => !l.temDesconto);
+  // Renovação sai da conta de "venda cheia": não é uma venda nova sem
+  // desconto, é a continuação de uma venda que já foi contada antes.
+  const comDesconto = linhas.filter(l => l.temDesconto && !l.ehRenovacao);
+  const renovacoes = linhas.filter(l => l.ehRenovacao);
+  const semDesconto = linhas.filter(l => !l.temDesconto && !l.ehRenovacao);
   const totalDescontoConcedido = comDesconto.reduce((s, l) => s + l.desconto, 0);
   const totalComDesconto = comDesconto.reduce((s, l) => s + l.valorFinal, 0);
   const totalSemDesconto = semDesconto.reduce((s, l) => s + l.valorFinal, 0);
+  const totalRenovacoes = renovacoes.reduce((s, l) => s + l.valorFinal, 0);
 
   const exportarCSV = () => {
     const linhasCSV = [
@@ -68,7 +95,7 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
       ...linhas.map(l =>
         [l.numero, l.cliente, formatDateBR(l.data), l.valorTabela.toFixed(2),
          l.desconto.toFixed(2), l.descontoPct.toFixed(1), l.valorFinal.toFixed(2),
-         l.temDesconto ? 'COM DESCONTO' : 'SEM DESCONTO'].join(',')
+         l.ehRenovacao ? 'RENOVACAO' : l.temDesconto ? 'COM DESCONTO' : 'SEM DESCONTO'].join(',')
       ),
     ].join('\n');
     const blob = new Blob([linhasCSV], { type: 'text/csv' });
@@ -91,7 +118,7 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
         Período: {formatDateBR(periodo.inicio)} — {formatDateBR(periodo.fim)} · {linhas.length} venda(s)
       </p>
 
-      {/* Resumo com/sem desconto */}
+      {/* Resumo com/sem desconto + renovações */}
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-border/50 p-3 bg-amber-50/50">
           <div className="flex items-center gap-1.5 text-amber-700">
@@ -111,6 +138,20 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
           <p className="text-[11px] text-muted-foreground">Faturado: {brl(totalSemDesconto)}</p>
         </div>
       </div>
+
+      {/* Renovações ficam num bucket próprio: não são venda nova sem desconto,
+          são a continuação de uma venda já contada. Misturá-las em "Cheio"
+          inflava a base de comparação de política comercial (#14.3). */}
+      {renovacoes.length > 0 && (
+        <div className="rounded-lg border border-border/50 p-3 bg-sky-50/50">
+          <div className="flex items-center gap-1.5 text-sky-700">
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="text-xs font-semibold">Renovações</span>
+          </div>
+          <p className="text-lg font-bold text-foreground mt-1">{renovacoes.length}</p>
+          <p className="text-[11px] text-muted-foreground">Faturado: {brl(totalRenovacoes)}</p>
+        </div>
+      )}
 
       <Button size="sm" variant="outline" className="w-full h-8 text-xs" onClick={exportarCSV} disabled={linhas.length === 0}>
         <Download className="w-3 h-3 mr-1.5" /> Exportar CSV
@@ -145,8 +186,11 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
                   </TableCell>
                   <TableCell className="text-xs text-right font-medium">{brl(l.valorFinal)}</TableCell>
                   <TableCell>
-                    <Badge variant={l.temDesconto ? 'default' : 'secondary'} className="text-[10px]">
-                      {l.temDesconto ? 'Desconto' : 'Cheio'}
+                    <Badge
+                      variant={l.ehRenovacao ? 'outline' : l.temDesconto ? 'default' : 'secondary'}
+                      className="text-[10px]"
+                    >
+                      {l.ehRenovacao ? 'Renovação' : l.temDesconto ? 'Desconto' : 'Cheio'}
                     </Badge>
                   </TableCell>
                 </TableRow>
