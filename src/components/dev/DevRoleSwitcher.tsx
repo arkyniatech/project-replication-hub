@@ -14,9 +14,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function DevRoleSwitcher() {
-  const { perfilAtivo, isLoading } = useRbac();
+  const { perfilAtivo, isResolvendoPermissoes } = useRbac();
 
-  if (isLoading) {
+  if (isResolvendoPermissoes) {
     return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
   }
 

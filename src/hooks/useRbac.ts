@@ -159,7 +159,7 @@ export function useRbac(): RbacHookReturn {
     return claims.every(claim => can(claim));
   };
 
-  const perfilAtivo = userRoles?.[0]?.role || 'vendedor';
+  const perfilAtivo = userRoles?.[0]?.role ?? '';
 
   return {
     can,
