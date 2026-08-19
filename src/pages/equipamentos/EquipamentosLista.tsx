@@ -51,10 +51,13 @@ export default function EquipamentosLista() {
   const navigate = useNavigate();
   const { lojaAtual, lojas } = useMultiunidade();
   
-  // #26b: a lista mostrava só itens com loja_atual_id === lojaAtual, enquanto
-  // o catálogo mostrava todos — gerando relato "lista só mostra 059, mas
-  // catálogo mostra 3". Buscamos sem filtro de loja e exibimos badge de loja.
-  const { equipamentos, isLoading: loadingEquipamentos } = useSupabaseEquipamentos();
+  // #16.5: a chamada sem argumento pulava o filtro por loja DENTRO do hook
+  // (que só roda `if (lojaId)`), então a lista trazia equipamentos de todas as
+  // lojas enquanto os KPIs abaixo filtravam por conta própria — contador
+  // zerava, lista não. Passar lojaAtual?.id alinha as duas fontes.
+  // O badge de loja introduzido em #26b continua exibido: ele resolve a
+  // confusão "lista x catálogo" sem precisar vazar outras lojas na lista.
+  const { equipamentos, isLoading: loadingEquipamentos } = useSupabaseEquipamentos(lojaAtual?.id);
   const { grupos } = useSupabaseGrupos();
   const { modelos } = useSupabaseModelos();
   // #26a: o KPI "Disponível" não descontava contratos ATIVO/AGUARDANDO_ENTREGA
@@ -99,7 +102,11 @@ export default function EquipamentosLista() {
     equipamentos.forEach(eq => {
       if (!eq.status_global) return;
       // Restringe KPIs à loja atual para evitar contagem multi-loja inflada.
-      if (lojaAtual && eq.loja_atual_id !== lojaAtual.id) return;
+      // Só vale para SERIALIZADO: um item SALDO mora em várias lojas ao mesmo
+      // tempo e é filtrado por saldos_por_loja (é o que o hook faz). Aplicar
+      // loja_atual_id nele sumia do contador um item que a lista mostrava —
+      // a mesma divergência do 16.5, invertida.
+      if (eq.tipo !== 'SALDO' && lojaAtual && eq.loja_atual_id !== lojaAtual.id) return;
 
       // Para tipo SALDO, usar qtdDisponivel para disponível e ocupação para outros
       if (eq.tipo === 'SALDO' && lojaAtual) {
@@ -131,7 +138,9 @@ export default function EquipamentosLista() {
   const filteredEquipamentos = useMemo(() => {
     let filtered = equipamentos;
 
-    // Filtro por loja ativa já aplicado no hook useSupabaseEquipamentos
+    // Filtro por loja ativa aplicado no hook useSupabaseEquipamentos, que
+    // recebe lojaAtual?.id acima. Não refiltrar aqui: SALDO é filtrado por
+    // saldos_por_loja, e repetir a regra por loja_atual_id sumiria com eles.
 
     // Filtros de busca
     if (searchTerm) {
