@@ -34,12 +34,14 @@ interface VeiculosState extends FrotaEstado {
   hydrate: () => Promise<void>;
 
   // Actions - Veículos
-  addVeiculo: (veiculo: Omit<Veiculo, 'id' | 'criado_emISO'>) => void;
+  // Devolve o resultado da gravação no servidor: o formulário só confirma
+  // sucesso ao usuário quando o Supabase de fato aceitou a linha.
+  addVeiculo: (veiculo: Omit<Veiculo, 'id' | 'criado_emISO'>) => Promise<{ ok: boolean; error?: any }>;
   updateVeiculo: (id: string, veiculo: Partial<Veiculo>) => void;
   removeVeiculo: (id: string) => void;
-  getVeiculosByLoja: (lojaId: string) => Veiculo[];
+  getVeiculosByLoja: (lojaId: string | null | undefined) => Veiculo[];
   isPlacaUnique: (placa: string, excludeId?: string) => boolean;
-  isCodigoInternoUnique: (codigo: string, lojaId: string, excludeId?: string) => boolean;
+  isCodigoInternoUnique: (codigo: string, lojaId: string | null | undefined, excludeId?: string) => boolean;
   updateOdometro: (veiculoId: string, novoKm: number) => void;
 
   // Actions - Postos
@@ -143,14 +145,14 @@ export const useVeiculosStore = create<VeiculosState>()(
       },
 
       // Veículos
-      addVeiculo: (veiculo) => {
+      addVeiculo: async (veiculo) => {
         const novo: Veiculo = {
           ...veiculo,
           id: crypto.randomUUID(),
           criado_emISO: new Date().toISOString(),
         };
         set((state) => ({ veiculos: [...state.veiculos, novo] }));
-        frotaUpsert('veiculos', novo);
+        return frotaUpsert('veiculos', novo);
       },
 
       updateVeiculo: (id, updates) => {

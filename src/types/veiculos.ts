@@ -15,7 +15,7 @@ export interface Veiculo {
   combustivel: TipoCombustivel;
   cap_tanque_l: number;
   odometro_atual: number;
-  loja_id: string;
+  loja_id: string | null;
   status: StatusVeiculo;
   motorista_atual_id?: string;
   observacao?: string;

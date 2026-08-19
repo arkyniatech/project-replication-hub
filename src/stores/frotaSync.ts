@@ -52,16 +52,24 @@ export const FROTA_TABELAS = {
 
 export type FrotaEntidade = keyof typeof FROTA_TABELAS;
 
-export function frotaUpsert(entidade: FrotaEntidade, item: any, onConflict = 'id') {
+/**
+ * Devolve a Promise em vez de disparar fire-and-forget: quem precisa saber se
+ * o servidor aceitou (ex.: addVeiculo) pode aguardar. Quem não aguarda (os
+ * outros call sites) continua funcionando igual — Promise não tratada não
+ * quebra nada.
+ */
+export function frotaUpsert(entidade: FrotaEntidade, item: any, onConflict = 'id'): Promise<{ ok: boolean; error?: any }> {
   const { tabela, to } = FROTA_TABELAS[entidade];
-  void db()
+  return db()
     .from(tabela)
     .upsert(to(item), { onConflict })
     .then(({ error }: { error: any }) => {
       if (error) {
         console.error(`frota: falha ao salvar em ${tabela}:`, error);
         toast.error(`Não foi possível salvar no servidor (${tabela}): ${error.message}`);
+        return { ok: false, error };
       }
+      return { ok: true };
     });
 }
 

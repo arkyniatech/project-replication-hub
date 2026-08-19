@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useVeiculosStore } from '@/stores/veiculosStore';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { 
   validatePlaca, 
   validateAno, 
@@ -64,6 +65,7 @@ export function VeiculoForm({ open, onOpenChange, veiculoId, onSuccess }: Veicul
     isCodigoInternoUnique,
     setVeiculoOleo
   } = useVeiculosStore();
+  const { lojaAtual } = useMultiunidade();
 
   const form = useForm<VeiculoFormData>({
     resolver: zodResolver(veiculoSchema),
@@ -124,21 +126,18 @@ export function VeiculoForm({ open, onOpenChange, veiculoId, onSuccess }: Veicul
   }, [open, isEditing, veiculoId, veiculos, form]);
 
   const validateUniqueFields = (data: VeiculoFormData): string | null => {
-    // Mock da loja ativa
-    const lojaAtiva = '1';
-
     if (!isPlacaUnique(data.placa, veiculoId || undefined)) {
       return 'Esta placa já está cadastrada';
     }
 
-    if (!isCodigoInternoUnique(data.codigo_interno, lojaAtiva, veiculoId || undefined)) {
+    if (!isCodigoInternoUnique(data.codigo_interno, lojaAtual?.id, veiculoId || undefined)) {
       return 'Este código interno já está cadastrado nesta loja';
     }
 
     return null;
   };
 
-  const onSubmit = (data: VeiculoFormData) => {
+  const onSubmit = async (data: VeiculoFormData) => {
     const validationError = validateUniqueFields(data);
     if (validationError) {
       toast.error(validationError);
@@ -167,11 +166,11 @@ export function VeiculoForm({ open, onOpenChange, veiculoId, onSuccess }: Veicul
         }
 
         toast.success('Veículo atualizado com sucesso!');
+        onSuccess();
       } else {
-        // Mock da loja ativa
-        const lojaAtiva = '1';
-
-        addVeiculo({
+        // Nunca inventar loja: uuid real da loja ativa, ou NULL (a coluna
+        // aceita). Nunca um literal como '1' — já causou 22P02 no servidor.
+        const resultado = await addVeiculo({
           placa: data.placa.toUpperCase(),
           codigo_interno: data.codigo_interno.toUpperCase(),
           fabricante: data.fabricante,
@@ -182,15 +181,19 @@ export function VeiculoForm({ open, onOpenChange, veiculoId, onSuccess }: Veicul
           combustivel: data.combustivel,
           cap_tanque_l: data.cap_tanque_l,
           odometro_atual: data.odometro_atual,
-          loja_id: lojaAtiva,
+          loja_id: lojaAtual?.id ?? null,
           status: 'OPERANDO',
           observacao: data.observacao,
         });
 
-        toast.success('Veículo cadastrado com sucesso!');
+        if (resultado.ok) {
+          toast.success('Veículo cadastrado com sucesso!');
+          onSuccess();
+        }
+        // Se falhou, frotaUpsert já mostrou o toast de erro — o veículo fica
+        // no cache local (otimista) e o drawer permanece aberto para o
+        // usuário decidir, em vez de fechar como se tivesse dado certo.
       }
-
-      onSuccess();
     } catch (error) {
       toast.error('Erro ao salvar veículo');
     }
