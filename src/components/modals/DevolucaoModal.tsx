@@ -15,6 +15,7 @@ import { calcularEncerramentoSemProrata, precoTabela } from "@/lib/contratos-v2-
 import { useContratosStore } from "@/stores/contratosStore";
 import { IntegrationAlerts } from "../contratos/IntegrationAlerts";
 import { useSupabaseContratos } from "@/hooks/useSupabaseContratos";
+import { formatDateBR } from "@/lib/date-utils";
 
 interface ItemDevolucao {
   id: string;
@@ -375,7 +376,12 @@ export default function DevolucaoModal({
                     </div>
                     <div>
                       <p className="font-medium">Vigência:</p>
-                      <p>{new Date(contrato.dataInicio).toLocaleDateString('pt-BR')} - {new Date(contrato.dataFim).toLocaleDateString('pt-BR')}</p>
+                      {/* #16.2: new Date('YYYY-MM-DD') vira meia-noite UTC e
+                          em UTC-3 o toLocaleDateString rende o dia ANTERIOR —
+                          a tela mostrava 10/07–07/08 para um contrato
+                          11/07–08/08. formatDateBR lê os componentes da data
+                          sem passar por UTC (mesma saída do Renovar e do PDF). */}
+                      <p>{formatDateBR(contrato.dataInicio)} - {formatDateBR(contrato.dataFim)}</p>
                     </div>
                       <div>
                         <p className="font-medium">Tipo de Devolução:</p>

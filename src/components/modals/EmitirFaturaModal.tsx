@@ -9,6 +9,7 @@ import { useSupabaseFaturas } from "@/hooks/useSupabaseFaturas";
 import { useSupabaseTitulos } from "@/hooks/useSupabaseTitulos";
 import { useToast } from "@/hooks/use-toast";
 import { Contrato, ItemFatura } from "@/types";
+import { formatDateBR } from "@/lib/date-utils";
 import { FaturaPreviewDrawer } from "@/components/faturamento/FaturamentoTimelineDrawer";
 import {
   AlertDialog,
@@ -136,8 +137,11 @@ export default function EmitirFaturaModal({
         // Formatar período com datas se disponível
         const periodoFormatado = (() => {
           if (contrato.dataInicio && contrato.dataFim) {
-            const dataInicio = new Date(contrato.dataInicio).toLocaleDateString('pt-BR');
-            const dataFim = new Date(contrato.dataFim).toLocaleDateString('pt-BR');
+            // #16.2: new Date('YYYY-MM-DD') é meia-noite UTC e em UTC-3 volta o
+            // dia anterior. Aqui o estrago é maior que numa tela de leitura: a
+            // data entra na DESCRIÇÃO do item faturado e chega ao cliente.
+            const dataInicio = formatDateBR(contrato.dataInicio);
+            const dataFim = formatDateBR(contrato.dataFim);
             return `${dataInicio} a ${dataFim}`;
           }
           return item.periodo === 'mensal' ? 'Mensal' : item.periodo === 'semanal' ? 'Semanal' : 'Diário';
