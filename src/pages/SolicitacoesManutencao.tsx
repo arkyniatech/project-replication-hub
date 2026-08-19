@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useSupabaseSolicitacoes } from '@/hooks/useSupabaseSolicitacoes';
 import { useSolicitacoesRealtime } from '@/hooks/useSolicitacoesRealtime';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { SolicitacaoModal } from '@/components/solicitacoes/SolicitacaoModal';
 import { SolicitacaoDetalhe } from '@/components/solicitacoes/SolicitacaoDetalhe';
 import {
@@ -27,8 +28,8 @@ export default function SolicitacoesManutencao() {
   const [isDetalheOpen, setIsDetalheOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | undefined>();
 
-  // Assumir loja ativa (em produção, pegar do contexto de autenticação)
-  const lojaAtiva = 'loja-mock-id';
+  const { lojaAtual } = useMultiunidade();
+  const lojaAtiva = lojaAtual?.id;
 
   const { solicitacoes, isLoading, error } = useSupabaseSolicitacoes({
     loja_id: lojaAtiva,
@@ -63,6 +64,16 @@ export default function SolicitacoesManutencao() {
     setIsDetalheOpen(false);
     setSelectedId(undefined);
   };
+
+  if (!lojaAtiva) {
+    return (
+      <div className="p-6">
+        <div className="rounded-lg bg-muted p-4 text-muted-foreground">
+          Selecione uma loja para ver as solicitações de manutenção.
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
