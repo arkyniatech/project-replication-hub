@@ -177,12 +177,18 @@ export default function RegistrarRecebimentoModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        {/* #16.4: mesma causa do NovoAditivoModal/SubstituicaoModal/
+            EmitirFaturaModal — max-h/overflow no DialogContent (display:
+            grid) competiam com o DialogFooter sticky. Não reproduz em
+            1366x768 com este formulário, mas reproduz em 1366x600
+            (confirmado, cobre Valor Líquido/Observações). Corrigido
+            preventivamente com a mesma técnica. */}
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle>Registrar Recebimento</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto p-6">
           {/* Informações do título */}
           <Card>
             <CardContent className="p-4">
@@ -313,7 +319,7 @@ export default function RegistrarRecebimentoModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="static mx-0 mb-0 px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
