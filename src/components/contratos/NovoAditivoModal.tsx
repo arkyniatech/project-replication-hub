@@ -162,15 +162,22 @@ export default function NovoAditivoModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      {/* #16.4: max-h/overflow ficavam no MESMO elemento que o DialogFooter
+          sticky (dialog.tsx usa display:grid nesse elemento), então o
+          sticky se ancorava ao grid container rolável inteiro em vez do
+          viewport visível do modal — o footer "flutuava" sobre o meio do
+          formulário em telas de 768px de altura. Tirar o overflow do
+          DialogContent e colocá-lo só no wrapper do corpo deixa header e
+          footer fixos fora da área que rola. */}
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
             {isEdicao ? 'Editar Aditivo' : 'Novo Aditivo Contratual'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto p-6">
           {/* Informações do Contrato */}
           <Card>
             <CardContent className="p-4">
@@ -324,7 +331,7 @@ export default function NovoAditivoModal({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="static mx-0 mb-0 px-6 py-4">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

@@ -302,14 +302,21 @@ export default function EmitirFaturaModal({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      {/* #16.4: mesma causa do NovoAditivoModal/SubstituicaoModal — max-h/
+          overflow no DialogContent (display:grid) competiam com o
+          DialogFooter sticky. Com poucos itens o efeito é pequeno demais
+          para aparecer em 1366x768, mas reproduz com mais itens ou telas
+          mais baixas (confirmado em 1366x600). Corrigido preventivamente
+          com a mesma técnica: scroll no wrapper do corpo, header/footer
+          fixos fora dele. */}
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             🧾 Emitir Fatura
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto p-6">
           {contrato && (
             <Card>
               <CardContent className="p-4">
@@ -453,7 +460,7 @@ export default function EmitirFaturaModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="static mx-0 mb-0 px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>

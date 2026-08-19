@@ -6,9 +6,11 @@ import { DemoBanner } from "@/components/layout/DemoBanner";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { ShortcutsHelp } from "@/components/search/ShortcutsHelp";
 import { SelecaoLojaModal } from "@/components/multiunidade/SelecaoLojaModal";
+import { MobileNav } from "@/components/layout/MobileNav";
 import { useNavRail } from "@/hooks/useNavRail";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useMultiunidade } from "@/hooks/useMultiunidade";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { enableDemoMode, disableDemoMode, isDemoEmail } from "@/lib/demoMode";
 import { useState, useEffect, useRef } from "react";
@@ -18,6 +20,7 @@ export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [modalLojaOpen, setModalLojaOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { user } = useAuth();
   const isDemo = isDemoEmail(user?.email);
 
@@ -28,6 +31,7 @@ export function AppShell() {
   
   const railRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const isMdUp = !useIsMobile();
   
   const {
     isExpanded,
@@ -118,23 +122,32 @@ export function AppShell() {
         onCollapse={collapsePanel}
       />
 
-      {/* Main Content Area - Adjusts when sidebar is pinned */}
-      <div 
-        className="flex flex-col transition-all duration-300 ease-in-out" 
-        style={{ 
-          marginLeft: isPinned ? '344px' : '64px', 
-          width: isPinned ? 'calc(100% - 344px)' : 'calc(100% - 64px)' 
+      {/* Main Content Area - Adjusts when sidebar is pinned.
+          #16.3: o marginLeft/width era incondicional (sempre 64px/344px),
+          somado à rail "fixed" sem breakpoint — em telas pequenas isso
+          forçava scroll horizontal em todo o app, inclusive nas duas telas
+          desenhadas para celular (Portal do Motorista, Portal RH). Abaixo
+          de md a rail não ocupa espaço (vira Sheet via MobileNav), então o
+          conteúdo não deve reservar margem para ela. */}
+      <div
+        className="flex flex-col w-full md:w-auto transition-all duration-300 ease-in-out"
+        style={{
+          marginLeft: isMdUp ? (isPinned ? '344px' : '64px') : undefined,
+          width: isMdUp ? (isPinned ? 'calc(100% - 344px)' : 'calc(100% - 64px)') : undefined
         }}
       >
         {isDemo && <DemoBanner />}
-        <TopBar 
+        <TopBar
           onOpenSearch={() => setSearchOpen(true)}
           onOpenHelp={() => setHelpOpen(true)}
+          onOpenMobileNav={() => setMobileNavOpen(true)}
         />
-        <main className="flex-1 px-6 pt-3 pb-6">
+        <main className="flex-1 px-4 md:px-6 pt-3 pb-6 overflow-x-hidden">
           <Outlet />
         </main>
       </div>
+
+      <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
 
       {/* Modals & Overlays */}
       <GlobalSearch 
