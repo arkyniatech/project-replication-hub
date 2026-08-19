@@ -308,8 +308,8 @@ export function CCWizard({ isOpen, onClose, initialFilters }: CCWizardProps) {
                         </SelectTrigger>
                   <SelectContent>
                     {categorias.map(cat => (
-                      <SelectItem key={cat.codigo} value={cat.codigo}>
-                        {cat.codigo} - {cat.descricao}
+                      <SelectItem key={cat.id} value={cat.nome}>
+                        {cat.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
