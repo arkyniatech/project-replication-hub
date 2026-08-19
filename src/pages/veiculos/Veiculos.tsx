@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { useVeiculosStore } from '@/stores/veiculosStore';
+import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { VeiculoForm } from '@/components/veiculos/VeiculoForm';
 import { FleetKPICards } from '@/components/veiculos/FleetKPICards';
 import { FleetGrid } from '@/components/veiculos/FleetGrid';
@@ -59,8 +60,8 @@ export default function Veiculos() {
     setShowForm(true);
   };
 
-  // Mock da loja ativa - em produção viria do contexto
-  const lojaAtiva = '1';
+  const { lojaAtual, lojasPermitidas, trocarLoja } = useMultiunidade();
+  const lojaAtiva = lojaAtual?.id ?? null;
 
   // Estado para range de datas
   const [periodo, setPeriodo] = useState<DateRange | undefined>({
@@ -148,14 +149,16 @@ export default function Veiculos() {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <label className="text-sm font-medium mb-2 block">Loja</label>
-          <Select value={lojaAtiva}>
+          <Select value={lojaAtiva ?? undefined} onValueChange={trocarLoja}>
             <SelectTrigger>
               <SelectValue placeholder="Selecionar loja" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">Loja Central</SelectItem>
-              <SelectItem value="2">Filial Norte</SelectItem>
-              <SelectItem value="3">Filial Sul</SelectItem>
+              {lojasPermitidas.map((loja) => (
+                <SelectItem key={loja.id} value={loja.id}>
+                  {loja.nome}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
