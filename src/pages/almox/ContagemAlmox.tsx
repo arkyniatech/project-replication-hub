@@ -32,7 +32,13 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destr
 };
 
 export default function ContagemAlmox() {
-  const { can, isLoading: rbacLoading } = useRbac();
+  // isResolvendoPermissoes, não isLoading: no react-query v5 isLoading é
+  // isPending && isFetching, e a query de papéis tem `enabled: !!user?.id` —
+  // durante a restauração da sessão ela nunca entra em fetching, então
+  // isLoading é FALSE com as claims ainda vazias. Quarta aparição do padrão
+  // (Relay 07, Relay 35); o próprio useRbac documenta que o gate deve usar
+  // este campo.
+  const { can, isResolvendoPermissoes: rbacLoading } = useRbac();
   const { lojaAtual } = useMultiunidade();
   const { contagens, isLoading, abrir, cancelar } = useSupabaseContagens(lojaAtual?.id);
   const { itens: catalogoItens } = useSupabaseCatalogo();
