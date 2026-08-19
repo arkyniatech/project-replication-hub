@@ -751,6 +751,15 @@ export default function RenovarContratoModal({
                           ✓ Desconto de {politicaAplicada.descontoPctContrato}% aplicado
                         </p>
                       )}
+                      {/* A política comercial precifica POR loja. Sem loja
+                          conhecida ela não roda e o valor acima é o de tabela —
+                          dizer isso é obrigatório, senão o operador vê um preço
+                          diferente do esperado sem nenhuma pista do motivo. */}
+                      {!lojaIdEfetiva && contrato.cliente?.politicaComercial && (
+                        <p className="text-xs text-amber-700 mt-1">
+                          ⚠ Sem loja ativa: política comercial não aplicada, valor de tabela.
+                        </p>
+                      )}
                     </div>
                  </div>
                </CardContent>

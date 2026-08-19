@@ -103,7 +103,7 @@ beforeEach(() => {
   useSupabaseContratosMock.mockReset();
   useSupabaseContratosMock.mockReturnValue({
     contratos: [contratoRenovado, contratoRenovadoViaAditivo, contratoCheio, contratoComDesconto],
-    aditivos: [{ id: 'ad-1', contrato_id: 'c-12', numero: '12.1', tipo: 'RENOVACAO' }],
+    aditivos: [{ id: 'ad-1', contrato_id: 'c-12', numero: '12.1', tipo: 'RENOVACAO', status: 'ATIVO' }],
     isLoading: false,
   });
 });
@@ -137,6 +137,79 @@ describe('DescontosTab — renovação não é venda cheia (#14.3)', () => {
 
     const linha = linhaDoContrato('21');
     expect(within(linha).getByText('Desconto')).toBeInTheDocument();
+  });
+
+  it('NÃO trata aditivo de TAXA como renovação', () => {
+    // aditivos_contratuais.tipo aceita RENOVACAO/DESCONTO/TAXA/AJUSTE/OUTRO, e
+    // taxaDeslocamentoService cria TAXA automaticamente em venda comum. Marcar
+    // qualquer aditivo como renovação rotularia venda normal de "Renovação".
+    useSupabaseContratosMock.mockReturnValue({
+      contratos: [contratoCheio],
+      aditivos: [{ id: 'ad-t', contrato_id: 'c-20', numero: '20.1', tipo: 'TAXA' }],
+      isLoading: false,
+    });
+
+    render(<DescontosTab periodo={periodo} />);
+
+    const linha = linhaDoContrato('20');
+    expect(within(linha).getByText('Cheio')).toBeInTheDocument();
+    expect(within(linha).queryByText('Renovação')).not.toBeInTheDocument();
+  });
+
+  it('aditivo de DESCONTO não rouba o contrato do bucket "com desconto"', () => {
+    // Pior consequência do bug: ehRenovacao tem precedência, então um contrato
+    // com desconto real sairia de comDesconto e o valor sumiria do
+    // totalDescontoConcedido — justamente o número que este relatório existe
+    // para produzir.
+    useSupabaseContratosMock.mockReturnValue({
+      contratos: [contratoComDesconto],
+      aditivos: [{ id: 'ad-d', contrato_id: 'c-21', numero: '21.1', tipo: 'DESCONTO' }],
+      isLoading: false,
+    });
+
+    render(<DescontosTab periodo={periodo} />);
+
+    const linha = linhaDoContrato('21');
+    expect(within(linha).getByText('Desconto')).toBeInTheDocument();
+    // R$ 200 de desconto (1000 tabela - 800 final) seguem contabilizados.
+    expect(screen.getByText(/Desconto dado:/)).toHaveTextContent('200,00');
+  });
+
+  it('renovação CANCELADA deixa de ser contada como renovação', () => {
+    // cancelarRenovacao faz soft-cancel (status CANCELADO) e reverte
+    // data_inicio. O caminho da data se resolve sozinho; o do aditivo não, se
+    // o status for ignorado.
+    useSupabaseContratosMock.mockReturnValue({
+      contratos: [contratoRenovadoViaAditivo],
+      aditivos: [
+        { id: 'ad-1', contrato_id: 'c-12', numero: '12.1', tipo: 'RENOVACAO', status: 'CANCELADO' },
+      ],
+      isLoading: false,
+    });
+
+    render(<DescontosTab periodo={periodo} />);
+
+    const linha = linhaDoContrato('12');
+    expect(within(linha).queryByText('Renovação')).not.toBeInTheDocument();
+  });
+
+  it('correção de data para TRÁS não vira renovação', () => {
+    // O trigger congela data_inicio_original em qualquer UPDATE, então
+    // corrigir uma data digitada errada faz as duas divergirem sem que haja
+    // renovação. Renovação sempre empurra a data para frente.
+    useSupabaseContratosMock.mockReturnValue({
+      contratos: [
+        { ...contratoCheio, data_inicio: '2025-07-18', data_inicio_original: '2025-07-20' },
+      ],
+      aditivos: [],
+      isLoading: false,
+    });
+
+    render(<DescontosTab periodo={periodo} />);
+
+    const linha = linhaDoContrato('20');
+    expect(within(linha).getByText('Cheio')).toBeInTheDocument();
+    expect(within(linha).queryByText('Renovação')).not.toBeInTheDocument();
   });
 
   it('não conta renovação como venda cheia no resumo', () => {

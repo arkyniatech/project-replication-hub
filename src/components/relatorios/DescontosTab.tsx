@@ -25,15 +25,27 @@ export function DescontosTab({ periodo }: DescontosTabProps) {
   // caminhos independentes; o que faltava era consultá-la.
   const contratosRenovados = useMemo(() => {
     const ids = new Set<string>();
-    // Caminho 1: o aditivo vinculado ao contrato (já buscado pelo hook).
+    // Caminho 1: aditivo de RENOVAÇÃO vinculado ao contrato (já buscado pelo
+    // hook). O tipo importa: aditivos_contratuais aceita RENOVACAO, DESCONTO,
+    // TAXA, AJUSTE e OUTRO, e taxaDeslocamentoService cria TAXA sozinho em
+    // venda comum — aceitar qualquer tipo rotularia venda normal de
+    // "Renovação" e, pior, tiraria contrato com DESCONTO real do bucket
+    // "com desconto", sumindo com o valor do totalDescontoConcedido.
+    // O status também importa: cancelarRenovacao faz soft-cancel (CANCELADO)
+    // e reverte data_inicio, então a renovação cancelada tem de sair das duas
+    // deteções — a da data se resolve sozinha, a do aditivo não.
     (aditivos || []).forEach((a: any) => {
-      if (a?.contrato_id) ids.add(String(a.contrato_id));
+      if (a?.contrato_id && a.tipo === 'RENOVACAO' && a.status !== 'CANCELADO') {
+        ids.add(String(a.contrato_id));
+      }
     });
     // Caminho 2: data_inicio_original preservada por trigger na renovação
     // (#52) — a data_inicio passa a valer o período vigente e a original
-    // guarda o nascimento do contrato. Diferença entre as duas = renovado.
+    // guarda o nascimento do contrato. Exige avanço: o trigger congela a
+    // original em QUALQUER update, então uma correção de data digitada errada
+    // também faria as duas divergirem. Renovação sempre empurra para frente.
     (contratos || []).forEach((c: any) => {
-      if (c?.data_inicio_original && c.data_inicio_original !== c.data_inicio) {
+      if (c?.data_inicio_original && c.data_inicio > c.data_inicio_original) {
         ids.add(String(c.id));
       }
     });

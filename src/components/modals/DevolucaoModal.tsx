@@ -368,9 +368,10 @@ export default function DevolucaoModal({
             <>
               {/* Alertas de Integração */}
               {/* Os alertas consultam disponibilidade POR loja. Sem loja
-                  conhecida a consulta não tem significado — some o bloco em vez
-                  de perguntar por um id inventado. */}
-              {lojaIdEfetiva && (
+                  conhecida a consulta não tem significado — mas sumir com o
+                  bloco em silêncio faria a tela parecer "nenhum alerta", que é
+                  o contrário de "não deu para verificar". */}
+              {lojaIdEfetiva ? (
                 <IntegrationAlerts
                   contratoId={String(contrato.id)}
                   contratoNumero={contrato.numero}
@@ -380,6 +381,10 @@ export default function DevolucaoModal({
                     return item?.equipamentoId || id;
                   })}
                 />
+              ) : (
+                <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+                  Alertas de integração indisponíveis: nenhuma loja ativa.
+                </div>
               )}
 
               <Card>
