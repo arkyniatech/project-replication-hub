@@ -771,7 +771,21 @@ export default function ClienteForm({ cliente, onSave, onCancel }: ClienteFormPr
                         type="button"
                         size="sm"
                         variant={isVerified ? "outline" : "default"}
-                        onClick={() => setVerifyingWhatsApp(contato.id)}
+                        onClick={() => {
+                          // RELAY 55 — loja_id virou obrigatório no whatsapp-verify.
+                          // Em modo "TODAS" não há loja resolvida: sem este guard a
+                          // chamada sai e volta 400 "loja_id obrigatório", que não diz
+                          // nada ao operador. Mesmo padrão do submit acima.
+                          if (!lojaAtual) {
+                            toast({
+                              title: 'Selecione uma loja',
+                              description: 'Para autenticar um WhatsApp, escolha uma loja específica.',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+                          setVerifyingWhatsApp(contato.id);
+                        }}
                         className="shrink-0 h-9"
                         title="Autenticar WhatsApp"
                       >

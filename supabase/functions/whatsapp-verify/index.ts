@@ -2,6 +2,26 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeadersFor } from '../_shared/cors.ts';
 import { isDemoEmail, demoForbiddenResponse } from '../_shared/demo.ts';
 
+/**
+ * Código de 6 dígitos com CSPRNG, uniforme em [000000, 999999].
+ *
+ * O espaço inteiro (10^6) é usado — inclusive com zeros à esquerda, que a
+ * fórmula anterior excluía. Rejection sampling descarta os valores acima do
+ * maior múltiplo de 1e6 representável, senão o módulo enviesaria os primeiros
+ * valores da faixa.
+ */
+export function generateCode(): string {
+  const LIMIT = 1_000_000;
+  const MAX = Math.floor(0xffffffff / LIMIT) * LIMIT;
+  const buf = new Uint32Array(1);
+  let n: number;
+  do {
+    crypto.getRandomValues(buf);
+    n = buf[0];
+  } while (n >= MAX);
+  return String(n % LIMIT).padStart(6, '0');
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = corsHeadersFor(req);
   if (req.method === 'OPTIONS') {
@@ -39,7 +59,16 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, phone, code, loja_id } = body;
 
-    if (!callerIsMasterAdmin && loja_id) {
+    // RELAY 55 — a checagem de loja era `if (!callerIsMasterAdmin && loja_id)`.
+    // Condicionada a loja_id ser TRUTHY, ou seja: a ausência do parâmetro era
+    // tratada como permissão. O ramo `verify` nunca mandava loja_id, então
+    // qualquer usuário autenticado verificava telefone de qualquer loja. Agora
+    // loja_id é exigido nos dois ramos e a falta dele é 400, não passe livre.
+    if (!loja_id) {
+      return Response.json({ error: 'loja_id obrigatório' }, { status: 400, headers: corsHeaders });
+    }
+
+    if (!callerIsMasterAdmin) {
       const { data: lojaAcesso } = await supabase
         .from('user_lojas_permitidas')
         .select('loja_id')
@@ -54,10 +83,6 @@ Deno.serve(async (req) => {
     if (action === 'send') {
       if (!phone) {
         return Response.json({ error: 'Telefone obrigatório' }, { status: 400, headers: corsHeaders });
-      }
-
-      if (!loja_id) {
-        return Response.json({ error: 'loja_id obrigatório' }, { status: 400, headers: corsHeaders });
       }
 
       // Lookup instance token from whatsapp_instances
@@ -79,8 +104,13 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Generate 6-digit code
-      const newCode = String(Math.floor(100000 + Math.random() * 900000));
+      // RELAY 55 — era Math.floor(100000 + Math.random() * 900000). Dois
+      // problemas: Math.random() é PRNG não-criptográfico (xorshift128+, cujo
+      // estado é recuperável a partir de saídas observadas — quem vê os
+      // próprios códigos pode prever os de terceiros), e a fórmula nunca gera
+      // zero à esquerda, reduzindo o espaço de 10^6 para 9·10^5.
+      // Rejection sampling para não reintroduzir viés com o módulo.
+      const newCode = generateCode();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
       // Invalidate previous codes for this phone
@@ -155,31 +185,50 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Telefone e código obrigatórios' }, { status: 400, headers: corsHeaders });
       }
 
-      // Find valid code
-      const { data: records, error: selectError } = await supabase
-        .from('whatsapp_verifications')
-        .select('*')
-        .eq('phone', phone)
-        .eq('code', code)
-        .eq('verified', false)
-        .gte('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1);
+      // RELAY 55 — antes isto era SELECT seguido de UPDATE. Duas requisições
+      // concorrentes passavam ambas pelo filtro `verified=false` e o mesmo
+      // código era consumido duas vezes; e não havia contagem de tentativas,
+      // então 9·10^5 combinações eram varridas por script.
+      //
+      // A RPC faz tudo numa instrução: registra a tentativa, checa a janela
+      // (ANTES de olhar o código, para o 429 não virar oráculo de "este
+      // telefone tem código pendente") e consome com UPDATE ... RETURNING.
+      const { data: result, error: rpcError } = await supabase.rpc(
+        'whatsapp_verify_consume',
+        { p_phone: phone, p_code: code, p_user_id: caller.id }
+      );
 
-      if (selectError) {
-        console.error('Select error:', selectError);
+      if (rpcError) {
+        console.error('RPC error:', rpcError);
         return Response.json({ error: 'Erro ao verificar código' }, { status: 500, headers: corsHeaders });
       }
 
-      if (!records || records.length === 0) {
-        return Response.json({ error: 'Código inválido ou expirado' }, { status: 400, headers: corsHeaders });
+      if (result?.status === 'rate_limited') {
+        return Response.json(
+          {
+            error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
+            code: 'RATE_LIMITED',
+          },
+          {
+            status: 429,
+            headers: { ...corsHeaders, 'Retry-After': String(result.retry_after_seconds ?? 900) },
+          }
+        );
       }
 
-      // Mark as verified
-      await supabase
-        .from('whatsapp_verifications')
-        .update({ verified: true })
-        .eq('id', records[0].id);
+      // Status desconhecido (RPC ausente, retorno nulo) não pode se disfarçar
+      // de código errado: sem isto uma falha de deploy vira "código inválido"
+      // para o operador e não deixa rastro no log.
+      if (!result || typeof result.status !== 'string') {
+        console.error('RPC retorno inesperado:', result);
+        return Response.json({ error: 'Erro ao verificar código' }, { status: 500, headers: corsHeaders });
+      }
+
+      if (result.status !== 'ok') {
+        // Mensagem deliberadamente igual para código errado, expirado, já
+        // usado e telefone sem código — não distinguir os casos.
+        return Response.json({ error: 'Código inválido ou expirado' }, { status: 400, headers: corsHeaders });
+      }
 
       return Response.json({ success: true, verified: true }, { headers: corsHeaders });
 

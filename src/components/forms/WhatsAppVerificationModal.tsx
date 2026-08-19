@@ -82,12 +82,18 @@ export default function WhatsAppVerificationModal({
   const handleVerifyCode = async () => {
     setLoading(true);
     try {
+      // RELAY 55 — loja_id passou a ser obrigatório também no verify. Antes a
+      // função tratava a ausência dele como permissão, e qualquer usuário
+      // autenticado verificava telefone de qualquer loja. O modal já recebe
+      // lojaId por prop e já o enviava no send; agora envia nos dois.
       const { data, error } = await supabase.functions.invoke('whatsapp-verify', {
-        body: { action: 'verify', phone: phoneNumber, code },
+        body: { action: 'verify', phone: phoneNumber, code, loja_id: lojaId },
       });
 
       if (error || data?.error) {
-        throw new Error(data?.error || error?.message || 'Código inválido');
+        const err = new Error(data?.error || error?.message || 'Código inválido') as Error & { code?: string };
+        err.code = data?.code;
+        throw err;
       }
 
       setStep('success');
@@ -100,11 +106,19 @@ export default function WhatsAppVerificationModal({
         }, 300);
       }, 800);
     } catch (err: any) {
-      toast({
-        title: "Código inválido",
-        description: "O código informado está incorreto ou expirado. Tente novamente.",
-        variant: "destructive",
-      });
+      if (err.code === 'RATE_LIMITED') {
+        toast({
+          title: "Muitas tentativas",
+          description: err.message || "Aguarde alguns minutos antes de tentar novamente.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Código inválido",
+          description: "O código informado está incorreto ou expirado. Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
