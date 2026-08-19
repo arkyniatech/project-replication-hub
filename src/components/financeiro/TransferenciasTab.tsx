@@ -69,9 +69,12 @@ export function TransferenciasTab() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [periodoFilter, setPeriodoFilter] = useState('30d');
 
-  const lojaId = lojaAtual?.id || '1';
-  const transferencias = getTransfersByLoja(lojaId);
-  const contas = getContasByLoja(lojaId);
+  // Sem fallback: loja_id é UUID no banco. O antigo `|| '1'` não corrompia
+  // nada (o Postgres recusa a string antes de gravar, 22P02), mas fazia a tela
+  // consultar um id inexistente e devolver vazio sem explicar o motivo.
+  const lojaId = lojaAtual?.id;
+  const transferencias = lojaId ? getTransfersByLoja(lojaId) : [];
+  const contas = lojaId ? getContasByLoja(lojaId) : [];
 
   const getContaName = (contaId: string) => {
     const conta = contas.find(c => c.id === contaId);
@@ -167,6 +170,19 @@ export function TransferenciasTab() {
              t.status === 'EFETIVADA';
     })
     .reduce((sum, t) => sum + t.valor, 0);
+
+  // Sem loja ativa não há o que consultar. Avisar é melhor que mostrar uma
+  // tela vazia que parece "nenhuma transferência" — mesmo padrão de
+  // SolicitacoesManutencao e NovaTransferenciaModal.
+  if (!lojaId) {
+    return (
+      <div className="p-6">
+        <div className="rounded-lg bg-muted p-4 text-muted-foreground">
+          Selecione uma loja para ver as transferências.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Package, User, AlertCircle } from "lucide-react";
-import { format } from "date-fns";
+import { formatDateBR } from "@/lib/date-utils";
 
 interface ConfirmarRetiradaModalProps {
   open: boolean;
@@ -86,9 +86,13 @@ export default function ConfirmarRetiradaModal({
               <div className="flex-1">
                 <p className="font-semibold text-sm">Contrato: {contrato.numero}</p>
                 <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                  <span>Início: {format(new Date(contrato.dataInicio), "dd/MM/yyyy")}</span>
+                  {/* #16.2: new Date('YYYY-MM-DD') é meia-noite UTC e em UTC-3
+                      volta o dia anterior — vale tanto para toLocaleDateString
+                      quanto para o format do date-fns. formatDateBR lê os
+                      componentes da data sem passar por UTC. */}
+                  <span>Início: {formatDateBR(contrato.dataInicio)}</span>
                   <span>•</span>
-                  <span>Fim previsto: {format(new Date(contrato.dataPrevistaFim), "dd/MM/yyyy")}</span>
+                  <span>Fim previsto: {formatDateBR(contrato.dataPrevistaFim)}</span>
                 </div>
               </div>
             </div>
