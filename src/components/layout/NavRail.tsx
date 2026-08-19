@@ -163,7 +163,11 @@ export const NavRail = forwardRef<HTMLElement, NavRailProps>(({
       ref={ref}
       className={cn(
         "fixed left-0 top-0 h-full w-16 bg-background border-r border-border z-40",
-        "flex flex-col",
+        // #16.3: sem breakpoint a rail ficava fixed em qualquer largura,
+        // sobrepondo o conteúdo em telas pequenas. "hidden md:flex" soma ao
+        // marginLeft condicional do AppShell — abaixo de md a navegação
+        // passa a vir do MobileNav (Sheet), acionado pelo TopBar.
+        "hidden md:flex flex-col",
         "transition-all ease-out",
         "[transition-duration:var(--nav-transition-duration,200ms)]"
       )}

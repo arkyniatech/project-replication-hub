@@ -1,4 +1,4 @@
-import { Search, HelpCircle, LogOut, User, Sun, Moon, Laptop } from "lucide-react";
+import { Search, HelpCircle, LogOut, User, Sun, Moon, Laptop, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LojaBadge } from "@/components/multiunidade/LojaBadge";
 import { DevRoleSwitcher } from "@/components/dev/DevRoleSwitcher";
@@ -20,9 +20,10 @@ import { useTheme } from "@/components/theme-provider";
 interface TopBarProps {
   onOpenSearch: () => void;
   onOpenHelp: () => void;
+  onOpenMobileNav: () => void;
 }
 
-export function TopBar({ onOpenSearch, onOpenHelp }: TopBarProps) {
+export function TopBar({ onOpenSearch, onOpenHelp, onOpenMobileNav }: TopBarProps) {
   const { user, signOut } = useAuth();
   const { setTheme } = useTheme();
   const navigate = useNavigate();
@@ -39,20 +40,38 @@ export function TopBar({ onOpenSearch, onOpenHelp }: TopBarProps) {
   };
 
   return (
-    <header className="flex items-center justify-between h-14 px-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-4">
+    <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* #16.3: só existe abaixo de md — acima disso a NavRail já está
+            visível e fixa, e este botão ficaria redundante. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onOpenMobileNav}
+          className="p-2 md:hidden"
+          aria-label="Abrir menu de navegação"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <HeaderAvisos />
       </div>
 
-      <div className="flex items-center gap-4">
+      {/* #16.3: gap-4 fixo somado a LojaBadge + busca + ajuda + avatar
+          ultrapassava 390px e forçava scroll horizontal na página inteira.
+          gap-1 em mobile recupera o espaço sem esconder nenhum controle. */}
+      <div className="flex items-center gap-1 md:gap-4">
         <LojaBadge />
 
-        {/* Dev Role Switcher - apenas em dev */}
+        {/* Dev Role Switcher - apenas em dev. Escondido abaixo de md: é uma
+            ferramenta de debug de desktop, e em telas pequenas ela sozinha
+            já bastava para forçar scroll horizontal (#16.3). */}
         {process.env.NODE_ENV !== 'production' && (
-          <DevRoleSwitcher />
+          <div className="hidden md:block">
+            <DevRoleSwitcher />
+          </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2">
           <Button
             variant="ghost"
             size="sm"
