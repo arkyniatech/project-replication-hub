@@ -2,57 +2,61 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TITULOS_PAGAR_SELECT } from "@/lib/contas-pagar-select";
 
+/**
+ * Colunas reais de titulos_pagar: id, loja_id, fornecedor_id, numero, valor,
+ * pago, saldo, emissao, vencimento, status, categoria, subcategoria,
+ * observacoes, created_at, updated_at, created_by.
+ *
+ * `categoria` é TEXT livre — não há categoria_id nem relação com categorias_n2.
+ * Não existem `ativo`, `doc_numero`, `qtd_parcelas`, `valor_total`.
+ */
 export interface TituloPagar {
   id: string;
   loja_id: string;
   numero: string;
-  fornecedor_id: string;
-  categoria_codigo?: string;
-  cc_id?: string;
-  valor_total: number;
-  qtd_parcelas: number;
-  vencimento_inicial: string;
-  condicao?: string;
-  doc_tipo?: string;
-  doc_numero?: string;
-  chave_fiscal_44?: string;
+  fornecedor_id?: string | null;
+  valor: number;
+  pago: number;
+  saldo: number;
   emissao?: string;
+  vencimento: string;
   status: string;
-  observacoes?: string;
-  anexos?: any[];
-  timeline?: any[];
-  dup_justificativa?: string;
-  created_by?: string;
+  categoria?: string | null;
+  subcategoria?: string | null;
+  observacoes?: string | null;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
-  ativo: boolean;
   fornecedor?: {
+    id?: string;
     nome: string;
-    codigo: string;
-  };
-  categoria?: {
-    codigo: string;
-    descricao: string;
   };
   parcelas?: any[];
+
+  /**
+   * NÃO EXISTEM em titulos_pagar. Telas (AnexosModal, DetalheTituloDrawer)
+   * foram escritas contra elas e leem/gravam undefined hoje. Mantidas
+   * declaradas para não mascarar o problema atrás de @ts-nocheck: são
+   * feature faltando, não query errada. Ver relay 47 / seção 8.
+   */
+  anexos?: any[];
+  timeline?: any[];
+  valor_total?: number;
+  categoria_codigo?: string;
 }
 
 export const useSupabaseTitulosPagar = (lojaId?: string) => {
   const queryClient = useQueryClient();
 
-  const { data: titulos, isLoading } = useQuery({
+  const { data: titulos, isLoading, error } = useQuery({
     queryKey: ["titulos-pagar", lojaId],
     queryFn: async () => {
+      // Sem `.eq("ativo", true)`: titulos_pagar não tem coluna `ativo`.
       let query = supabase
         .from("titulos_pagar")
-        .select(`
-          *,
-          fornecedor:fornecedores(nome, codigo),
-          categoria:categorias_n2(codigo, descricao),
-          parcelas:parcelas_pagar(*)
-        `)
-        .eq("ativo", true)
+        .select(TITULOS_PAGAR_SELECT)
         .order("created_at", { ascending: false });
 
       if (lojaId) {
@@ -131,6 +135,8 @@ export const useSupabaseTitulosPagar = (lojaId?: string) => {
   return {
     titulos: titulos || [],
     isLoading,
+    // Exposto para a tela poder mostrar erro em vez de spinner infinito.
+    error,
     createTitulo,
     updateTitulo,
     deleteTitulo,

@@ -2,36 +2,49 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PARCELAS_PAGAR_SELECT, normalizarParcelaPagar } from "@/lib/contas-pagar-select";
 
+/**
+ * Formato consumido pelas telas. Nem todo campo é coluna de parcelas_pagar —
+ * as colunas reais são id, titulo_id, numero, vencimento, valor, valor_pago,
+ * data_pagamento, status, created_at, updated_at. `pago` e `saldo` são
+ * derivados; `loja_id`, `fornecedor_id` e `categoria_codigo` vêm do título.
+ * Ver src/lib/contas-pagar-select.ts.
+ */
 export interface ParcelaPagar {
   id: string;
   titulo_id: string;
-  loja_id: string;
-  fornecedor_id: string;
-  categoria_codigo?: string;
   numero_parcela: number;
   vencimento: string;
   valor: number;
   pago: number;
   saldo: number;
   status: string;
-  conta_preferencial_id?: string;
-  cc_id?: string;
-  observacoes?: string;
-  reprogramacoes?: any[];
-  anexos?: any[];
-  suspensa: boolean;
-  motivo_suspensao?: string;
-  created_at: string;
-  updated_at: string;
+  data_pagamento?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  loja_id?: string;
+  fornecedor_id?: string;
+  categoria_codigo?: string;
+  subcategoria?: string;
   fornecedor?: {
+    id?: string;
     nome: string;
-    codigo: string;
   };
   titulo?: {
-    numero: string;
-    doc_numero?: string;
+    id?: string;
+    numero?: string;
   };
+
+  /**
+   * NÃO EXISTEM em parcelas_pagar. Telas (AnexosModal, CCWizard,
+   * DetalheTituloDrawer) foram escritas contra elas e leem/gravam undefined
+   * hoje. Mantidas declaradas para não mascarar o problema atrás de
+   * @ts-nocheck: são feature faltando, não query errada. Ver relay 47 / seção 8.
+   */
+  anexos?: any[];
+  cc_id?: string;
+  conta_preferencial_id?: string;
 }
 
 interface FetchParcelasParams {
@@ -45,24 +58,24 @@ interface FetchParcelasParams {
 export const useSupabaseParcelasPagar = (params?: FetchParcelasParams) => {
   const queryClient = useQueryClient();
 
-  const { data: parcelas, isLoading } = useQuery({
+  const { data: parcelas, isLoading, error } = useQuery({
     queryKey: ["parcelas-pagar", params],
     queryFn: async () => {
       let query = supabase
         .from("parcelas_pagar")
-        .select(`
-          *,
-          fornecedor:fornecedores(nome, codigo),
-          titulo:titulos_pagar(numero, doc_numero)
-        `)
+        .select(PARCELAS_PAGAR_SELECT)
         .order("vencimento", { ascending: true });
 
+      // loja_id e fornecedor_id não existem em parcelas_pagar: só no título.
+      // O filtro tem que ser aplicado na relação embutida.
       if (params?.lojaId) {
-        query = query.eq("loja_id", params.lojaId);
+        query = query.eq("titulo.loja_id", params.lojaId).not("titulo", "is", null);
       }
 
       if (params?.fornecedorId) {
-        query = query.eq("fornecedor_id", params.fornecedorId);
+        query = query
+          .eq("titulo.fornecedor_id", params.fornecedorId)
+          .not("titulo", "is", null);
       }
 
       if (params?.status) {
@@ -80,7 +93,7 @@ export const useSupabaseParcelasPagar = (params?: FetchParcelasParams) => {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as ParcelaPagar[];
+      return (data ?? []).map(normalizarParcelaPagar) as ParcelaPagar[];
     },
   });
 
@@ -108,14 +121,12 @@ export const useSupabaseParcelasPagar = (params?: FetchParcelasParams) => {
   });
 
   const suspenderParcela = useMutation({
-    mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
+    // parcelas_pagar não tem `suspensa` nem `motivo_suspensao`. A suspensão é
+    // representada apenas em `status`, que existe.
+    mutationFn: async ({ id }: { id: string; motivo?: string }) => {
       const { data, error } = await supabase
         .from("parcelas_pagar")
-        .update({ 
-          suspensa: true, 
-          motivo_suspensao: motivo,
-          status: 'SUSPENSA' as const
-        })
+        .update({ status: 'SUSPENSA' })
         .eq("id", id)
         .select()
         .single();
@@ -136,6 +147,8 @@ export const useSupabaseParcelasPagar = (params?: FetchParcelasParams) => {
   return {
     parcelas: parcelas || [],
     isLoading,
+    // Exposto para a tela poder mostrar erro em vez de spinner infinito.
+    error,
     updateParcela,
     suspenderParcela,
   };

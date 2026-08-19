@@ -278,8 +278,8 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
                         <SelectItem value="empty" disabled>Nenhuma categoria cadastrada</SelectItem>
                       ) : (
                         categorias.map(categoria => (
-                          <SelectItem key={categoria.codigo} value={categoria.codigo}>
-                            {categoria.codigo} - {categoria.descricao}
+                          <SelectItem key={categoria.id} value={categoria.nome}>
+                            {categoria.nome}
                           </SelectItem>
                         ))
                       )}

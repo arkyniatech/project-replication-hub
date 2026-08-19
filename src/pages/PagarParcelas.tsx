@@ -72,7 +72,7 @@ function getStatusLabel(status: string) {
 export default function PagarParcelas() {
   const { can } = usePermissions();
   const { lojaAtual, lojas: lojasPermitidas } = useMultiunidade();
-  const { parcelas, isLoading } = useSupabaseParcelasPagar({ lojaId: lojaAtual?.id });
+  const { parcelas, isLoading, error } = useSupabaseParcelasPagar({ lojaId: lojaAtual?.id });
   const { categorias } = useSupabaseCategoriasN2();
 
   // Fetch lojas for filter
@@ -223,6 +223,21 @@ export default function PagarParcelas() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Carregando parcelas...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Sem este ramo, uma query que falha deixa a tela em spinner mudo: o hook
+  // só expunha isLoading, então o operador nunca via o erro.
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md">
+          <p className="font-medium mb-2">Não foi possível carregar as parcelas.</p>
+          <p className="text-sm text-muted-foreground">
+            {(error as any)?.message || 'Erro desconhecido.'}
+          </p>
         </div>
       </div>
     );

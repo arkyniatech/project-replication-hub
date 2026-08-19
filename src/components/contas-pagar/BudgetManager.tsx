@@ -88,8 +88,8 @@ function NewBudgetLine({ onSave, onCancel, categorias }: NewBudgetLineProps) {
           </SelectTrigger>
           <SelectContent>
             {categorias.map(categoria => (
-              <SelectItem key={categoria.codigo} value={categoria.codigo}>
-                {categoria.codigo} - {categoria.descricao}
+              <SelectItem key={categoria.id} value={categoria.nome}>
+                {categoria.nome}
               </SelectItem>
             ))}
           </SelectContent>

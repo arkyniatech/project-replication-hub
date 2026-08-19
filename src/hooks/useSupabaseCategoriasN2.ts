@@ -2,14 +2,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CATEGORIAS_N2_SELECT } from "@/lib/contas-pagar-select";
 
+/**
+ * Colunas reais de categorias_n2: id, nome, tipo, ativo, created_at,
+ * updated_at. Não existem `codigo`, `descricao` nem `nivel_1`.
+ */
 export interface CategoriaN2 {
   id: string;
-  codigo: string;
-  descricao: string;
-  tipo: "DESPESA" | "RECEITA";
-  nivel_1: string;
-  ativo: boolean;
+  nome: string;
+  tipo: string;
+  ativo: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -17,14 +20,15 @@ export interface CategoriaN2 {
 export const useSupabaseCategoriasN2 = () => {
   const queryClient = useQueryClient();
 
-  const { data: categorias, isLoading } = useQuery({
+  const { data: categorias, isLoading, error } = useQuery({
     queryKey: ["categorias-n2"],
     queryFn: async () => {
+      // Ordena por `nome`: não existe coluna `codigo`.
       const { data, error } = await supabase
         .from("categorias_n2")
-        .select("*")
+        .select(CATEGORIAS_N2_SELECT)
         .eq("ativo", true)
-        .order("codigo", { ascending: true });
+        .order("nome", { ascending: true });
 
       if (error) throw error;
       return data as CategoriaN2[];
@@ -77,6 +81,8 @@ export const useSupabaseCategoriasN2 = () => {
   return {
     categorias: categorias || [],
     isLoading,
+    // Exposto para a tela poder mostrar erro em vez de spinner infinito.
+    error,
     createCategoria,
     updateCategoria,
   };

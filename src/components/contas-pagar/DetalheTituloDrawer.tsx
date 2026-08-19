@@ -152,8 +152,9 @@ export function DetalheTituloDrawer({
     const parcela = parcelas.find(p => p.id === parcelaId);
     if (!parcela) return;
 
-    const isSuspensa = parcela.suspensa;
-    
+    // Não existe coluna `suspensa`: a suspensão vive em `status`.
+    const isSuspensa = parcela.status?.toUpperCase() === 'SUSPENSA';
+
     try {
       await suspenderParcela.mutateAsync({
         id: parcelaId,
@@ -229,12 +230,14 @@ export function DetalheTituloDrawer({
                 <div>
                   <CardTitle className="text-xl">{titulo.fornecedor?.nome || 'Fornecedor'}</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {titulo.categoria?.descricao || titulo.categoria_codigo}
+                    {/* categoria é TEXT livre em titulos_pagar: o nome já está na coluna. */}
+                    {titulo.categoria || '-'}
                   </p>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold">
-                    {formatCurrency(titulo.valor_total)}
+                    {/* a coluna real é `valor`; valor_total nunca existiu. */}
+                    {formatCurrency(titulo.valor)}
                   </div>
                   <Badge className={getStatusColor(titulo.status)}>
                     {titulo.status.replace('_', ' ').toUpperCase()}
@@ -296,7 +299,7 @@ export function DetalheTituloDrawer({
                     </TableRow>
                   ) : (
                     parcelas.map((parcela) => {
-                      const isSuspensa = parcela.suspensa;
+                      const isSuspensa = parcela.status?.toUpperCase() === 'SUSPENSA';
                       return (
                         <TableRow key={parcela.id} className={isSuspensa ? 'opacity-50' : ''}>
                           <TableCell>{parcela.numero_parcela}</TableCell>
