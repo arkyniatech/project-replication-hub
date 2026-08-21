@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,15 +50,36 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
     juros: number;
     multa: number;
     desconto: number;
-  }>>(
-    parcelas.map(p => ({
-      id: p.id,
-      valorPago: p.saldo,
-      juros: 0,
-      multa: 0,
-      desconto: 0
-    }))
-  );
+  }>>([]);
+
+  // preserva edições do usuário (juros, multa, desconto) enquanto a MESMA
+  // seleção estiver aberta — o react-query refaz o fetch da lista de parcelas
+  const selecaoCarregadaRef = useRef<string | null>(null);
+
+  // fechar o modal descarta a edição abandonada — reabrir a MESMA seleção
+  // repopula do saldo (o modal fica montado no pai, o ref sobreviveria)
+  useEffect(() => {
+    if (!open) selecaoCarregadaRef.current = null;
+  }, [open]);
+
+  // o modal é montado pelo pai desde o início com parcelas=[]: sem isto,
+  // `parcelasData` nasceria vazio e nunca seria repovoado quando a seleção
+  // chegasse, deixando parcelasData[i] undefined no render (relay 62)
+  useEffect(() => {
+    const selecao = parcelas.map(p => p.id).join(',');
+    if (selecao === selecaoCarregadaRef.current) return;
+
+    selecaoCarregadaRef.current = selecao;
+    setParcelasData(
+      parcelas.map(p => ({
+        id: p.id,
+        valorPago: p.saldo,
+        juros: 0,
+        multa: 0,
+        desconto: 0
+      }))
+    );
+  }, [parcelas]);
 
   const updateParcelaData = (id: string, field: string, value: number) => {
     setParcelasData(prev => prev.map(p => 
@@ -111,7 +132,16 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
       try {
         for (let i = 0; i < parcelas.length; i++) {
           const parcela = parcelas[i];
-          const parcelaData = parcelasData[i];
+          // busca por id, não por índice: se a seleção mudou entre o render e
+          // o submit, indexar posicionalmente gravaria o valor de OUTRA
+          // parcela — pior que quebrar, porque é silencioso.
+          const parcelaData = parcelasData.find(p => p.id === parcela.id) ?? {
+            id: parcela.id,
+            valorPago: parcela.saldo,
+            juros: 0,
+            multa: 0,
+            desconto: 0
+          };
 
           await registrarPagamento.mutateAsync({
             parcela_id: parcela.id,
@@ -195,9 +225,18 @@ export function PagarModal({ open, onClose, parcelas, onSuccess }: PagarModalPro
                 </TableHeader>
                 <TableBody>
                   {parcelas.map((parcela, index) => {
-                    const parcelaData = parcelasData[index];
+                    // o efeito de sincronização roda DEPOIS deste render: no
+                    // primeiro frame após a seleção mudar, parcelasData ainda
+                    // é a anterior. Cai para o saldo em vez de quebrar.
+                    const parcelaData = parcelasData[index] ?? {
+                      id: parcela.id,
+                      valorPago: parcela.saldo,
+                      juros: 0,
+                      multa: 0,
+                      desconto: 0
+                    };
                     const liquido = parcelaData.valorPago + parcelaData.juros + parcelaData.multa - parcelaData.desconto;
-                    
+
                     return (
                       <TableRow key={parcela.id}>
                         <TableCell>
