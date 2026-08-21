@@ -17,7 +17,6 @@ import { useSupabaseParcelasPagar } from '@/hooks/useSupabaseParcelasPagar';
 import { NovoTituloDrawer } from '@/components/contas-pagar/NovoTituloDrawer';
 import { DetalheTituloDrawer } from '@/components/contas-pagar/DetalheTituloDrawer';
 import { EditarParcelaModal } from '@/components/contas-pagar/EditarParcelaModal';
-import { AnexosModal } from '@/components/contas-pagar/AnexosModal';
 import { useSupabaseCategoriasN2 } from '@/hooks/useSupabaseCategoriasN2';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -95,8 +94,6 @@ export default function PagarParcelas() {
   const [tituloSelecionado, setTituloSelecionado] = useState<string | null>(null);
   const [showEditarParcela, setShowEditarParcela] = useState(false);
   const [parcelaSelecionada, setParcelaSelecionada] = useState<string | null>(null);
-  const [showAnexos, setShowAnexos] = useState(false);
-  const [anexosConfig, setAnexosConfig] = useState<{tipo: 'titulo' | 'parcela', id: string, nome: string} | null>(null);
 
   // Verificar permissões (o return fica DEPOIS de todos os hooks — early
   // return antes de hook quebra a ordem de hooks quando a permissão resolve)
@@ -551,10 +548,6 @@ export default function PagarParcelas() {
           setParcelaSelecionada(parcelaId);
           setShowEditarParcela(true);
         }}
-        onOpenAnexos={(tipo, id) => {
-          setAnexosConfig({ tipo, id, nome: tipo === 'titulo' ? 'Título' : 'Parcela' });
-          setShowAnexos(true);
-        }}
       />
 
       <EditarParcelaModal
@@ -567,13 +560,6 @@ export default function PagarParcelas() {
         }}
       />
 
-      <AnexosModal
-        open={showAnexos}
-        onClose={() => setShowAnexos(false)}
-        tipo={anexosConfig?.tipo || 'titulo'}
-        id={anexosConfig?.id || null}
-        nome={anexosConfig?.nome || ''}
-      />
     </div>
   );
 }

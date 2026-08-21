@@ -3,16 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { formatDateBR } from '@/lib/date-utils';
 import { useSupabaseParcelasPagar } from '@/hooks/useSupabaseParcelasPagar';
-import { useSupabaseContasFinanceiras } from '@/hooks/useSupabaseContasFinanceiras';
-import { useMultiunidade } from '@/hooks/useMultiunidade';
-import { Calendar, Edit3, Save, Plus } from 'lucide-react';
+import { Calendar, Edit3, Save } from 'lucide-react';
 
 interface EditarParcelaModalProps {
   open: boolean;
@@ -23,14 +20,10 @@ interface EditarParcelaModalProps {
 
 export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: EditarParcelaModalProps) {
   const { parcelas, updateParcela } = useSupabaseParcelasPagar();
-  const { lojaAtual } = useMultiunidade();
-  const { contas } = useSupabaseContasFinanceiras(lojaAtual?.id);
-  
+
   const [parcela, setParcela] = useState<any>(null);
   const [vencimento, setVencimento] = useState('');
   const [valor, setValor] = useState('');
-  const [contaPreferencial, setContaPreferencial] = useState('');
-  const [observacao, setObservacao] = useState('');
   const [motivo, setMotivo] = useState('');
   const [aplicarTodas, setAplicarTodas] = useState(false);
   // preserva edições do usuário quando o react-query refaz o fetch da lista
@@ -53,8 +46,6 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
       parcelaCarregadaId.current = found.id;
       setVencimento(found.vencimento);
       setValor(found.valor.toString());
-      setContaPreferencial((found as { contaPreferencial?: string }).contaPreferencial || '');
-      setObservacao((found as { observacao?: string }).observacao || '');
       setMotivo('');
       setAplicarTodas(false);
     }
@@ -96,28 +87,14 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
     }
 
     try {
-      const updates: any = {
+      // parcelas_pagar só tem vencimento e valor entre os campos editáveis
+      // aqui. conta_preferencial_id, observacoes e reprogramacoes nunca
+      // existiram na tabela — o update falhava no PostgREST. Ver relay 61.
+      await updateParcela.mutateAsync({
+        id: parcelaId,
         vencimento,
         valor: parseFloat(valor),
-        conta_preferencial_id: contaPreferencial || null,
-        observacoes: observacao,
-      };
-
-      // Registrar reprogramação se houve mudança de data
-      if (houveMudancaData) {
-        const reprogramacao = {
-          de: vencimentoOriginal,
-          para: vencimento,
-          motivo: motivo || 'Ajuste de vencimento',
-          usuario: 'Admin',
-          timestamp: new Date().toISOString()
-        };
-
-        const reprogramacoesAtuais = Array.isArray(parcela.reprogramacoes) ? parcela.reprogramacoes : [];
-        updates.reprogramacoes = [...reprogramacoesAtuais, reprogramacao];
-      }
-
-      await updateParcela.mutateAsync({ id: parcelaId, ...updates });
+      });
 
       toast.success(houveMudancaData ? "Parcela reprogramada" : "Parcela atualizada");
 
@@ -196,32 +173,10 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
                 </Button>
               </div>
 
-              <div>
-                <Label htmlFor="conta">Conta Preferencial</Label>
-                <Select value={contaPreferencial} onValueChange={setContaPreferencial}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a conta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contas.map(conta => (
-                      <SelectItem key={conta.id} value={conta.id}>
-                        {conta.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="obs">Observação</Label>
-                <Textarea
-                  id="obs"
-                  value={observacao}
-                  onChange={(e) => setObservacao(e.target.value)}
-                  placeholder="Observações sobre a parcela..."
-                  rows={2}
-                />
-              </div>
+              {/* Sem "Conta Preferencial" nem "Observação": parcelas_pagar não
+                  tem essas colunas. Continuavam na tela sugerindo que o dado
+                  era guardado, e o update quebrava. A conta é escolhida no
+                  momento do pagamento (movimentos_pagar.conta_id). Relay 61. */}
             </CardContent>
           </Card>
 
@@ -272,33 +227,10 @@ export function EditarParcelaModal({ open, onClose, parcelaId, onSuccess }: Edit
             </Card>
           )}
 
-          {/* Histórico de Reprogramações */}
-          {parcela && Array.isArray(parcela.reprogramacoes) && parcela.reprogramacoes.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Histórico de Reprogramações</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {parcela.reprogramacoes.map((repr: any, index: number) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-muted rounded">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">
-                          {formatDateBR(repr.de)} →
-                          {formatDateBR(repr.para)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{repr.motivo}</p>
-                        <p className="text-xs text-muted-foreground">por {repr.usuario}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDateBR(repr.timestamp)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Sem "Histórico de Reprogramações": parcelas_pagar não tem coluna
+              `reprogramacoes`, então o bloco nunca chegou a aparecer. O motivo
+              digitado acima continua sendo exigido para parcela vencida, como
+              trava de processo — só não é persistido. Relay 61. */}
 
           {/* Ações */}
           <div className="flex items-center justify-between pt-4 border-t">

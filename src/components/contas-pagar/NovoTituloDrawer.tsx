@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Trash2, Upload, Download, Calendar, Calculator } from 'lucide-react';
+import { Trash2, Calculator } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -19,6 +18,12 @@ import { DuplicityMatch } from '@/types';
 import { useSupabaseFornecedores } from '@/hooks/useSupabaseFornecedores';
 import { useSupabaseCategoriasN2 } from '@/hooks/useSupabaseCategoriasN2';
 import { useSupabaseTitulosPagar } from '@/hooks/useSupabaseTitulosPagar';
+import { useSupabaseParcelasPagar } from '@/hooks/useSupabaseParcelasPagar';
+import {
+  montarTituloParaInsert,
+  montarParcelasParaInsert,
+  type ParcelaEditavel,
+} from '@/lib/contas-pagar-titulo';
 
 interface NovoTituloDrawerProps {
   open: boolean;
@@ -32,6 +37,7 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
   const { fornecedores, isLoading: loadingFornecedores } = useSupabaseFornecedores();
   const { categorias, isLoading: loadingCategorias } = useSupabaseCategoriasN2();
   const { createTitulo } = useSupabaseTitulosPagar(lojaAtual?.id);
+  const { createParcelas } = useSupabaseParcelasPagar();
   
   const [novoTitulo, setNovoTitulo] = useState({
     fornecedorId: '',
@@ -48,8 +54,7 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
     emissaoISO: new Date().toISOString().split('T')[0]
   });
 
-  const [anexos, setAnexos] = useState<any[]>([]);
-  const [parcelas, setParcelas] = useState<any[]>([]);
+  const [parcelas, setParcelas] = useState<ParcelaEditavel[]>([]);
   
   // Estados para anti-duplicidade
   const [duplicityMatches, setDuplicityMatches] = useState<DuplicityMatch[]>([]);
@@ -135,38 +140,42 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
     salvarTitulo(enviarAprovacao);
   };
 
-  const salvarTitulo = async (enviarAprovacao = false, justificativaDuplicidade?: string) => {
+  /**
+   * `justificativaDuplicidade` não é persistida: titulos_pagar não tem coluna
+   * para ela e o índice anti-duplicidade vive em localStorage. Ver relay 61.
+   */
+  const salvarTitulo = async (enviarAprovacao = false, _justificativaDuplicidade?: string) => {
     if (!lojaAtual?.id) {
       toast.error("Loja não selecionada");
       return;
     }
 
     try {
-      // Construir dados do título
-      const tituloData = {
-        loja_id: lojaAtual.id,
-        fornecedor_id: novoTitulo.fornecedorId,
-        categoria_codigo: novoTitulo.categoriaCodigo,
-        valor_total: parseFloat(novoTitulo.valorTotal),
-        qtd_parcelas: novoTitulo.qtdParcelas,
-        vencimento_inicial: novoTitulo.vencimentoInicial,
-        condicao: novoTitulo.condicao,
-        observacoes: novoTitulo.observacao,
-        doc_tipo: novoTitulo.docTipo,
-        doc_numero: novoTitulo.docNumero,
-        chave_fiscal_44: novoTitulo.chaveFiscal44 || undefined,
-        emissao: novoTitulo.emissaoISO,
-        dup_justificativa: justificativaDuplicidade || undefined,
-        status: enviarAprovacao ? 'AGUARDANDO_APROVACAO' : 'EM_EDICAO',
-        anexos: anexos,
-        timeline: [{
-          ts: new Date().toISOString(),
-          tipo: enviarAprovacao ? 'TITULO_ENVIADO_APROVACAO' : 'TITULO_CRIADO',
-          usuario: typeof currentProfile === 'string' ? currentProfile : 'Admin'
-        }]
-      };
+      // Só colunas reais: valor_total/qtd_parcelas/condicao/doc_*/anexos/
+      // timeline nunca existiram em titulos_pagar (relay 61).
+      const tituloData = montarTituloParaInsert({
+        form: novoTitulo,
+        lojaId: lojaAtual.id,
+        enviarAprovacao,
+      });
 
-      await createTitulo.mutateAsync(tituloData);
+      const tituloCriado = await createTitulo.mutateAsync(tituloData);
+
+      // As parcelas eram só estado de tela: nada era gravado, e o título
+      // nascia sem nenhuma parcela.
+      const linhasParcelas = parcelas.length > 0
+        ? montarParcelasParaInsert(parcelas, tituloCriado.id)
+        : montarParcelasParaInsert(
+            [{
+              id: 'unica',
+              numero: 1,
+              vencimento: novoTitulo.vencimentoInicial || novoTitulo.emissaoISO,
+              valor: parseFloat(novoTitulo.valorTotal) || 0,
+            }],
+            tituloCriado.id
+          );
+
+      await createParcelas.mutateAsync(linhasParcelas);
 
       toast.success(
         enviarAprovacao ? 
@@ -188,7 +197,6 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
         chaveFiscal44: '',
         emissaoISO: new Date().toISOString().split('T')[0]
       });
-      setAnexos([]);
       setParcelas([]);
       setDuplicityMatches([]);
       setPendingSave(null);
@@ -199,21 +207,6 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
       console.error("Erro ao salvar título:", error);
       toast.error(`Erro ao salvar título: ${error.message}`);
     }
-  };
-
-  const adicionarAnexo = (arquivo: File) => {
-    const novoAnexo = {
-      id: `anexo-${Date.now()}`,
-      nome: arquivo.name,
-      tamanho: arquivo.size,
-      tipo: arquivo.type,
-      url: URL.createObjectURL(arquivo) // Mock
-    };
-    setAnexos([...anexos, novoAnexo]);
-  };
-
-  const removerAnexo = (id: string) => {
-    setAnexos(anexos.filter(anexo => anexo.id !== id));
   };
 
   const atualizarValorParcela = (parcelaId: string, novoValor: number) => {
@@ -387,58 +380,6 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
                   rows={3}
                 />
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Anexos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Anexos
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.multiple = true;
-                    input.onchange = (e: any) => {
-                      Array.from(e.target.files).forEach((file: any) => adicionarAnexo(file));
-                    };
-                    input.click();
-                  }}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Adicionar
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {anexos.length > 0 ? (
-                <div className="space-y-2">
-                  {anexos.map(anexo => (
-                    <div key={anexo.id} className="flex items-center justify-between p-2 border rounded">
-                      <div>
-                        <div className="font-medium">{anexo.nome}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {(anexo.tamanho / 1024).toFixed(1)} KB
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removerAnexo(anexo.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhum anexo adicionado
-                </div>
-              )}
             </CardContent>
           </Card>
 

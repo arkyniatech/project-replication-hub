@@ -1,8 +1,8 @@
-// @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TITULOS_PAGAR_SELECT } from "@/lib/contas-pagar-select";
+import { sanitizarTituloPagar } from "@/lib/contas-pagar-payload";
 
 /**
  * Colunas reais de titulos_pagar: id, loja_id, fornecedor_id, numero, valor,
@@ -34,17 +34,6 @@ export interface TituloPagar {
     nome: string;
   };
   parcelas?: any[];
-
-  /**
-   * NÃO EXISTEM em titulos_pagar. Telas (AnexosModal, DetalheTituloDrawer)
-   * foram escritas contra elas e leem/gravam undefined hoje. Mantidas
-   * declaradas para não mascarar o problema atrás de @ts-nocheck: são
-   * feature faltando, não query errada. Ver relay 47 / seção 8.
-   */
-  anexos?: any[];
-  timeline?: any[];
-  valor_total?: number;
-  categoria_codigo?: string;
 }
 
 export const useSupabaseTitulosPagar = (lojaId?: string) => {
@@ -72,9 +61,10 @@ export const useSupabaseTitulosPagar = (lojaId?: string) => {
 
   const createTitulo = useMutation({
     mutationFn: async (titulo: Partial<TituloPagar>) => {
+      // Fronteira única: nada que não seja coluna real chega ao PostgREST.
       const { data, error } = await supabase
         .from("titulos_pagar")
-        .insert([titulo] as any)
+        .insert([sanitizarTituloPagar(titulo) as never])
         .select()
         .single();
 
@@ -95,7 +85,7 @@ export const useSupabaseTitulosPagar = (lojaId?: string) => {
     mutationFn: async ({ id, ...updates }: Partial<TituloPagar> & { id: string }) => {
       const { data, error } = await supabase
         .from("titulos_pagar")
-        .update(updates as any)
+        .update(sanitizarTituloPagar(updates) as never)
         .eq("id", id)
         .select()
         .single();
