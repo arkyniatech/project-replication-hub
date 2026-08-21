@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, Receipt, ArrowRightLeft, BarChart3, Users } from "lucide-react";
+import { LayoutDashboard, Receipt, ArrowRightLeft, BarChart3, Users, Tags } from "lucide-react";
 
 export default function ContasPagarLayout() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -22,6 +22,8 @@ export default function ContasPagarLayout() {
       setActiveTab("dre");
     } else if (path === "/pagar/fornecedores") {
       setActiveTab("fornecedores");
+    } else if (path === "/pagar/categorias") {
+      setActiveTab("categorias");
     }
   }, [location.pathname]);
 
@@ -44,6 +46,9 @@ export default function ContasPagarLayout() {
       case "fornecedores":
         navigate("/pagar/fornecedores");
         break;
+      case "categorias":
+        navigate("/pagar/categorias");
+        break;
     }
   };
 
@@ -59,7 +64,7 @@ export default function ContasPagarLayout() {
 
       {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <LayoutDashboard className="h-4 w-4" />
             Dashboard
@@ -71,6 +76,10 @@ export default function ContasPagarLayout() {
           <TabsTrigger value="fornecedores" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Fornecedores
+          </TabsTrigger>
+          <TabsTrigger value="categorias" className="flex items-center gap-2">
+            <Tags className="h-4 w-4" />
+            Categorias
           </TabsTrigger>
           <TabsTrigger value="transferencias" className="flex items-center gap-2">
             <ArrowRightLeft className="h-4 w-4" />
@@ -93,7 +102,11 @@ export default function ContasPagarLayout() {
         <TabsContent value="fornecedores" className="mt-6">
           <Outlet />
         </TabsContent>
-        
+
+        <TabsContent value="categorias" className="mt-6">
+          <Outlet />
+        </TabsContent>
+
         <TabsContent value="transferencias" className="mt-6">
           <Outlet />
         </TabsContent>
