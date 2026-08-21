@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -17,9 +16,21 @@ export interface CategoriaN2 {
   updated_at: string;
 }
 
+/**
+ * Invalida as duas queries de categorias. Criar/inativar/reativar precisa
+ * refletir tanto no drawer de novo título (ativas) quanto na tela de gestão
+ * (todas) — invalidar só uma deixa a outra lista defasada.
+ */
+const invalidarCategorias = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: ["categorias-n2"] });
+  queryClient.invalidateQueries({ queryKey: ["categorias-n2-todas"] });
+};
+
 export const useSupabaseCategoriasN2 = () => {
   const queryClient = useQueryClient();
 
+  // Só ativas: é a lista que o NovoTituloDrawer e os demais consumidores
+  // usam. Não mude o filtro ativo=true — eles dependem dele.
   const { data: categorias, isLoading, error } = useQuery({
     queryKey: ["categorias-n2"],
     queryFn: async () => {
@@ -28,6 +39,20 @@ export const useSupabaseCategoriasN2 = () => {
         .from("categorias_n2")
         .select(CATEGORIAS_N2_SELECT)
         .eq("ativo", true)
+        .order("nome", { ascending: true });
+
+      if (error) throw error;
+      return data as CategoriaN2[];
+    },
+  });
+
+  // Todas (inclusive inativas): só a tela de gestão consome, para reativar.
+  const { data: categoriasTodas, isLoading: isLoadingTodas, error: errorTodas } = useQuery({
+    queryKey: ["categorias-n2-todas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categorias_n2")
+        .select(CATEGORIAS_N2_SELECT)
         .order("nome", { ascending: true });
 
       if (error) throw error;
@@ -47,7 +72,7 @@ export const useSupabaseCategoriasN2 = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categorias-n2"] });
+      invalidarCategorias(queryClient);
       toast.success("Categoria criada com sucesso!");
     },
     onError: (error: any) => {
@@ -69,7 +94,7 @@ export const useSupabaseCategoriasN2 = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categorias-n2"] });
+      invalidarCategorias(queryClient);
       toast.success("Categoria atualizada com sucesso!");
     },
     onError: (error: any) => {
@@ -78,12 +103,38 @@ export const useSupabaseCategoriasN2 = () => {
     },
   });
 
+  // Soft delete, espelhando deleteFornecedor de useSupabaseFornecedores:
+  // títulos existentes referenciam a categoria por texto, então apagar de
+  // verdade quebraria o histórico.
+  const inativarCategoria = useMutation({
+    mutationFn: async (categoriaId: string) => {
+      const { error } = await supabase
+        .from("categorias_n2")
+        .update({ ativo: false })
+        .eq("id", categoriaId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidarCategorias(queryClient);
+      toast.success("Categoria inativada com sucesso!");
+    },
+    onError: (error: any) => {
+      console.error("Erro ao inativar categoria:", error);
+      toast.error("Erro ao inativar categoria: " + error.message);
+    },
+  });
+
   return {
     categorias: categorias || [],
     isLoading,
     // Exposto para a tela poder mostrar erro em vez de spinner infinito.
     error,
+    categoriasTodas: categoriasTodas || [],
+    isLoadingTodas,
+    errorTodas,
     createCategoria,
     updateCategoria,
+    inativarCategoria,
   };
 };

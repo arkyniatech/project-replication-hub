@@ -241,6 +241,14 @@ const App = () => {
                     })()}
                   </Suspense>
                 } />
+                <Route path="categorias" element={
+                  <Suspense fallback={<div>Carregando...</div>}>
+                    {(() => {
+                      const CategoriasPagar = lazy(() => import("./pages/CategoriasPagar"));
+                      return <CategoriasPagar />;
+                    })()}
+                  </Suspense>
+                } />
                 <Route path="dre" element={<DRE />} />
               </Route>
 
