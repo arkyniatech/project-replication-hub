@@ -177,6 +177,11 @@ export function useSupabaseLogisticaTarefas(filters: TarefasFilters) {
     isLoading: query.isLoading,
     error: query.error,
     updateTarefa: updateMutation.mutate,
+    // Relay 68: a versão `async` existe para quem precisa SABER se a gravação
+    // deu certo antes de falar com o usuário. O Portal do Motorista só pode
+    // dizer "check-in realizado" depois que o UPDATE voltou sem erro — antes
+    // disso ele mentia, com um setTimeout de 1s no lugar da chamada.
+    updateTarefaAsync: updateMutation.mutateAsync,
     createTarefa: createMutation.mutate,
     isUpdating: updateMutation.isPending,
     isCreating: createMutation.isPending,
