@@ -1,8 +1,8 @@
-// @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PARCELAS_PAGAR_SELECT, normalizarParcelaPagar } from "@/lib/contas-pagar-select";
+import { sanitizarParcelaPagar } from "@/lib/contas-pagar-payload";
 
 /**
  * Formato consumido pelas telas. Nem todo campo é coluna de parcelas_pagar —
@@ -35,16 +35,6 @@ export interface ParcelaPagar {
     id?: string;
     numero?: string;
   };
-
-  /**
-   * NÃO EXISTEM em parcelas_pagar. Telas (AnexosModal, CCWizard,
-   * DetalheTituloDrawer) foram escritas contra elas e leem/gravam undefined
-   * hoje. Mantidas declaradas para não mascarar o problema atrás de
-   * @ts-nocheck: são feature faltando, não query errada. Ver relay 47 / seção 8.
-   */
-  anexos?: any[];
-  cc_id?: string;
-  conta_preferencial_id?: string;
 }
 
 interface FetchParcelasParams {
@@ -97,11 +87,37 @@ export const useSupabaseParcelasPagar = (params?: FetchParcelasParams) => {
     },
   });
 
+  /**
+   * As parcelas nunca eram gravadas: o NovoTituloDrawer só as gerava na tela.
+   * Título criado sem parcela deixa a tela de Parcelas vazia (item 8.1).
+   */
+  const createParcelas = useMutation({
+    mutationFn: async (linhas: Record<string, unknown>[]) => {
+      if (linhas.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from("parcelas_pagar")
+        .insert(linhas.map((linha) => sanitizarParcelaPagar(linha)) as never)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parcelas-pagar"] });
+      queryClient.invalidateQueries({ queryKey: ["titulos-pagar"] });
+    },
+    onError: (error: any) => {
+      console.error("Erro ao criar parcelas:", error);
+      toast.error("Erro ao criar parcelas: " + error.message);
+    },
+  });
+
   const updateParcela = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ParcelaPagar> & { id: string }) => {
       const { data, error } = await supabase
         .from("parcelas_pagar")
-        .update(updates as any)
+        .update(sanitizarParcelaPagar(updates) as never)
         .eq("id", id)
         .select()
         .single();
@@ -149,6 +165,7 @@ export const useSupabaseParcelasPagar = (params?: FetchParcelasParams) => {
     isLoading,
     // Exposto para a tela poder mostrar erro em vez de spinner infinito.
     error,
+    createParcelas,
     updateParcela,
     suspenderParcela,
   };

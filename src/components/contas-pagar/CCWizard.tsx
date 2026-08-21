@@ -103,8 +103,9 @@ export function CCWizard({ isOpen, onClose, initialFilters }: CCWizardProps) {
           if (filters.status.length > 0 && !filters.status.includes(p.status)) return false;
           if (filters.categorias.length > 0 && p.categoria_codigo && !filters.categorias.includes(p.categoria_codigo)) return false;
           if (filters.fornecedores.length > 0 && !filters.fornecedores.includes(p.fornecedor_id)) return false;
-          if (onlyWithoutCC && p.cc_id) return false;
-          
+          // Sem filtro por cc_id: parcelas_pagar não tem essa coluna, então
+          // toda parcela conta como "sem centro de custo". Ver relay 61.
+
           const dataVenc = new Date(p.vencimento);
           if (filters.periodo.from && dataVenc < filters.periodo.from) return false;
           if (filters.periodo.to && dataVenc > filters.periodo.to) return false;
@@ -123,7 +124,7 @@ export function CCWizard({ isOpen, onClose, initialFilters }: CCWizardProps) {
             data: p.vencimento,
             categoria: p.categoria_codigo || '',
             fornecedor: p.fornecedor?.nome || '',
-            ccAtual: p.cc_id,
+            ccAtual: undefined,
             ccSugerido,
             valor: p.valor,
             selected: true
@@ -148,26 +149,13 @@ export function CCWizard({ isOpen, onClose, initialFilters }: CCWizardProps) {
       return;
     }
     
-    setIsLoading(true);
-    
-    try {
-      for (const item of selectedItems) {
-        if (item.tipo === 'parcela' && item.ccSugerido) {
-          await updateParcela.mutateAsync({
-            id: item.id,
-            cc_id: item.ccSugerido
-          });
-        }
-      }
-      
-      toast.success(`${selectedItems.length} item(ns) atualizado(s) com sucesso`);
-      onClose();
-    } catch (error) {
-      console.error('Erro ao aplicar alterações:', error);
-      toast.error("Erro ao aplicar alterações");
-    } finally {
-      setIsLoading(false);
-    }
+    // parcelas_pagar não tem coluna cc_id: este update sempre falhou no
+    // PostgREST, apenas com a mensagem crua do erro. Enquanto a coluna não
+    // existir, o wizard avisa em vez de fingir que gravou. Ver relay 61.
+    toast.error('Centro de custo por parcela ainda não é suportado', {
+      description:
+        'A coluna não existe no banco. Nenhuma alteração foi gravada — este passo depende de uma migration.',
+    });
   };
 
   const selectedCount = items.filter(item => item.selected).length;

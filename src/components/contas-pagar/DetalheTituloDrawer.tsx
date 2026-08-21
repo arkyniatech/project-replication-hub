@@ -35,7 +35,6 @@ interface DetalheTituloDrawerProps {
   onClose: () => void;
   tituloId: string | null;
   onEditParcela: (parcelaId: string) => void;
-  onOpenAnexos: (tipo: 'titulo' | 'parcela', id: string) => void;
 }
 
 
@@ -89,9 +88,8 @@ function getParcelaStatusIcon(status: string) {
 export function DetalheTituloDrawer({ 
   open, 
   onClose, 
-  tituloId, 
-  onEditParcela, 
-  onOpenAnexos 
+  tituloId,
+  onEditParcela,
 }: DetalheTituloDrawerProps) {
   const { titulos, updateTitulo, deleteTitulo } = useSupabaseTitulosPagar();
   const { parcelas: parcelasData, suspenderParcela } = useSupabaseParcelasPagar();
@@ -254,9 +252,12 @@ export function DetalheTituloDrawer({
 
           {/* Tabs */}
           <Tabs defaultValue="parcelas" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            {/* Sem aba "Anexos": ela gravava numa coluna `anexos` que nunca
+                existiu, o upload era URL.createObjectURL (morre no reload) e o
+                download era só um toast. O comprovante real vive em
+                movimentos_pagar e aparece na aba Histórico. Ver relay 61. */}
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="parcelas">Parcelas</TabsTrigger>
-              <TabsTrigger value="anexos">Anexos</TabsTrigger>
               <TabsTrigger value="aprovacao">Aprovação</TabsTrigger>
               <TabsTrigger value="historico">Histórico</TabsTrigger>
             </TabsList>
@@ -286,14 +287,15 @@ export function DetalheTituloDrawer({
                     <TableHead className="text-right">Pago</TableHead>
                     <TableHead className="text-right">Saldo</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Conta</TableHead>
+                    {/* Sem coluna "Conta": conta_preferencial_id não existe em
+                        parcelas_pagar, então sempre exibiu "-". Relay 61. */}
                     <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {parcelas.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
                         Nenhuma parcela encontrada
                       </TableCell>
                     </TableRow>
@@ -324,32 +326,20 @@ export function DetalheTituloDrawer({
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm text-muted-foreground">
-                              {parcela.conta_preferencial_id || '-'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
                             <div className="flex items-center gap-1">
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="ghost"
                                 onClick={() => onEditParcela(parcela.id)}
                               >
                                 <Edit3 className="w-3 h-3" />
                               </Button>
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="ghost"
                                 onClick={() => handleSuspenderParcela(parcela.id)}
                               >
                                 <Pause className="w-3 h-3" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="ghost"
-                                onClick={() => onOpenAnexos('parcela', parcela.id)}
-                              >
-                                <Paperclip className="w-3 h-3" />
                               </Button>
                             </div>
                           </TableCell>
@@ -379,41 +369,6 @@ export function DetalheTituloDrawer({
                 <Button variant="outline" onClick={onClose}>
                   Fechar
                 </Button>
-              </div>
-            </TabsContent>
-
-            {/* Aba Anexos */}
-            <TabsContent value="anexos" className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Anexos do Título</h3>
-                <Button onClick={() => onOpenAnexos('titulo', titulo.id)}>
-                  <Paperclip className="w-4 h-4 mr-2" />
-                  Gerenciar Anexos
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {titulo.anexos && Array.isArray(titulo.anexos) && titulo.anexos.length > 0 ? (
-                  titulo.anexos.map((anexo: any) => (
-                    <Card key={anexo.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-8 h-8 text-muted-foreground" />
-                          <div className="flex-1">
-                            <p className="font-medium">{anexo.nome}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {anexo.tamanho ? (anexo.tamanho / 1024).toFixed(1) + ' KB' : 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="col-span-2 text-center py-4 text-muted-foreground">
-                    Nenhum anexo
-                  </div>
-                )}
               </div>
             </TabsContent>
 
@@ -517,28 +472,9 @@ export function DetalheTituloDrawer({
                   ))}
                 </div>
               )}
-
-              <h3 className="text-lg font-semibold">Timeline do Título</h3>
-              
-              <div className="space-y-3">
-                {Array.isArray(titulo.timeline) && titulo.timeline.length > 0 ? (
-                  titulo.timeline.map((item: any, index: number) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-muted rounded">
-                      <div className="flex-1">
-                        <p className="font-medium">{item.descricao || item.tipo}</p>
-                        <p className="text-sm text-muted-foreground">por {item.usuario || 'Sistema'}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(item.timestamp).toLocaleString('pt-BR')}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-2 text-center py-4 text-muted-foreground">
-                    Nenhuma informação de histórico
-                  </div>
-                )}
-              </div>
+              {/* Sem "Timeline do Título": titulos_pagar não tem coluna
+                  `timeline`, então a seção sempre mostrou "Nenhuma informação
+                  de histórico". Ver relay 61. */}
             </TabsContent>
           </Tabs>
         </div>
