@@ -23,8 +23,17 @@ import { supabase } from '@/integrations/supabase/client';
 
 type StatusFilter = 'all' | 'hoje' | 'amanha' | 'semana' | 'mes' | 'atrasadas';
 
+/**
+ * A baixa grava 'QUITADO'/'PARCIAL' (mesmo vocabulário de titulos, no Contas a
+ * Receber). Sem esses casos aqui, a parcela paga cairia no default e apareceria
+ * como "A Vencer" cinza — paga no banco, em aberto na tela.
+ *
+ * 'PAGA' fica reconhecido por compatibilidade: é o valor que a UI comparava
+ * antes e pode existir em linhas antigas.
+ */
 function getStatusColor(status: string) {
   switch (status) {
+    case 'quitado':
     case 'paga':
       return 'text-green-700 bg-green-100';
     case 'vencida':
@@ -40,6 +49,7 @@ function getStatusColor(status: string) {
 
 function getStatusIcon(status: string) {
   switch (status) {
+    case 'quitado':
     case 'paga':
       return <CheckCircle className="w-4 h-4" />;
     case 'vencida':
@@ -55,6 +65,7 @@ function getStatusIcon(status: string) {
 
 function getStatusLabel(status: string) {
   switch (status) {
+    case 'quitado':
     case 'paga':
       return 'Paga';
     case 'vencida':
@@ -63,9 +74,25 @@ function getStatusLabel(status: string) {
       return 'Parcial';
     case 'negociacao':
       return 'Negociação';
+    case 'aberta':
+      return 'Em Aberto';
     default:
       return 'A Vencer';
   }
+}
+
+/**
+ * Uma parcela quitada não pode ser paga de novo — nem pelo botão, nem pelo
+ * "selecionar todas", nem contar nos totais de vencimento.
+ *
+ * Antes a UI comparava contra 'PAGA' em 8 pontos e contra 'paga' em outros 5 —
+ * dois vocabulários, e nenhum dos dois é gravado em lugar nenhum: parcela
+ * nenhuma era excluída de nada. Centralizado aqui para não voltar a divergir, e
+ * case-insensitive porque a coluna é TEXT livre, sem enum e sem CHECK.
+ */
+function isQuitada(status: string | null | undefined) {
+  const s = (status ?? '').toUpperCase();
+  return s === 'QUITADO' || s === 'PAGA';
 }
 
 export default function PagarParcelas() {
@@ -110,15 +137,15 @@ export default function PagarParcelas() {
 
         switch (statusFilter) {
           case 'hoje':
-            return parcela.vencimento === today && parcela.status !== 'paga';
+            return parcela.vencimento === today && !isQuitada(parcela.status);
           case 'amanha':
-            return parcela.vencimento === tomorrow && parcela.status !== 'paga';
+            return parcela.vencimento === tomorrow && !isQuitada(parcela.status);
           case 'semana':
-            return parcela.vencimento <= nextWeek && parcela.vencimento >= today && parcela.status !== 'paga';
+            return parcela.vencimento <= nextWeek && parcela.vencimento >= today && !isQuitada(parcela.status);
           case 'mes':
-            return parcela.vencimento <= nextMonth && parcela.vencimento >= today && parcela.status !== 'paga';
+            return parcela.vencimento <= nextMonth && parcela.vencimento >= today && !isQuitada(parcela.status);
           case 'atrasadas':
-            return parcela.vencimento < today && parcela.status !== 'paga';
+            return parcela.vencimento < today && !isQuitada(parcela.status);
         }
       }
 
@@ -165,7 +192,7 @@ export default function PagarParcelas() {
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const payableParcelas = filteredParcelas
-        .filter(p => p.status !== 'PAGA')
+        .filter(p => !isQuitada(p.status))
         .map(p => p.id);
       setSelectedParcelas(payableParcelas);
     } else {
@@ -197,15 +224,15 @@ export default function PagarParcelas() {
 
     switch (filter) {
       case 'hoje':
-        return parcelas.filter(p => p.vencimento === today && p.status !== 'PAGA').length;
+        return parcelas.filter(p => p.vencimento === today && !isQuitada(p.status)).length;
       case 'amanha':
-        return parcelas.filter(p => p.vencimento === tomorrow && p.status !== 'PAGA').length;
+        return parcelas.filter(p => p.vencimento === tomorrow && !isQuitada(p.status)).length;
       case 'semana':
-        return parcelas.filter(p => p.vencimento <= nextWeek && p.vencimento >= today && p.status !== 'PAGA').length;
+        return parcelas.filter(p => p.vencimento <= nextWeek && p.vencimento >= today && !isQuitada(p.status)).length;
       case 'mes':
-        return parcelas.filter(p => p.vencimento <= nextMonth && p.vencimento >= today && p.status !== 'PAGA').length;
+        return parcelas.filter(p => p.vencimento <= nextMonth && p.vencimento >= today && !isQuitada(p.status)).length;
       case 'atrasadas':
-        return parcelas.filter(p => p.vencimento < today && p.status !== 'PAGA').length;
+        return parcelas.filter(p => p.vencimento < today && !isQuitada(p.status)).length;
       default:
         return parcelas.length;
     }
@@ -428,7 +455,7 @@ export default function PagarParcelas() {
                       <Checkbox
                         checked={selectedParcelas.includes(parcela.id)}
                         onCheckedChange={(checked) => handleSelectParcela(parcela.id, checked as boolean)}
-                        disabled={parcela.status === 'PAGA'}
+                        disabled={isQuitada(parcela.status)}
                       />
                     </TableCell>
                     <TableCell>
@@ -483,7 +510,7 @@ export default function PagarParcelas() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {parcela.status !== 'PAGA' && (
+                        {!isQuitada(parcela.status) && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -552,7 +579,13 @@ export default function PagarParcelas() {
 
       <EditarParcelaModal
         open={showEditarParcela}
-        onClose={() => setShowEditarParcela(false)}
+        // cancelar precisa limpar a seleção igual ao onSuccess: sem isto o
+        // parcelaId continua o mesmo ao reabrir a MESMA parcela, o efeito de
+        // carga não dispara e o modal reabre com os campos editados antes (8.4)
+        onClose={() => {
+          setShowEditarParcela(false);
+          setParcelaSelecionada(null);
+        }}
         parcelaId={parcelaSelecionada}
         onSuccess={() => {
           setShowEditarParcela(false);
