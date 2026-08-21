@@ -46,54 +46,11 @@ export function getCCPadraoParaCategoria(categoriaCodigo: string): string | unde
   return undefined;
 }
 
-export function mapRealByN2AndCC(
-  periodo: string, 
-  lojas: string[], 
-  contas?: string[], 
-  ccIds?: string[]
-): Record<string, Record<string, number>> {
-  // Mock - em produção faria a consulta real nos movimentos
-  const mockData: Record<string, Record<string, number>> = {
-    'A5.01': {
-      'cc1': 15000,
-      'cc2': 13500,
-      'sem_cc': 0
-    },
-    'A5.02': {
-      'cc1': 12000,
-      'cc2': 11400,
-      'sem_cc': 0
-    },
-    'A5.03': {
-      'cc1': 18000,
-      'cc2': 13200,
-      'sem_cc': 0
-    },
-    'A5.04': {
-      'cc1': 9500,
-      'cc2': 9400,
-      'sem_cc': 0
-    },
-    'A5.05': {
-      'cc1': 11000,
-      'cc2': 12430,
-      'sem_cc': 0
-    }
-  };
-  
-  // Filtrar por CC se especificado
-  if (ccIds && ccIds.length > 0) {
-    const filtered: Record<string, Record<string, number>> = {};
-    Object.keys(mockData).forEach(categoria => {
-      filtered[categoria] = {};
-      ccIds.forEach(ccId => {
-        if (mockData[categoria][ccId]) {
-          filtered[categoria][ccId] = mockData[categoria][ccId];
-        }
-      });
-    });
-    return filtered;
-  }
-  
-  return mockData;
-}
+/**
+ * mapRealByN2AndCC foi removida no relay 66. Era um mock inline (`// Mock -
+ * em produção faria a consulta real nos movimentos`) cujos valores foram
+ * fabricados para bater com o outro mock do DRE: 15000 + 13500 = 28500 =
+ * A5.01.real de expensesData. Não lia de tabela nenhuma. A agregação real do
+ * DRE vive em src/lib/dre-agregacao.ts, sem dimensão de centro de custo —
+ * nenhum lançamento financeiro tem cc_id no modelo atual.
+ */

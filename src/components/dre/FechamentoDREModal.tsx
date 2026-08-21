@@ -7,11 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
-import { 
-  getVersionsMeta, 
-  fecharCompetenciaDRE, 
-  formatPeriodoDisplay 
-} from '@/lib/dre-fechamento-utils';
+import { getVersionsMeta, fecharCompetenciaDRE } from '@/lib/dre-fechamento-utils';
+import { formatPeriodoDisplay, type ResultadoDRE } from '@/lib/dre-agregacao';
 import { 
   Calendar, 
   Building2, 
@@ -22,32 +19,34 @@ import {
   TrendingDown
 } from 'lucide-react';
 
+/**
+ * Relay 66: o modal recebia `expensesData` — o mock de DRE.tsx — e o selava em
+ * snapshot, transformando número inventado em registro histórico. Agora recebe
+ * o DRE agregado do banco. Não há mais meta: `budget_metas` não existe, então
+ * as linhas de Meta/Delta saíram junto (ver "Funcionalidades ausentes").
+ */
 interface FechamentoDREModalProps {
   open: boolean;
   onClose: () => void;
   competencia: string;
   lojas: Array<{ id: string; nome: string }>;
-  expensesData: any[];
+  dre: ResultadoDRE;
   onFechamentoComplete: () => void;
 }
 
-export function FechamentoDREModal({ 
-  open, 
-  onClose, 
-  competencia, 
+export function FechamentoDREModal({
+  open,
+  onClose,
+  competencia,
   lojas,
-  expensesData,
-  onFechamentoComplete 
+  dre,
+  onFechamentoComplete
 }: FechamentoDREModalProps) {
   const { toast } = useToast();
   const [selectedVersionMeta, setSelectedVersionMeta] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   const versions = getVersionsMeta();
-  const totalReal = expensesData.reduce((sum, item) => sum + item.real, 0);
-  const totalMeta = expensesData.reduce((sum, item) => sum + item.meta, 0);
-  const deltaTotal = totalReal - totalMeta;
-  const deltaPercentualTotal = totalMeta > 0 ? (deltaTotal / totalMeta) * 100 : 0;
 
   const handleConfirmarFechamento = async () => {
     if (!selectedVersionMeta) {
@@ -65,12 +64,14 @@ export function FechamentoDREModal({
       // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       
+      // As linhas de despesa reais viram as linhas do snapshot. Sem meta:
+      // budget_metas não existe, então meta fica zero e delta idem.
       const { fechamento, snapshot } = fecharCompetenciaDRE(
         competencia,
         lojas.map(l => l.id),
         selectedVersionMeta,
         'admin', // Mock user
-        expensesData
+        dre.despesa.map(l => ({ codigo: l.nome, descricao: l.nome, real: l.valor, meta: 0 }))
       );
 
       toast({
@@ -136,26 +137,23 @@ export function FechamentoDREModal({
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Real</span>
-                    <span className="font-semibold">{formatCurrency(totalReal)}</span>
+                    <span className="text-sm text-muted-foreground">Receita</span>
+                    <span className="font-semibold">{formatCurrency(dre.totalReceita)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total Meta</span>
-                    <span className="font-semibold">{formatCurrency(totalMeta)}</span>
+                    <span className="text-sm text-muted-foreground">Despesa</span>
+                    <span className="font-semibold">{formatCurrency(dre.totalDespesa)}</span>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t">
-                    <span className="text-sm text-muted-foreground">Delta</span>
+                    <span className="text-sm text-muted-foreground">Resultado</span>
                     <div className="flex items-center gap-1">
-                      {deltaTotal >= 0 ? (
-                        <TrendingUp className="w-3 h-3 text-red-500" />
+                      {dre.resultado >= 0 ? (
+                        <TrendingUp className="w-3 h-3 text-green-500" />
                       ) : (
-                        <TrendingDown className="w-3 h-3 text-green-500" />
+                        <TrendingDown className="w-3 h-3 text-red-500" />
                       )}
-                      <span className={`font-semibold ${deltaTotal >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {deltaTotal >= 0 ? '+' : ''}{formatCurrency(deltaTotal)}
-                      </span>
-                      <span className={`text-xs ${deltaTotal >= 0 ? 'text-red-500' : 'text-green-500'}`}>
-                        ({deltaTotal >= 0 ? '+' : ''}{deltaPercentualTotal.toFixed(1)}%)
+                      <span className={`font-semibold ${dre.resultado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(dre.resultado)}
                       </span>
                     </div>
                   </div>
