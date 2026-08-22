@@ -79,6 +79,7 @@ const OSDetalhe = lazy(() => import("./modules/manutencao/pages/OSDetalheNew"));
 const ProdutividadePage = lazy(() => import("./modules/manutencao/pages/ProdutividadePage"));
 const PedidoPecasPage = lazy(() => import("./modules/manutencao/pages/PedidoPecasPage"));
 const PedidosPecasList = lazy(() => import("./modules/manutencao/pages/PedidosPecasList"));
+const ChecklistTemplates = lazy(() => import("./modules/manutencao/pages/ChecklistTemplates"));
 
 // Lazy imports para RH
 const RhModuleLayout = lazy(() => import("./modules/rh/layouts/RhModuleLayout").then(m => ({ default: m.RhModuleLayout })));
@@ -371,6 +372,7 @@ const App = () => {
                 <Route path="produtividade" element={<ProdutividadePage />} />
                 <Route path="pecas" element={<PedidosPecasList />} />
                 <Route path="pecas/:id" element={<PedidoPecasPage />} />
+                <Route path="checklists" element={<ChecklistTemplates />} />
               </Route>
 
               {/* RH */}

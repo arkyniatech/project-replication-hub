@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, Map, TrendingUp, Package, Clock, AlertTriangle, Wrench, CheckCircle, ClipboardList } from 'lucide-react';
+import { BarChart3, Map, TrendingUp, Package, Clock, AlertTriangle, Wrench, CheckCircle, ClipboardList, ListChecks } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const mainTabs = [
@@ -8,6 +8,7 @@ const mainTabs = [
   { value: 'areas', label: 'Áreas', icon: Map, route: '/manutencao/area/amarela' },
   { value: 'produtividade', label: 'Produtividade', icon: TrendingUp, route: '/manutencao/produtividade' },
   { value: 'pedidos', label: 'Pedidos', icon: Package, route: '/manutencao/pecas' },
+  { value: 'checklists', label: 'Checklists', icon: ListChecks, route: '/manutencao/checklists' },
 ];
 
 const areasSubTabs = [
@@ -35,6 +36,7 @@ export default function ManutencaoLayout() {
     if (path === '/manutencao/solicitacoes') return 'solicitacoes';
     if (path.startsWith('/manutencao/area/')) return 'areas';
     if (path === '/manutencao/produtividade') return 'produtividade';
+    if (path === '/manutencao/checklists') return 'checklists';
     if (path.startsWith('/manutencao/pecas') || path.startsWith('/manutencao/os/')) return 'pedidos';
     return 'painel';
   };
@@ -64,7 +66,7 @@ export default function ManutencaoLayout() {
       </div>
 
       <Tabs value={mainTab} onValueChange={handleMainTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           {mainTabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
               <tab.icon className="h-4 w-4" />
