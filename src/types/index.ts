@@ -891,18 +891,8 @@ export interface DuplicityMatch {
   valorTotal: number;
   status: string;
   similarity?: number;
-}
-
-export interface DuplicityFingerprints {
-  fpExact?: string;
-  fpFiscal?: string;
-  fpStrong?: string;
-}
-
-export interface DuplicityIndex {
-  exact: Record<string, string[]>;
-  fiscal: Record<string, string[]>;
-  strong: Record<string, string[]>;
+  /** Relay 70: rotulo legivel do titulo existente ("NF 456"), para nomea-lo na mensagem de erro. */
+  numero?: string;
 }
 
 export interface AntiDuplicityConfig {
@@ -911,7 +901,6 @@ export interface AntiDuplicityConfig {
     chaveFiscal: boolean;
     docNumeroValor: boolean;
     checagemForte: boolean;
-    crossLoja: boolean;
     fuzzyMatching: boolean;
   };
   politica: {
