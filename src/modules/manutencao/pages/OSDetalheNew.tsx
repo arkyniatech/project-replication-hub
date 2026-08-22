@@ -26,6 +26,9 @@ import OSTimeline from "../components/OSTimeline";
 import ChecklistRunner from "../components/ChecklistRunner";
 import { useSupabaseOrdensServico } from "@/hooks/useSupabaseOrdensServico";
 import { useSupabaseEquipamentos } from "@/hooks/useSupabaseEquipamentos";
+import { useSupabaseChecklistTemplates } from "@/hooks/useSupabaseChecklistTemplates";
+import { selecionarTemplate } from "@/lib/checklist-os-utils";
+import type { ChecklistExec } from "../types";
 
 const AREA_CONFIG = {
   AMARELA: { color: "bg-yellow-500", label: "Amarela", icon: Clock },
@@ -50,6 +53,7 @@ export default function OSDetalheNew() {
   const { useOS, moverArea, registrarChecklist, liberarParaVerde } = useSupabaseOrdensServico();
   const { data: os, isLoading: loadingOS } = useOS(id || "");
   const { equipamentos } = useSupabaseEquipamentos();
+  const { templates } = useSupabaseChecklistTemplates();
 
   if (loadingOS) {
     return (
@@ -77,8 +81,16 @@ export default function OSDetalheNew() {
   const prioridadeConfig = PRIORIDADE_CONFIG[os.prioridade as keyof typeof PRIORIDADE_CONFIG];
   const AreaIcon = areaConfig.icon;
 
+  // Template do modelo tem prioridade sobre o genérico; null = nenhum aplicável,
+  // e nesse caso o Runner avisa em vez de mostrar checklist vazio.
+  const template = selecionarTemplate(templates, os.tipo, equipamento?.modelo_id ?? null);
+
   const handleLiberarVerde = () => {
     liberarParaVerde.mutate(os.id);
+  };
+
+  const handleSalvarChecklist = (osId: string, checklist: ChecklistExec) => {
+    registrarChecklist.mutate({ osId, checklist });
   };
 
   const handleMoverArea = (novaArea: string) => {
@@ -277,14 +289,13 @@ export default function OSDetalheNew() {
         </TabsContent>
 
         <TabsContent value="checklist">
-          <Card>
-            <CardHeader>
-              <CardTitle>Checklist</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Checklist em desenvolvimento</p>
-            </CardContent>
-          </Card>
+          <ChecklistRunner
+            osId={os.id}
+            template={template}
+            checklistSalvo={(os.checklist as ChecklistExec | null) ?? null}
+            salvando={registrarChecklist.isPending}
+            onSave={handleSalvarChecklist}
+          />
         </TabsContent>
 
         <TabsContent value="pedido">
