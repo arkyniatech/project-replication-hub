@@ -30,6 +30,13 @@ export const COLUNAS_TITULOS_PAGAR = [
   'created_at',
   'updated_at',
   'created_by',
+  // Relay 70: criadas em 20260821170000_titulos_pagar_anti_duplicidade.sql.
+  // Eram exatamente três dos "campos fantasma" do relay 61 — o formulário já
+  // os coletava e não havia onde gravar. Agora sustentam os dois índices
+  // únicos que impedem a mesma nota de entrar duas vezes.
+  'doc_tipo',
+  'doc_numero',
+  'chave_fiscal_44',
 ] as const;
 
 /** Colunas reais de parcelas_pagar. */

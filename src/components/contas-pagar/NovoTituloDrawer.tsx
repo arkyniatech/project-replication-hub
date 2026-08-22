@@ -13,7 +13,9 @@ import { useMultiunidade } from '@/hooks/useMultiunidade';
 import { usePermissions } from '@/hooks/usePermissions';
 import { formatCurrency } from '@/lib/utils';
 import { DuplicityReviewModal } from './DuplicityReviewModal';
-import { dupSearch, updateDupIndex, getAntiDuplicityConfig } from '@/lib/anti-duplicity-utils';
+import { getAntiDuplicityConfig } from '@/lib/anti-duplicity-utils';
+import { buscarDuplicidades, localizarTituloEmConflito } from '@/lib/anti-duplicidade-consulta';
+import { ehErroDeDuplicidade, mensagemDeDuplicidade } from '@/lib/anti-duplicidade';
 import { DuplicityMatch } from '@/types';
 import { useSupabaseFornecedores } from '@/hooks/useSupabaseFornecedores';
 import { useSupabaseCategoriasN2 } from '@/hooks/useSupabaseCategoriasN2';
@@ -33,7 +35,7 @@ interface NovoTituloDrawerProps {
 
 export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerProps) {
   const { lojaAtual } = useMultiunidade();
-  const { permissions, currentProfile } = usePermissions();
+  const { permissions } = usePermissions();
   const { fornecedores, isLoading: loadingFornecedores } = useSupabaseFornecedores();
   const { categorias, isLoading: loadingCategorias } = useSupabaseCategoriasN2();
   const { createTitulo } = useSupabaseTitulosPagar(lojaAtual?.id);
@@ -93,7 +95,7 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
     setParcelas(novasParcelas);
   };
 
-  const checkDuplicityAndSave = (enviarAprovacao = false) => {
+  const checkDuplicityAndSave = async (enviarAprovacao = false) => {
     // Validações básicas
     if (!novoTitulo.fornecedorId.trim()) {
       toast.error("Fornecedor é obrigatório");
@@ -110,24 +112,16 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
       return;
     }
 
-    // Preparar dados para verificação de duplicidade
-    const tituloData = {
-      id: `temp-${Date.now()}`, // ID temporário
+    // Consulta ao BANCO para poder mostrar QUAL titulo colidiu. Quem decide e
+    // o indice unico (migration 20260821170000): se esta consulta falhar ou
+    // for barrada por RLS, o fluxo segue e o insert e recusado com 23505, que
+    // `salvarTitulo` traduz. Nunca o contrario.
+    const matches = await buscarDuplicidades({
       fornecedorId: novoTitulo.fornecedorId,
       docTipo: novoTitulo.docTipo,
       docNumero: novoTitulo.docNumero,
       chaveFiscal44: novoTitulo.chaveFiscal44,
-      emissaoISO: novoTitulo.emissaoISO,
-      valorTotal: parseFloat(novoTitulo.valorTotal),
-      qtdParcelas: novoTitulo.qtdParcelas,
-      categoriaN2: novoTitulo.categoriaCodigo,
-      unidadeId: lojaAtual?.id || 'loja1',
-      status: 'em_edicao'
-    };
-
-    // Verificar duplicidade
-    const config = getAntiDuplicityConfig();
-    const matches = dupSearch(tituloData, config);
+    });
 
     if (matches.length > 0) {
       setDuplicityMatches(matches);
@@ -136,13 +130,13 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
       return;
     }
 
-    // Se não há duplicidades, salvar diretamente
     salvarTitulo(enviarAprovacao);
   };
 
   /**
-   * `justificativaDuplicidade` não é persistida: titulos_pagar não tem coluna
-   * para ela e o índice anti-duplicidade vive em localStorage. Ver relay 61.
+   * `justificativaDuplicidade` continua sem ser persistida: titulos_pagar nao
+   * tem coluna para ela. Relay 70: ela so alcanca ALERTA, nunca bloqueante —
+   * bloqueante nao tem caminho para gravar, entao nao ha o que justificar.
    */
   const salvarTitulo = async (enviarAprovacao = false, _justificativaDuplicidade?: string) => {
     if (!lojaAtual?.id) {
@@ -205,6 +199,24 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
       onClose();
     } catch (error: any) {
       console.error("Erro ao salvar título:", error);
+
+      // 23505 dos nossos indices: o usuario nao pode receber
+      // `duplicate key value violates unique constraint "idx_..."` depois de
+      // preencher o formulario inteiro. Ele nao ficaria sabendo que a nota ja
+      // existe, nem qual e o titulo anterior — e tentaria de novo mudando um
+      // campo, que e como nasce a duplicata de um centavo de diferenca.
+      if (ehErroDeDuplicidade(error)) {
+        const existente = await localizarTituloEmConflito({
+          fornecedorId: novoTitulo.fornecedorId,
+          docTipo: novoTitulo.docTipo,
+          docNumero: novoTitulo.docNumero,
+          chaveFiscal44: novoTitulo.chaveFiscal44,
+        });
+
+        toast.error(mensagemDeDuplicidade(error, existente));
+        return;
+      }
+
       toast.error(`Erro ao salvar título: ${error.message}`);
     }
   };
@@ -508,7 +520,6 @@ export function NovoTituloDrawer({ open, onClose, onSuccess }: NovoTituloDrawerP
           qtdParcelas: novoTitulo.qtdParcelas,
           categoriaN2: novoTitulo.categoriaCodigo
         }}
-        userProfile={currentProfile || 'financeiro'}
       />
     </Sheet>
   );

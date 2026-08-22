@@ -72,6 +72,17 @@ export function montarTituloParaInsert({
     vencimento: form.vencimentoInicial || form.emissaoISO,
     observacoes: form.observacao || null,
     status: enviarAprovacao ? 'AGUARDANDO_APROVACAO' : 'EM_EDICAO',
+    // Relay 70: as três colunas de identidade do documento. `numero` continua
+    // sendo o rótulo legível ("NF 456"), mas quem decide duplicidade são
+    // estas — texto concatenado não é indexável por fornecedor + tipo +
+    // número, e a chave fiscal se perdia inteira.
+    //
+    // Vazio vira NULL e não string vazia: string vazia entra no índice único e
+    // colide consigo mesma, bloqueando o segundo lançamento sem documento do
+    // mesmo fornecedor.
+    doc_tipo: form.docTipo?.trim() || null,
+    doc_numero: form.docNumero?.trim() || null,
+    chave_fiscal_44: form.chaveFiscal44?.trim() || null,
   });
 }
 

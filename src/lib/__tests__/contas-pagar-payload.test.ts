@@ -28,15 +28,31 @@ describe('sanitização de payload de contas a pagar', () => {
       qtd_parcelas: 3,
       vencimento_inicial: '2026-09-10',
       condicao: 'A prazo',
-      doc_tipo: 'NF',
-      doc_numero: '123',
-      chave_fiscal_44: 'x'.repeat(44),
       dup_justificativa: 'ok',
       anexos: [{ nome: 'a.pdf' }],
       timeline: [{ tipo: 'TITULO_CRIADO' }],
     });
 
     expect(saida).toEqual({ loja_id: 'loja-1', valor: 1000 });
+  });
+
+  it('doc_tipo, doc_numero e chave_fiscal_44 DEIXARAM de ser fantasma', () => {
+    // No relay 61 os três eram descartados aqui, porque não existiam em
+    // titulos_pagar. O relay 70 criou as colunas e os índices únicos que as
+    // usam — passar a gravá-las é o ponto do relay.
+    const saida = sanitizarTituloPagar({
+      loja_id: 'loja-1',
+      doc_tipo: 'NF',
+      doc_numero: '123',
+      chave_fiscal_44: '3'.repeat(44),
+    });
+
+    expect(saida).toEqual({
+      loja_id: 'loja-1',
+      doc_tipo: 'NF',
+      doc_numero: '123',
+      chave_fiscal_44: '3'.repeat(44),
+    });
   });
 
   it('descarta os campos fantasma de parcelas_pagar', () => {
@@ -129,6 +145,46 @@ describe('montarTituloParaInsert', () => {
     });
 
     expect(String(payload.numero)).toContain('456');
+  });
+
+  it('grava doc_tipo e doc_numero nas colunas proprias, nao so em `numero`', () => {
+    // Relay 70: `numero` continua sendo o rótulo que o usuário lê ("NF 456"),
+    // mas a duplicidade é decidida pelas colunas próprias — texto concatenado
+    // não é indexável por fornecedor + tipo + número.
+    const payload = montarTituloParaInsert({
+      form,
+      lojaId: 'loja-1',
+      enviarAprovacao: false,
+    });
+
+    expect(payload.doc_tipo).toBe('NF');
+    expect(payload.doc_numero).toBe('456');
+  });
+
+  it('grava a chave fiscal, que antes se perdia inteira', () => {
+    const chave = '35260812345678000199550010000012341000012345';
+    const payload = montarTituloParaInsert({
+      form: { ...form, chaveFiscal44: chave },
+      lojaId: 'loja-1',
+      enviarAprovacao: false,
+    });
+
+    expect(payload.chave_fiscal_44).toBe(chave);
+  });
+
+  it('documento em branco vira null, nao string vazia', () => {
+    // String vazia entraria no índice único e colidiria consigo mesma,
+    // bloqueando o segundo lançamento sem documento do mesmo fornecedor. O
+    // WHERE parcial do índice cobre isso no banco; aqui a gente não gera o
+    // caso, em vez de depender dele.
+    const payload = montarTituloParaInsert({
+      form: { ...form, docNumero: '   ', chaveFiscal44: '' },
+      lojaId: 'loja-1',
+      enviarAprovacao: false,
+    });
+
+    expect(payload.doc_numero).toBeNull();
+    expect(payload.chave_fiscal_44).toBeNull();
   });
 });
 

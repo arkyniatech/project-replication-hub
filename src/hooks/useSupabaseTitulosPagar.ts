@@ -2,12 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TITULOS_PAGAR_SELECT } from "@/lib/contas-pagar-select";
+import { ehErroDeDuplicidade } from "@/lib/anti-duplicidade";
 import { sanitizarTituloPagar } from "@/lib/contas-pagar-payload";
 
 /**
  * Colunas reais de titulos_pagar: id, loja_id, fornecedor_id, numero, valor,
  * pago, saldo, emissao, vencimento, status, categoria, subcategoria,
- * observacoes, created_at, updated_at, created_by.
+ * observacoes, created_at, updated_at, created_by e — desde o relay 70 —
+ * doc_tipo, doc_numero, chave_fiscal_44.
  *
  * `categoria` é TEXT livre — não há categoria_id nem relação com categorias_n2.
  * Não existem `ativo`, `doc_numero`, `qtd_parcelas`, `valor_total`.
@@ -77,6 +79,11 @@ export const useSupabaseTitulosPagar = (lojaId?: string) => {
     },
     onError: (error: any) => {
       console.error("Erro ao criar título:", error);
+      // Relay 70: violacao dos indices de anti-duplicidade e traduzida por
+      // quem tem o formulario em maos (NovoTituloDrawer), que consegue nomear
+      // o titulo ja existente. Emitir aqui tambem mostraria dois toasts, um
+      // deles com a mensagem crua do Postgres.
+      if (ehErroDeDuplicidade(error)) return;
       toast.error("Erro ao criar título: " + error.message);
     },
   });

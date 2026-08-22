@@ -1,3 +1,17 @@
+/**
+ * Relay 70 — revisao de duplicidade, INFORMATIVA.
+ *
+ * Este modal nunca abriu em producao ate agora: quem o acionava era o
+ * `dupSearch`, que percorria um indice em localStorage jamais preenchido e
+ * retornava [] em toda execucao. As 379 linhas originais — com alcada por
+ * valor, justificativa obrigatoria e botao "Forcar Mesmo Assim" — nunca
+ * executaram uma vez.
+ *
+ * Agora ele mostra o que colidiu e NAO oferece saida. A decisao vive no indice
+ * unico do banco (migration 20260821170000): manter um botao de forcar seria
+ * prometer o que a constraint recusa, e o usuario descobriria isso so depois
+ * de escrever a justificativa.
+ */
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,7 +21,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertTriangle, AlertCircle, Info, ExternalLink, FileText } from 'lucide-react';
 import { DuplicityMatch, AntiDuplicityConfig } from '@/types';
-import { canForceDuplicity } from '@/lib/anti-duplicity-utils';
 
 interface DuplicityReviewModalProps {
   open: boolean;
@@ -16,7 +29,6 @@ interface DuplicityReviewModalProps {
   matches: DuplicityMatch[];
   config: AntiDuplicityConfig;
   tituloAtual: any;
-  userProfile: string;
 }
 
 export function DuplicityReviewModal({
@@ -26,7 +38,6 @@ export function DuplicityReviewModal({
   matches,
   config,
   tituloAtual,
-  userProfile
 }: DuplicityReviewModalProps) {
   const [justificativa, setJustificativa] = useState('');
   const [showComparison, setShowComparison] = useState<string | null>(null);
@@ -37,8 +48,11 @@ export function DuplicityReviewModal({
   const informativos = matches.filter(m => m.tipo === 'INFO');
 
   const hasBloqueantes = bloqueantes.length > 0;
-  const needsJustification = hasBloqueantes || (alertas.length > 0 && config.politica.alertas === 'justificar');
-  const canForce = hasBloqueantes && canForceDuplicity(tituloAtual.valorTotal, userProfile);
+  // Justificativa so faz sentido onde ainda ha o que decidir: o alerta nao e
+  // barrado pelo banco. Bloqueante nao pede justificativa porque nao ha o que
+  // justificar — nao existe caminho para gravar.
+  const needsJustification =
+    !hasBloqueantes && alertas.length > 0 && config.politica.alertas === 'justificar';
 
   const getTipoIcon = (tipo: DuplicityMatch['tipo']) => {
     switch (tipo) {
@@ -333,41 +347,23 @@ export function DuplicityReviewModal({
 
         <div className="flex justify-between pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
-            Cancelar
+            {hasBloqueantes ? 'Voltar e corrigir' : 'Cancelar'}
           </Button>
-          
+
           <div className="flex gap-2">
-            {hasBloqueantes && canForce && (
-              <Button 
-                variant="destructive"
-                onClick={handleConfirm}
-                disabled={needsJustification && !justificativa.trim()}
-              >
-                Forçar Mesmo Assim
-              </Button>
-            )}
-            
+            {/*
+              Bloqueante nao tem botao de prosseguir. O indice unico do banco
+              vai recusar o insert de qualquer forma: oferecer o botao so faria
+              o usuario preencher uma justificativa e receber o erro depois.
+            */}
             {!hasBloqueantes && (
               <>
-                {config.politica.alertas === 'justificar' && alertas.length > 0 ? (
-                  <Button 
-                    onClick={handleConfirm}
-                    disabled={!justificativa.trim()}
-                  >
+                {needsJustification ? (
+                  <Button onClick={handleConfirm} disabled={!justificativa.trim()}>
                     Salvar com Justificativa
                   </Button>
                 ) : (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => onConfirm()}
-                    >
-                      Marcar como Revisado
-                    </Button>
-                    <Button onClick={() => onConfirm()}>
-                      Prosseguir
-                    </Button>
-                  </>
+                  <Button onClick={() => onConfirm()}>Prosseguir</Button>
                 )}
               </>
             )}
